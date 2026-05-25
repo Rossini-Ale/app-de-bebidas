@@ -10,13 +10,13 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { nome, emoji, preco, estoque, estoque_minimo } = req.body;
+  const { nome, emoji, preco, custo, estoque, estoque_minimo } = req.body;
   if (!nome || preco == null || estoque == null)
     return res.status(400).json({ error: 'nome, preco e estoque são obrigatórios' });
   try {
     const [result] = await db.query(
-      'INSERT INTO produtos (nome, emoji, preco, estoque, estoque_minimo) VALUES (?, ?, ?, ?, ?)',
-      [nome, emoji || '🍺', preco, estoque, estoque_minimo || 5]
+      'INSERT INTO produtos (nome, emoji, preco, custo, estoque, estoque_minimo) VALUES (?, ?, ?, ?, ?, ?)',
+      [nome, emoji || '🍺', preco, custo || 0, estoque, estoque_minimo || 5]
     );
     const [rows] = await db.query('SELECT * FROM produtos WHERE id = ?', [result.insertId]);
     res.status(201).json(rows[0]);
@@ -36,11 +36,11 @@ router.patch('/:id/estoque', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { nome, emoji, preco, estoque, estoque_minimo } = req.body;
+  const { nome, emoji, preco, custo, estoque, estoque_minimo } = req.body;
   try {
     await db.query(
-      'UPDATE produtos SET nome=?, emoji=?, preco=?, estoque=?, estoque_minimo=? WHERE id=?',
-      [nome, emoji, preco, estoque, estoque_minimo, req.params.id]
+      'UPDATE produtos SET nome=?, emoji=?, preco=?, custo=?, estoque=?, estoque_minimo=? WHERE id=?',
+      [nome, emoji, preco, custo || 0, estoque, estoque_minimo, req.params.id]
     );
     const [rows] = await db.query('SELECT * FROM produtos WHERE id = ?', [req.params.id]);
     res.json(rows[0]);

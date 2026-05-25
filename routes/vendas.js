@@ -12,13 +12,35 @@ router.get('/', async (req, res) => {
 router.get('/resumo', async (req, res) => {
   try {
     const [[r]] = await db.query(`
-      SELECT COUNT(*) as total_vendas,
-        COALESCE(SUM(total), 0) as total_arrecadado,
-        COALESCE(SUM(itens_count), 0) as total_itens,
-        COALESCE(AVG(total), 0) as ticket_medio
-      FROM vendas
+      SELECT
+        COUNT(DISTINCT v.id) as total_vendas,
+        COALESCE(SUM(v.total), 0) as total_arrecadado,
+        COALESCE(SUM(v.itens_count), 0) as total_itens,
+        COALESCE(AVG(v.total), 0) as ticket_medio,
+        COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as total_lucro
+      FROM vendas v
+      LEFT JOIN venda_itens vi ON vi.venda_id = v.id
+      LEFT JOIN produtos p ON vi.produto_id = p.id
     `);
     res.json(r);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/relatorio', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT
+        p.id, p.nome, p.emoji, p.preco, p.custo,
+        COALESCE(SUM(vi.quantidade), 0) as qtd_vendida,
+        COALESCE(SUM(vi.quantidade * vi.preco_unitario), 0) as receita,
+        COALESCE(SUM(vi.quantidade * p.custo), 0) as custo_total,
+        COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as lucro
+      FROM produtos p
+      LEFT JOIN venda_itens vi ON vi.produto_id = p.id
+      GROUP BY p.id
+      ORDER BY qtd_vendida DESC, p.nome ASC
+    `);
+    res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

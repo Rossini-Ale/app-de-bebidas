@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bar do Evento 🍺</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-left">
+        <h1>🍺 Bar do Evento</h1>
+        <p id="status-conexao" class="status-ok">● Online</p>
+      </div>
+      <button class="btn-refresh" onclick="carregarTudo()">↺ Atualizar</button>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab active" onclick="showTab('venda', this)">🛒 Venda</button>
+      <button class="tab" onclick="showTab('estoque', this)">📦 Estoque</button>
+      <button class="tab" onclick="showTab('historico', this)">📋 Histórico</button>
+    </nav>
+
+    <div id="tab-venda" class="section active">
+      <div class="metrics">
+        <div class="metric"><div class="label">Vendas</div><div class="value" id="m-vendas">—</div></div>
+        <div class="metric"><div class="label">Total arrecadado</div><div class="value" id="m-total">—</div></div>
+        <div class="metric"><div class="label">Itens vendidos</div><div class="value" id="m-itens">—</div></div>
+      </div>
+      <div class="venda-grid">
+        <div>
+          <p class="section-label">Toque para adicionar</p>
+          <div id="venda-lista"><div class="loading">Carregando...</div></div>
+        </div>
+        <div>
+          <p class="section-label">Pedido atual</p>
+          <div id="carrinho-empty" class="empty-state">🛒<br/>Nenhum item</div>
+          <div id="carrinho-itens"></div>
+          <div id="carrinho-footer" class="carrinho-footer" style="display:none;">
+            <div class="total-row"><span>Total</span><strong id="carrinho-total">R$ 0,00</strong></div>
+            <button class="btn-primary green" onclick="finalizarVenda()">✓ Finalizar venda</button>
+            <button class="btn-secondary" onclick="limparCarrinho()">Limpar pedido</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-estoque" class="section">
+      <div class="metrics" style="grid-template-columns:1fr 1fr;">
+        <div class="metric"><div class="label">Produtos</div><div class="value" id="m-produtos">—</div></div>
+        <div class="metric"><div class="label">Alertas</div><div class="value danger" id="m-alertas">—</div></div>
+      </div>
+      <div id="stock-list"><div class="loading">Carregando...</div></div>
+      <div class="card-form">
+        <h3>+ Adicionar produto</h3>
+        <div class="form-row three">
+          <input id="new-name" class="input" placeholder="Nome" type="text" />
+          <input id="new-price" class="input" placeholder="Preço R$" type="number" min="0" step="0.5" />
+          <input id="new-qty" class="input" placeholder="Qtd." type="number" min="0" />
+        </div>
+        <div class="form-row two">
+          <input id="new-emoji" class="input" placeholder="Emoji (ex: 🍺)" type="text" />
+          <input id="new-alert" class="input" placeholder="Alerta mínimo" type="number" min="0" />
+        </div>
+        <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
+      </div>
+    </div>
+
+    <div id="tab-historico" class="section">
+      <div class="metrics">
+        <div class="metric"><div class="label">Vendas</div><div class="value" id="h-vendas">—</div></div>
+        <div class="metric"><div class="label">Total</div><div class="value" id="h-total">—</div></div>
+        <div class="metric"><div class="label">Ticket médio</div><div class="value" id="h-ticket">—</div></div>
+      </div>
+      <div id="historico-lista"><div class="loading">Carregando...</div></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/js/app.js"></script>
+</body>
+</html>

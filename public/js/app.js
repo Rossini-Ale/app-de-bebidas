@@ -1,5 +1,5 @@
 const API = '';
-let produtos = [], carrinho = [];
+let produtos = [], carrinho = [], editingId = null;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -105,6 +105,24 @@ function renderEstoque() {
     return;
   }
   l.innerHTML = produtos.map(p => {
+    if (editingId === p.id) {
+      return `<div class="stock-item editing">
+        <div class="stock-edit-header">
+          <div class="stock-avatar" style="background:${avatarColor(p.nome)}">${p.nome[0].toUpperCase()}</div>
+          <span>Editando produto</span>
+        </div>
+        <div class="stock-edit-grid">
+          <input class="input input-sm" id="edit-nome-${p.id}" value="${p.nome}" placeholder="Nome" type="text" style="grid-column:1/-1" />
+          <input class="input input-sm" id="edit-preco-${p.id}" value="${p.preco}" placeholder="Preço R$" type="number" min="0" step="0.5" />
+          <input class="input input-sm" id="edit-custo-${p.id}" value="${p.custo}" placeholder="Custo R$" type="number" min="0" step="0.5" />
+          <input class="input input-sm" id="edit-alerta-${p.id}" value="${p.estoque_minimo}" placeholder="Alerta mínimo" type="number" min="0" />
+        </div>
+        <div class="stock-edit-actions">
+          <button class="btn-save" onclick="salvarEdicao(${p.id})">✓ Salvar</button>
+          <button class="btn-cancel-inline" onclick="cancelarEdicao()">Cancelar</button>
+        </div>
+      </div>`;
+    }
     const low = p.estoque <= p.estoque_minimo;
     const margem = p.custo > 0 ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null;
     return `<div class="stock-item">
@@ -113,6 +131,10 @@ function renderEstoque() {
         <div class="stock-name">${p.nome}${low ? '<span class="badge-low">estoque baixo</span>' : ''}</div>
         <div class="stock-sub">Venda ${fmt(p.preco)} · Custo ${fmt(p.custo)} · alerta em ${p.estoque_minimo} un.</div>
         ${margem !== null ? `<div class="stock-margin">Margem: ${margem}%</div>` : ''}
+        <div class="stock-actions">
+          <button class="stock-act-btn edit" onclick="editarProduto(${p.id})">✏ Editar</button>
+          <button class="stock-act-btn del" onclick="excluirProduto(${p.id}, this)">Excluir</button>
+        </div>
       </div>
       <div class="stock-qty">
         <button class="qty-btn" onclick="ajustarEstoque(${p.id}, -1)">−</button>
@@ -121,6 +143,65 @@ function renderEstoque() {
       </div>
     </div>`;
   }).join('');
+}
+
+function editarProduto(id) {
+  editingId = id;
+  renderEstoque();
+  document.getElementById(`edit-nome-${id}`)?.focus();
+}
+
+function cancelarEdicao() {
+  editingId = null;
+  renderEstoque();
+}
+
+async function salvarEdicao(id) {
+  const nome = document.getElementById(`edit-nome-${id}`).value.trim();
+  const preco = parseFloat(document.getElementById(`edit-preco-${id}`).value);
+  const custo = parseFloat(document.getElementById(`edit-custo-${id}`).value) || 0;
+  const estoque_minimo = parseInt(document.getElementById(`edit-alerta-${id}`).value) || 5;
+  if (!nome || isNaN(preco)) { showToast('⚠ Preencha nome e preço', 'error-toast'); return; }
+  const p = produtos.find(x => x.id === id);
+  try {
+    const updated = await apiFetch(`/produtos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo })
+    });
+    const i = produtos.findIndex(x => x.id === id);
+    if (i >= 0) produtos[i] = updated;
+    editingId = null;
+    renderEstoque();
+    renderVenda();
+    showToast('✓ ' + nome + ' atualizado!', 'green-toast');
+  } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
+}
+
+async function excluirProduto(id, btn) {
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    btn.textContent = 'Confirmar?';
+    btn._timer = setTimeout(() => {
+      btn.classList.remove('confirming');
+      btn.textContent = 'Excluir';
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn._timer);
+  btn.textContent = '…';
+  btn.disabled = true;
+  try {
+    await apiFetch(`/produtos/${id}`, { method: 'DELETE' });
+    produtos = produtos.filter(p => p.id !== id);
+    renderEstoque();
+    renderVenda();
+    showToast('Produto removido', 'green-toast');
+  } catch (e) {
+    showToast('Erro: ' + e.message, 'error-toast');
+    btn.classList.remove('confirming');
+    btn.textContent = 'Excluir';
+    btn.disabled = false;
+  }
 }
 
 async function ajustarEstoque(id, delta) {

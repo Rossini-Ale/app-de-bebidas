@@ -269,6 +269,57 @@ button { touch-action: manipulation; }
 .stock-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .stock-margin { font-size: 11px; color: var(--green); font-weight: 600; margin-top: 2px; }
 .badge-low { font-size: 10px; background: #FEF2F2; color: var(--red); padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600; }
+.stock-actions { display: flex; gap: 6px; margin-top: 7px; }
+.stock-act-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1px solid var(--border-s);
+  background: var(--bg-sec);
+  color: var(--muted);
+  transition: all .12s;
+  min-height: 32px;
+}
+.stock-act-btn.edit:hover, .stock-act-btn.edit:active { border-color: var(--amber); color: var(--amber-d); background: #FFFBF0; }
+.stock-act-btn.del:hover, .stock-act-btn.del:active { border-color: var(--red); color: var(--red); background: #FEF2F2; }
+.stock-act-btn.del.confirming { background: var(--red); color: #fff; border-color: var(--red); }
+
+/* MODO EDIÇÃO INLINE */
+.stock-item.editing { flex-direction: column; align-items: stretch; gap: 10px; }
+.stock-edit-header { display: flex; align-items: center; gap: 10px; }
+.stock-edit-header span { font-size: 13px; font-weight: 600; color: var(--muted); }
+.stock-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.input-sm { padding: 8px 10px; font-size: 14px; min-height: 40px; }
+.stock-edit-actions { display: flex; gap: 8px; }
+.btn-save {
+  flex: 1;
+  padding: 10px;
+  background: var(--amber);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 44px;
+}
+.btn-save:hover, .btn-save:active { background: var(--amber-d); }
+.btn-cancel-inline {
+  flex: 1;
+  padding: 10px;
+  background: var(--bg-sec);
+  color: var(--muted);
+  border: 1px solid var(--border-s);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 44px;
+}
 .stock-qty { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .qty-btn {
   width: 36px;

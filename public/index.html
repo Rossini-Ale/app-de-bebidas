@@ -20,10 +20,10 @@
     </header>
 
     <nav class="tabs">
-      <button class="tab active" onclick="showTab('venda', this)">🛒 Venda</button>
-      <button class="tab" onclick="showTab('estoque', this)">📦 Estoque</button>
-      <button class="tab" onclick="showTab('relatorio', this)">📊 Relatório</button>
-      <button class="tab" onclick="showTab('historico', this)">📋 Histórico</button>
+      <button class="tab active" data-tab="venda" onclick="showTab('venda')">🛒 Venda</button>
+      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">📦 Estoque</button>
+      <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">📊 Relatório</button>
+      <button class="tab" data-tab="historico" onclick="showTab('historico')">📋 Histórico</button>
     </nav>
 
     <!-- ABA VENDA -->
@@ -130,6 +130,32 @@
       </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>
+  </div>
+
+  <!-- NAVEGAÇÃO INFERIOR (mobile) -->
+  <nav id="bottom-nav">
+    <button class="bnav-tab active" data-tab="venda" onclick="showTab('venda')">
+      <span class="bnav-icon">🛒</span>
+      <span class="bnav-label">Venda</span>
+    </button>
+    <button class="bnav-tab" data-tab="estoque" onclick="showTab('estoque')">
+      <span class="bnav-icon">📦</span>
+      <span class="bnav-label">Estoque</span>
+    </button>
+    <button class="bnav-tab" data-tab="relatorio" onclick="showTab('relatorio')">
+      <span class="bnav-icon">📊</span>
+      <span class="bnav-label">Relatório</span>
+    </button>
+    <button class="bnav-tab" data-tab="historico" onclick="showTab('historico')">
+      <span class="bnav-icon">📋</span>
+      <span class="bnav-label">Histórico</span>
+    </button>
+  </nav>
+
+  <!-- BARRA FLUTUANTE DO CARRINHO (mobile) -->
+  <div id="cart-bar">
+    <div id="cart-bar-info"></div>
+    <button id="cart-bar-btn" onclick="finalizarVenda()">✓ Finalizar</button>
   </div>
 
   <div class="toast" id="toast"></div>

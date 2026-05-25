@@ -25,15 +25,16 @@ function showToast(msg, tipo = '') {
   t._t = setTimeout(() => { t.className = 'toast'; }, 2800);
 }
 
-function showTab(tab, btn) {
+function showTab(tab) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab, .bnav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
-  btn.classList.add('active');
+  document.querySelectorAll(`[data-tab="${tab}"]`).forEach(t => t.classList.add('active'));
   if (tab === 'estoque') renderEstoque();
   if (tab === 'historico') carregarHistorico();
   if (tab === 'relatorio') carregarRelatorio();
   if (tab === 'venda') { carregarProdutos(); carregarResumo(); }
+  atualizarCartBar();
 }
 
 async function apiFetch(path, opts = {}) {
@@ -195,6 +196,24 @@ function removeAllCarrinho(id) {
 
 function limparCarrinho() { carrinho = []; renderCarrinho(); }
 
+function atualizarCartBar() {
+  const bar = document.getElementById('cart-bar');
+  const isVenda = document.getElementById('tab-venda').classList.contains('active');
+  if (!bar) return;
+  if (!carrinho.length || !isVenda) {
+    bar.classList.remove('visible');
+    return;
+  }
+  const totalItens = carrinho.reduce((s, c) => s + c.qty, 0);
+  const total = carrinho.reduce((s, c) => {
+    const p = produtos.find(x => x.id === c.id);
+    return s + p.preco * c.qty;
+  }, 0);
+  document.getElementById('cart-bar-info').textContent =
+    `🛒 ${totalItens} ${totalItens === 1 ? 'item' : 'itens'} · ${fmt(total)}`;
+  bar.classList.add('visible');
+}
+
 function renderCarrinho() {
   const itEl = document.getElementById('carrinho-itens');
   const emEl = document.getElementById('carrinho-empty');
@@ -224,6 +243,7 @@ function renderCarrinho() {
   const total = carrinho.reduce((s, c) => { const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty; }, 0);
   document.getElementById('carrinho-total').textContent = fmt(total);
   renderVenda();
+  atualizarCartBar();
 }
 
 async function finalizarVenda() {

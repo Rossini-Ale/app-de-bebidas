@@ -240,6 +240,37 @@ async function finalizarVenda() {
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
+async function deletarVenda(id, btn) {
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    btn.textContent = 'Confirmar?';
+    btn._timer = setTimeout(() => {
+      btn.classList.remove('confirming');
+      btn.textContent = '🗑 Excluir';
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn._timer);
+  btn.textContent = '…';
+  btn.disabled = true;
+  try {
+    await apiFetch(`/vendas/${id}`, { method: 'DELETE' });
+    document.getElementById(`hist-${id}`)?.remove();
+    await carregarProdutos();
+    await carregarResumo();
+    showToast('Venda removida', 'green-toast');
+    const lista = document.getElementById('historico-lista');
+    if (!lista.querySelector('.historico-item')) {
+      lista.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>';
+    }
+  } catch (e) {
+    showToast('Erro: ' + e.message, 'error-toast');
+    btn.classList.remove('confirming');
+    btn.textContent = '🗑 Excluir';
+    btn.disabled = false;
+  }
+}
+
 async function carregarResumo() {
   try {
     const r = await apiFetch('/vendas/resumo');
@@ -319,13 +350,16 @@ async function carregarHistorico() {
       return;
     }
     l.innerHTML = v.map((venda, i) => `
-      <div class="historico-item">
+      <div class="historico-item" id="hist-${venda.id}">
         <span class="hist-num">#${v.length - i}</span>
         <div class="hist-info">
           <div class="hist-desc">${venda.descricao}</div>
           <div class="hist-hora">${fmtDataHora(venda.criado_em)}</div>
         </div>
-        <span class="hist-total">${fmt(venda.total)}</span>
+        <div class="hist-right">
+          <span class="hist-total">${fmt(venda.total)}</span>
+          <button class="hist-del" onclick="deletarVenda(${venda.id}, this)">🗑 Excluir</button>
+        </div>
       </div>`).join('');
   } catch (e) {
     l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`;

@@ -4,6 +4,11 @@ let produtos = [], carrinho = [];
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
 
+const AVATAR_COLORS = ['#D97706','#059669','#0284C7','#7C3AED','#DB2777','#0891B2','#65A30D','#DC2626'];
+function avatarColor(nome) {
+  return AVATAR_COLORS[(nome || ' ').toUpperCase().charCodeAt(0) % AVATAR_COLORS.length];
+}
+
 function parseDataUTC(str) {
   const s = String(str);
   if (s.includes('Z') || /[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s);
@@ -81,7 +86,7 @@ function renderVenda() {
     const onclick = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
     return `<div class="${classes}" ${onclick}>
       ${badge}
-      <div class="pc-emoji">${p.emoji}</div>
+      <div class="pc-avatar" style="background:${avatarColor(p.nome)}">${p.nome[0].toUpperCase()}</div>
       <div class="pc-nome">${p.nome}</div>
       <div class="pc-preco">${fmt(p.preco)}</div>
       <div class="pc-stock">${stockLabel}</div>
@@ -103,7 +108,7 @@ function renderEstoque() {
     const low = p.estoque <= p.estoque_minimo;
     const margem = p.custo > 0 ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null;
     return `<div class="stock-item">
-      <div class="stock-emoji">${p.emoji}</div>
+      <div class="stock-avatar" style="background:${avatarColor(p.nome)}">${p.nome[0].toUpperCase()}</div>
       <div class="stock-info">
         <div class="stock-name">${p.nome}${low ? '<span class="badge-low">estoque baixo</span>' : ''}</div>
         <div class="stock-sub">Venda ${fmt(p.preco)} · Custo ${fmt(p.custo)} · alerta em ${p.estoque_minimo} un.</div>
@@ -151,16 +156,15 @@ async function addProduto() {
   const preco = parseFloat(document.getElementById('new-price').value);
   const custo = parseFloat(document.getElementById('new-cost').value) || 0;
   const estoque = parseInt(document.getElementById('new-qty').value);
-  const emoji = document.getElementById('new-emoji').value.trim() || '🍺';
   const estoque_minimo = parseInt(document.getElementById('new-alert').value) || 5;
   if (!nome || isNaN(preco) || isNaN(estoque)) {
     showToast('⚠ Preencha nome, preço e quantidade', 'error-toast');
     return;
   }
   try {
-    const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, emoji, preco, custo, estoque, estoque_minimo }) });
+    const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, preco, custo, estoque, estoque_minimo }) });
     produtos.push(novo);
-    ['new-name', 'new-price', 'new-cost', 'new-qty', 'new-emoji', 'new-alert'].forEach(id => {
+    ['new-name', 'new-price', 'new-cost', 'new-qty', 'new-alert'].forEach(id => {
       document.getElementById(id).value = '';
     });
     document.getElementById('margin-hint').textContent = 'Margem: —';
@@ -230,7 +234,7 @@ function renderCarrinho() {
   itEl.innerHTML = carrinho.map(c => {
     const p = produtos.find(x => x.id === c.id);
     return `<div class="carrinho-item">
-      <span class="ci-name">${p.emoji} ${p.nome}</span>
+      <span class="ci-name">${p.nome}</span>
       <div class="ci-controls">
         <button class="ci-ctrl" onclick="removeCarrinho(${c.id})">−</button>
         <span class="ci-qty-val">${c.qty}</span>
@@ -331,7 +335,7 @@ async function carregarRelatorio() {
       const isNeg = lucro < 0;
       return `<div class="relatorio-item">
         <div class="rel-header">
-          <span class="rel-emoji">${item.emoji}</span>
+          <div class="rel-avatar" style="background:${avatarColor(item.nome)}">${item.nome[0].toUpperCase()}</div>
           <span class="rel-nome">${item.nome}</span>
           <span class="rel-qtd">${item.qtd_vendida} vendidos</span>
         </div>

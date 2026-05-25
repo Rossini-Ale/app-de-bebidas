@@ -10,23 +10,37 @@
   <div class="app">
     <header class="header">
       <div class="header-left">
-        <h1>🍺 Bar do Evento</h1>
-        <p id="status-conexao" class="status-ok">● Online</p>
+        <div class="header-logo">🍺</div>
+        <div>
+          <h1>Bar do Evento</h1>
+          <p id="status-conexao" class="status-ok">● Online</p>
+        </div>
       </div>
-      <button class="btn-refresh" onclick="carregarTudo()">↺ Atualizar</button>
+      <button class="btn-refresh" onclick="carregarTudo()">↺</button>
     </header>
 
     <nav class="tabs">
       <button class="tab active" onclick="showTab('venda', this)">🛒 Venda</button>
       <button class="tab" onclick="showTab('estoque', this)">📦 Estoque</button>
+      <button class="tab" onclick="showTab('relatorio', this)">📊 Relatório</button>
       <button class="tab" onclick="showTab('historico', this)">📋 Histórico</button>
     </nav>
 
+    <!-- ABA VENDA -->
     <div id="tab-venda" class="section active">
       <div class="metrics">
-        <div class="metric"><div class="label">Vendas</div><div class="value" id="m-vendas">—</div></div>
-        <div class="metric"><div class="label">Total arrecadado</div><div class="value" id="m-total">—</div></div>
-        <div class="metric"><div class="label">Itens vendidos</div><div class="value" id="m-itens">—</div></div>
+        <div class="metric">
+          <div class="label">Vendas</div>
+          <div class="value" id="m-vendas">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Arrecadado</div>
+          <div class="value" id="m-total">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Lucro</div>
+          <div class="value green" id="m-lucro">—</div>
+        </div>
       </div>
       <div class="venda-grid">
         <div>
@@ -46,32 +60,73 @@
       </div>
     </div>
 
+    <!-- ABA ESTOQUE -->
     <div id="tab-estoque" class="section">
       <div class="metrics" style="grid-template-columns:1fr 1fr;">
-        <div class="metric"><div class="label">Produtos</div><div class="value" id="m-produtos">—</div></div>
-        <div class="metric"><div class="label">Alertas</div><div class="value danger" id="m-alertas">—</div></div>
+        <div class="metric">
+          <div class="label">Produtos</div>
+          <div class="value" id="m-produtos">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Alertas de estoque</div>
+          <div class="value danger" id="m-alertas">—</div>
+        </div>
       </div>
       <div id="stock-list"><div class="loading">Carregando...</div></div>
       <div class="card-form">
         <h3>+ Adicionar produto</h3>
+        <div class="form-row two">
+          <input id="new-name" class="input" placeholder="Nome do produto" type="text" />
+          <input id="new-emoji" class="input" placeholder="Emoji (ex: 🍺)" type="text" />
+        </div>
         <div class="form-row three">
-          <input id="new-name" class="input" placeholder="Nome" type="text" />
-          <input id="new-price" class="input" placeholder="Preço R$" type="number" min="0" step="0.5" />
-          <input id="new-qty" class="input" placeholder="Qtd." type="number" min="0" />
+          <input id="new-price" class="input" placeholder="Preço de venda R$" type="number" min="0" step="0.5" />
+          <input id="new-cost" class="input" placeholder="Custo R$" type="number" min="0" step="0.5" />
+          <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" />
         </div>
         <div class="form-row two">
-          <input id="new-emoji" class="input" placeholder="Emoji (ex: 🍺)" type="text" />
           <input id="new-alert" class="input" placeholder="Alerta mínimo" type="number" min="0" />
+          <div class="margin-hint" id="margin-hint">Margem: —</div>
         </div>
         <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
       </div>
     </div>
 
+    <!-- ABA RELATÓRIO -->
+    <div id="tab-relatorio" class="section">
+      <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;">
+        <div class="metric">
+          <div class="label">Arrecadado</div>
+          <div class="value" id="r-total">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Lucro total</div>
+          <div class="value green" id="r-lucro">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Margem</div>
+          <div class="value" id="r-margem">—</div>
+        </div>
+      </div>
+      <p class="section-label">Desempenho por produto</p>
+      <div id="relatorio-lista"><div class="loading">Carregando...</div></div>
+    </div>
+
+    <!-- ABA HISTÓRICO -->
     <div id="tab-historico" class="section">
       <div class="metrics">
-        <div class="metric"><div class="label">Vendas</div><div class="value" id="h-vendas">—</div></div>
-        <div class="metric"><div class="label">Total</div><div class="value" id="h-total">—</div></div>
-        <div class="metric"><div class="label">Ticket médio</div><div class="value" id="h-ticket">—</div></div>
+        <div class="metric">
+          <div class="label">Vendas</div>
+          <div class="value" id="h-vendas">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Total</div>
+          <div class="value" id="h-total">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Ticket médio</div>
+          <div class="value" id="h-ticket">—</div>
+        </div>
       </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>

@@ -4,6 +4,19 @@ let produtos = [], carrinho = [];
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
 
+function parseDataUTC(str) {
+  const s = String(str);
+  if (s.includes('Z') || /[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s);
+  return new Date(s.replace(' ', 'T') + 'Z');
+}
+
+function fmtDataHora(str) {
+  const d = parseDataUTC(str);
+  const data = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+  return `${data} às ${hora}`;
+}
+
 function showToast(msg, tipo = '') {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -57,14 +70,23 @@ function renderVenda() {
     l.innerHTML = '<div class="empty-state">Nenhum produto cadastrado</div>';
     return;
   }
-  l.innerHTML = produtos.map(p => `
-    <div class="venda-item ${p.estoque == 0 ? 'sem-estoque' : ''}" onclick="${p.estoque > 0 ? `addCarrinho(${p.id})` : ''}">
-      <div>
-        <div class="vi-name">${p.emoji} ${p.nome}</div>
-        <div class="vi-info">${fmt(p.preco)} · ${p.estoque > 0 ? p.estoque + ' un.' : 'Sem estoque'}</div>
-      </div>
-      ${p.estoque > 0 ? '<span class="vi-plus">+</span>' : ''}
-    </div>`).join('');
+  l.innerHTML = '<div class="produto-grid">' + produtos.map(p => {
+    const noStock = p.estoque === 0;
+    const itemCarrinho = carrinho.find(c => c.id === p.id);
+    const inCart = !!itemCarrinho;
+    const badge = inCart ? `<span class="pc-badge">${itemCarrinho.qty}</span>` : '';
+    const stockLabel = noStock ? 'Sem estoque' : p.estoque + ' un.';
+    const classes = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : ''].filter(Boolean).join(' ');
+    const onclick = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
+    return `<div class="${classes}" ${onclick}>
+      ${badge}
+      <div class="pc-emoji">${p.emoji}</div>
+      <div class="pc-nome">${p.nome}</div>
+      <div class="pc-preco">${fmt(p.preco)}</div>
+      <div class="pc-stock">${stockLabel}</div>
+      <button class="pc-btn" ${noStock ? 'disabled' : ''}>+</button>
+    </div>`;
+  }).join('') + '</div>';
 }
 
 function renderEstoque() {
@@ -166,6 +188,11 @@ function removeCarrinho(id) {
   renderCarrinho();
 }
 
+function removeAllCarrinho(id) {
+  carrinho = carrinho.filter(c => c.id !== id);
+  renderCarrinho();
+}
+
 function limparCarrinho() { carrinho = []; renderCarrinho(); }
 
 function renderCarrinho() {
@@ -176,6 +203,7 @@ function renderCarrinho() {
     itEl.innerHTML = '';
     emEl.style.display = 'block';
     ftEl.style.display = 'none';
+    renderVenda();
     return;
   }
   emEl.style.display = 'none';
@@ -184,13 +212,18 @@ function renderCarrinho() {
     const p = produtos.find(x => x.id === c.id);
     return `<div class="carrinho-item">
       <span class="ci-name">${p.emoji} ${p.nome}</span>
-      <span class="ci-qty">×${c.qty}</span>
+      <div class="ci-controls">
+        <button class="ci-ctrl" onclick="removeCarrinho(${c.id})">−</button>
+        <span class="ci-qty-val">${c.qty}</span>
+        <button class="ci-ctrl" onclick="addCarrinho(${c.id})">+</button>
+      </div>
       <span class="ci-price">${fmt(p.preco * c.qty)}</span>
-      <button class="ci-remove" onclick="removeCarrinho(${c.id})">✕</button>
+      <button class="ci-remove" onclick="removeAllCarrinho(${c.id})">✕</button>
     </div>`;
   }).join('');
   const total = carrinho.reduce((s, c) => { const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty; }, 0);
   document.getElementById('carrinho-total').textContent = fmt(total);
+  renderVenda();
 }
 
 async function finalizarVenda() {
@@ -290,7 +323,7 @@ async function carregarHistorico() {
         <span class="hist-num">#${v.length - i}</span>
         <div class="hist-info">
           <div class="hist-desc">${venda.descricao}</div>
-          <div class="hist-hora">${new Date(venda.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+          <div class="hist-hora">${fmtDataHora(venda.criado_em)}</div>
         </div>
         <span class="hist-total">${fmt(venda.total)}</span>
       </div>`).join('');

@@ -507,11 +507,8 @@ async function addProduto() {
   const nome    = document.getElementById('new-name').value.trim();
   const preco   = lerMoeda('new-price');
   const custo   = lerMoeda('new-cost');
-  const estoque = parseInt(document.getElementById('new-qty').value);
-  if (!nome || isNaN(preco) || isNaN(estoque)) {
-    showToast('⚠ Preencha nome, preço e quantidade', 'error-toast');
-    return;
-  }
+  const estoque = parseInt(document.getElementById('new-qty').value) || 0;
+  if (!nome) { showToast('⚠ Informe o nome do produto', 'error-toast'); return; }
   try {
     const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, preco, custo, estoque }) });
     produtos.push(novo);

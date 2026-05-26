@@ -11,12 +11,12 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   const { nome, emoji, preco, custo, estoque, estoque_minimo } = req.body;
-  if (!nome || preco == null || estoque == null)
-    return res.status(400).json({ error: 'nome, preco e estoque são obrigatórios' });
+  if (!nome)
+    return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
     const [result] = await db.query(
       'INSERT INTO produtos (nome, emoji, preco, custo, estoque, estoque_minimo, evento_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [nome, emoji || '🍺', preco, custo || 0, estoque, estoque_minimo || 5, req.eventoId]
+      [nome, emoji || '🍺', preco || 0, custo || 0, estoque || 0, estoque_minimo || 5, req.eventoId]
     );
     const [rows] = await db.query('SELECT * FROM produtos WHERE id = ?', [result.insertId]);
     res.status(201).json(rows[0]);

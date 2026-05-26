@@ -28,26 +28,27 @@
 
     <!-- ABA VENDA -->
     <div id="tab-venda" class="section active">
-      <div class="metrics">
-        <div class="metric">
-          <div class="label">Vendas</div>
-          <div class="value" id="m-vendas">—</div>
+      <div class="metrics-strip">
+        <div class="ms-item">
+          <span class="ms-val" id="m-vendas">—</span>
+          <span class="ms-label">vendas</span>
         </div>
-        <div class="metric">
-          <div class="label">Arrecadado</div>
-          <div class="value" id="m-total">—</div>
+        <div class="ms-sep"></div>
+        <div class="ms-item">
+          <span class="ms-val" id="m-total">—</span>
+          <span class="ms-label">arrecadado</span>
         </div>
-        <div class="metric">
-          <div class="label">Lucro</div>
-          <div class="value green" id="m-lucro">—</div>
+        <div class="ms-sep"></div>
+        <div class="ms-item">
+          <span class="ms-val green" id="m-lucro">—</span>
+          <span class="ms-label">lucro</span>
         </div>
       </div>
       <div class="venda-grid">
         <div>
-          <p class="section-label">Toque para adicionar</p>
           <div id="venda-lista"><div class="loading">Carregando...</div></div>
         </div>
-        <div class="carrinho-panel">
+        <div class="carrinho-panel" id="carrinho-panel">
           <p class="section-label">Pedido atual</p>
           <div id="carrinho-empty" class="empty-state">🛒<br/>Nenhum item</div>
           <div id="carrinho-itens"></div>
@@ -132,7 +133,10 @@
   <!-- NAVEGAÇÃO INFERIOR (mobile) -->
   <nav id="bottom-nav">
     <button class="bnav-tab active" data-tab="venda" onclick="showTab('venda')">
-      <span class="bnav-icon">🛒</span>
+      <span class="bnav-icon-wrap">
+        <span class="bnav-icon">🛒</span>
+        <span id="cart-badge" class="cart-badge"></span>
+      </span>
       <span class="bnav-label">Venda</span>
     </button>
     <button class="bnav-tab" data-tab="estoque" onclick="showTab('estoque')">

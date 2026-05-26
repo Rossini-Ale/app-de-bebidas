@@ -14,7 +14,6 @@ function parseDataUTC(str) {
   if (s.includes('Z') || /[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s);
   return new Date(s.replace(' ', 'T') + 'Z');
 }
-
 function fmtDataHora(str) {
   const d = parseDataUTC(str);
   const data = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
@@ -22,6 +21,21 @@ function fmtDataHora(str) {
   return `${data} às ${hora}`;
 }
 
+/* ── Feedback ─────────────────────────────── */
+function vibrar(pattern) {
+  if ('vibrate' in navigator) navigator.vibrate(pattern);
+}
+
+function flashCard(id) {
+  const card = document.querySelector(`.produto-card[data-id="${id}"]`);
+  if (!card) return;
+  card.classList.remove('flash');
+  void card.offsetWidth; // força reflow para reiniciar animação
+  card.classList.add('flash');
+  card.addEventListener('animationend', () => card.classList.remove('flash'), { once: true });
+}
+
+/* ── Toast ────────────────────────────────── */
 function showToast(msg, tipo = '') {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -30,18 +44,20 @@ function showToast(msg, tipo = '') {
   t._t = setTimeout(() => { t.className = 'toast'; }, 2800);
 }
 
+/* ── Navegação ────────────────────────────── */
 function showTab(tab) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab, .bnav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   document.querySelectorAll(`[data-tab="${tab}"]`).forEach(t => t.classList.add('active'));
-  if (tab === 'estoque') renderEstoque();
+  if (tab === 'estoque')   renderEstoque();
   if (tab === 'historico') carregarHistorico();
   if (tab === 'relatorio') carregarRelatorio();
-  if (tab === 'venda') { carregarProdutos(); carregarResumo(); }
+  if (tab === 'venda')     { carregarProdutos(); carregarResumo(); }
   atualizarCartBar();
 }
 
+/* ── API ──────────────────────────────────── */
 async function apiFetch(path, opts = {}) {
   const r = await fetch(API + '/api' + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
   const d = await r.json();
@@ -60,6 +76,7 @@ async function carregarTudo() {
   }
 }
 
+/* ── Produtos ─────────────────────────────── */
 async function carregarProdutos() {
   try {
     produtos = await apiFetch('/produtos');
@@ -76,15 +93,18 @@ function renderVenda() {
     l.innerHTML = '<div class="empty-state">Nenhum produto cadastrado</div>';
     return;
   }
-  l.innerHTML = '<div class="produto-grid">' + produtos.map(p => {
-    const noStock = p.estoque === 0;
-    const itemCarrinho = carrinho.find(c => c.id === p.id);
-    const inCart = !!itemCarrinho;
-    const badge = inCart ? `<span class="pc-badge">${itemCarrinho.qty}</span>` : '';
+  // Produtos com estoque vêm primeiro; sem estoque ficam no final
+  const sorted = [...produtos].sort((a, b) => (a.estoque === 0) - (b.estoque === 0));
+
+  l.innerHTML = '<div class="produto-grid">' + sorted.map(p => {
+    const noStock    = p.estoque === 0;
+    const itemCart   = carrinho.find(c => c.id === p.id);
+    const inCart     = !!itemCart;
+    const badge      = inCart ? `<span class="pc-badge">${itemCart.qty}</span>` : '';
     const stockLabel = noStock ? 'Sem estoque' : p.estoque + ' un.';
-    const classes = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : ''].filter(Boolean).join(' ');
-    const onclick = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
-    return `<div class="${classes}" ${onclick}>
+    const classes    = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : ''].filter(Boolean).join(' ');
+    const onclick    = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
+    return `<div class="${classes}" data-id="${p.id}" ${onclick}>
       ${badge}
       <div class="pc-avatar" style="background:${avatarColor(p.nome)}">${p.nome[0].toUpperCase()}</div>
       <div class="pc-nome">${p.nome}</div>
@@ -123,7 +143,7 @@ function renderEstoque() {
         </div>
       </div>`;
     }
-    const low = p.estoque <= p.estoque_minimo;
+    const low    = p.estoque <= p.estoque_minimo;
     const margem = p.custo > 0 ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null;
     return `<div class="stock-item">
       <div class="stock-avatar" style="background:${avatarColor(p.nome)}">${p.nome[0].toUpperCase()}</div>
@@ -133,7 +153,7 @@ function renderEstoque() {
         ${margem !== null ? `<div class="stock-margin">Margem: ${margem}%</div>` : ''}
         <div class="stock-actions">
           <button class="stock-act-btn edit" onclick="editarProduto(${p.id})">✏ Editar</button>
-          <button class="stock-act-btn del" onclick="excluirProduto(${p.id}, this)">Excluir</button>
+          <button class="stock-act-btn del"  onclick="excluirProduto(${p.id}, this)">Excluir</button>
         </div>
       </div>
       <div class="stock-qty">
@@ -157,9 +177,9 @@ function cancelarEdicao() {
 }
 
 async function salvarEdicao(id) {
-  const nome = document.getElementById(`edit-nome-${id}`).value.trim();
-  const preco = parseFloat(document.getElementById(`edit-preco-${id}`).value);
-  const custo = parseFloat(document.getElementById(`edit-custo-${id}`).value) || 0;
+  const nome          = document.getElementById(`edit-nome-${id}`).value.trim();
+  const preco         = parseFloat(document.getElementById(`edit-preco-${id}`).value);
+  const custo         = parseFloat(document.getElementById(`edit-custo-${id}`).value) || 0;
   const estoque_minimo = parseInt(document.getElementById(`edit-alerta-${id}`).value) || 5;
   if (!nome || isNaN(preco)) { showToast('⚠ Preencha nome e preço', 'error-toast'); return; }
   const p = produtos.find(x => x.id === id);
@@ -181,26 +201,19 @@ async function excluirProduto(id, btn) {
   if (!btn.classList.contains('confirming')) {
     btn.classList.add('confirming');
     btn.textContent = 'Confirmar?';
-    btn._timer = setTimeout(() => {
-      btn.classList.remove('confirming');
-      btn.textContent = 'Excluir';
-    }, 3000);
+    btn._timer = setTimeout(() => { btn.classList.remove('confirming'); btn.textContent = 'Excluir'; }, 3000);
     return;
   }
   clearTimeout(btn._timer);
-  btn.textContent = '…';
-  btn.disabled = true;
+  btn.textContent = '…'; btn.disabled = true;
   try {
     await apiFetch(`/produtos/${id}`, { method: 'DELETE' });
     produtos = produtos.filter(p => p.id !== id);
-    renderEstoque();
-    renderVenda();
+    renderEstoque(); renderVenda();
     showToast('Produto removido', 'green-toast');
   } catch (e) {
     showToast('Erro: ' + e.message, 'error-toast');
-    btn.classList.remove('confirming');
-    btn.textContent = 'Excluir';
-    btn.disabled = false;
+    btn.classList.remove('confirming'); btn.textContent = 'Excluir'; btn.disabled = false;
   }
 }
 
@@ -209,34 +222,47 @@ async function ajustarEstoque(id, delta) {
     const a = await apiFetch(`/produtos/${id}/estoque`, { method: 'PATCH', body: JSON.stringify({ delta }) });
     const i = produtos.findIndex(p => p.id === id);
     if (i >= 0) produtos[i] = a;
-    renderEstoque();
-    renderVenda();
+    renderEstoque(); renderVenda();
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
+/* ── Margem ao vivo ───────────────────────── */
 function atualizarMargem() {
   const preco = parseFloat(document.getElementById('new-price').value);
   const custo = parseFloat(document.getElementById('new-cost').value);
-  const hint = document.getElementById('margin-hint');
+  const hint  = document.getElementById('margin-hint');
   if (!isNaN(preco) && !isNaN(custo) && preco > 0) {
-    const margem = Math.round(((preco - custo) / preco) * 100);
+    const margem   = Math.round(((preco - custo) / preco) * 100);
     const lucroUnit = (preco - custo).toFixed(2).replace('.', ',');
     hint.textContent = `Margem: ${margem}% (R$${lucroUnit})`;
     hint.style.color = margem >= 0 ? 'var(--green)' : 'var(--red)';
   } else {
-    hint.textContent = 'Margem: —';
-    hint.style.color = 'var(--green)';
+    hint.textContent  = 'Margem: —';
+    hint.style.color  = 'var(--green)';
   }
 }
 
-document.getElementById('new-price').addEventListener('input', atualizarMargem);
-document.getElementById('new-cost').addEventListener('input', atualizarMargem);
+/* Enter avança campos do formulário */
+function setupFormEnter() {
+  const campos = ['new-name', 'new-price', 'new-cost', 'new-qty', 'new-alert'];
+  campos.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const prox = campos[i + 1] ? document.getElementById(campos[i + 1]) : null;
+      if (prox) prox.focus();
+      else addProduto();
+    });
+  });
+}
 
 async function addProduto() {
-  const nome = document.getElementById('new-name').value.trim();
-  const preco = parseFloat(document.getElementById('new-price').value);
-  const custo = parseFloat(document.getElementById('new-cost').value) || 0;
-  const estoque = parseInt(document.getElementById('new-qty').value);
+  const nome          = document.getElementById('new-name').value.trim();
+  const preco         = parseFloat(document.getElementById('new-price').value);
+  const custo         = parseFloat(document.getElementById('new-cost').value) || 0;
+  const estoque       = parseInt(document.getElementById('new-qty').value);
   const estoque_minimo = parseInt(document.getElementById('new-alert').value) || 5;
   if (!nome || isNaN(preco) || isNaN(estoque)) {
     showToast('⚠ Preencha nome, preço e quantidade', 'error-toast');
@@ -249,12 +275,13 @@ async function addProduto() {
       document.getElementById(id).value = '';
     });
     document.getElementById('margin-hint').textContent = 'Margem: —';
-    renderEstoque();
-    renderVenda();
+    renderEstoque(); renderVenda();
     showToast('✓ ' + nome + ' adicionado!', 'green-toast');
+    document.getElementById('new-name').focus(); // volta o foco pro nome
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
+/* ── Carrinho ─────────────────────────────── */
 function addCarrinho(id) {
   const p = produtos.find(x => x.id === id);
   if (!p || p.estoque === 0) return;
@@ -262,6 +289,8 @@ function addCarrinho(id) {
   if (ex && ex.qty >= p.estoque) { showToast('⚠ Estoque insuficiente'); return; }
   if (ex) ex.qty++;
   else carrinho.push({ id, qty: 1 });
+  vibrar(25);
+  flashCard(id);
   renderCarrinho();
 }
 
@@ -282,14 +311,26 @@ function removeAllCarrinho(id) {
 function limparCarrinho() { carrinho = []; renderCarrinho(); }
 
 function atualizarCartBar() {
-  const bar = document.getElementById('cart-bar');
+  const bar   = document.getElementById('cart-bar');
+  const badge = document.getElementById('cart-badge');
   const isVenda = document.getElementById('tab-venda').classList.contains('active');
-  if (!bar) return;
-  if (!carrinho.length || !isVenda) {
-    bar.classList.remove('visible');
-    return;
-  }
+
   const totalItens = carrinho.reduce((s, c) => s + c.qty, 0);
+
+  // Badge no bottom nav (sempre visível independente da aba)
+  if (badge) {
+    if (totalItens > 0) {
+      badge.textContent = totalItens > 9 ? '9+' : totalItens;
+      badge.classList.add('show');
+    } else {
+      badge.classList.remove('show');
+    }
+  }
+
+  // Barra flutuante (só na aba venda)
+  if (!bar) return;
+  if (!totalItens || !isVenda) { bar.classList.remove('visible'); return; }
+
   const total = carrinho.reduce((s, c) => {
     const p = produtos.find(x => x.id === c.id);
     return s + p.preco * c.qty;
@@ -305,12 +346,13 @@ function renderCarrinho() {
   const ftEl = document.getElementById('carrinho-footer');
   if (!carrinho.length) {
     itEl.innerHTML = '';
-    emEl.style.display = 'block';
+    if (emEl) emEl.style.display = 'block';
     ftEl.style.display = 'none';
     renderVenda();
+    atualizarCartBar();
     return;
   }
-  emEl.style.display = 'none';
+  if (emEl) emEl.style.display = 'none';
   ftEl.style.display = 'block';
   itEl.innerHTML = carrinho.map(c => {
     const p = produtos.find(x => x.id === c.id);
@@ -325,7 +367,9 @@ function renderCarrinho() {
       <button class="ci-remove" onclick="removeAllCarrinho(${c.id})">✕</button>
     </div>`;
   }).join('');
-  const total = carrinho.reduce((s, c) => { const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty; }, 0);
+  const total = carrinho.reduce((s, c) => {
+    const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty;
+  }, 0);
   document.getElementById('carrinho-total').textContent = fmt(total);
   renderVenda();
   atualizarCartBar();
@@ -336,7 +380,10 @@ async function finalizarVenda() {
   const itens = carrinho.map(c => ({ produto_id: c.id, quantidade: c.qty }));
   try {
     await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens }) });
-    const total = carrinho.reduce((s, c) => { const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty; }, 0);
+    const total = carrinho.reduce((s, c) => {
+      const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty;
+    }, 0);
+    vibrar([40, 20, 40]);
     carrinho = [];
     renderCarrinho();
     await carregarProdutos();
@@ -345,45 +392,15 @@ async function finalizarVenda() {
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
-async function deletarVenda(id, btn) {
-  if (!btn.classList.contains('confirming')) {
-    btn.classList.add('confirming');
-    btn.textContent = 'Confirmar?';
-    btn._timer = setTimeout(() => {
-      btn.classList.remove('confirming');
-      btn.textContent = '🗑 Excluir';
-    }, 3000);
-    return;
-  }
-  clearTimeout(btn._timer);
-  btn.textContent = '…';
-  btn.disabled = true;
-  try {
-    await apiFetch(`/vendas/${id}`, { method: 'DELETE' });
-    document.getElementById(`hist-${id}`)?.remove();
-    await carregarProdutos();
-    await carregarResumo();
-    showToast('Venda removida', 'green-toast');
-    const lista = document.getElementById('historico-lista');
-    if (!lista.querySelector('.historico-item')) {
-      lista.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>';
-    }
-  } catch (e) {
-    showToast('Erro: ' + e.message, 'error-toast');
-    btn.classList.remove('confirming');
-    btn.textContent = '🗑 Excluir';
-    btn.disabled = false;
-  }
-}
-
+/* ── Resumo / Relatório / Histórico ──────── */
 async function carregarResumo() {
   try {
     const r = await apiFetch('/vendas/resumo');
     document.getElementById('m-vendas').textContent = r.total_vendas;
-    document.getElementById('m-total').textContent = fmtShort(r.total_arrecadado);
-    document.getElementById('m-lucro').textContent = fmtShort(r.total_lucro);
+    document.getElementById('m-total').textContent  = fmtShort(r.total_arrecadado);
+    document.getElementById('m-lucro').textContent  = fmtShort(r.total_lucro);
     document.getElementById('h-vendas').textContent = r.total_vendas;
-    document.getElementById('h-total').textContent = fmtShort(r.total_arrecadado);
+    document.getElementById('h-total').textContent  = fmtShort(r.total_arrecadado);
     document.getElementById('h-ticket').textContent = fmtShort(r.ticket_medio);
   } catch {}
 }
@@ -393,27 +410,23 @@ async function carregarRelatorio() {
   l.innerHTML = '<div class="loading">Carregando...</div>';
   try {
     const [itens, resumo] = await Promise.all([apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo')]);
-
-    document.getElementById('r-total').textContent = fmtShort(resumo.total_arrecadado);
-    document.getElementById('r-lucro').textContent = fmtShort(resumo.total_lucro);
+    document.getElementById('r-total').textContent  = fmtShort(resumo.total_arrecadado);
+    document.getElementById('r-lucro').textContent  = fmtShort(resumo.total_lucro);
     const margem = resumo.total_arrecadado > 0
-      ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) + '%'
-      : '—';
+      ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) + '%' : '—';
     document.getElementById('r-margem').textContent = margem;
 
     if (!itens.length || itens.every(i => i.qtd_vendida == 0)) {
       l.innerHTML = '<div class="empty-state">📊<br/>Nenhuma venda registrada ainda</div>';
       return;
     }
-
     const maxReceita = Math.max(...itens.map(i => Number(i.receita)), 1);
-
     l.innerHTML = itens.map(item => {
-      const receita = Number(item.receita);
-      const lucro = Number(item.lucro);
+      const receita   = Number(item.receita);
+      const lucro     = Number(item.lucro);
       const custoTotal = Number(item.custo_total);
-      const pct = Math.max(0, Math.min(100, Math.round((receita / maxReceita) * 100)));
-      const isNeg = lucro < 0;
+      const pct       = Math.max(0, Math.min(100, Math.round((receita / maxReceita) * 100)));
+      const isNeg     = lucro < 0;
       return `<div class="relatorio-item">
         <div class="rel-header">
           <div class="rel-avatar" style="background:${avatarColor(item.nome)}">${item.nome[0].toUpperCase()}</div>
@@ -421,26 +434,37 @@ async function carregarRelatorio() {
           <span class="rel-qtd">${item.qtd_vendida} vendidos</span>
         </div>
         <div class="rel-grid">
-          <div class="rel-box">
-            <div class="rb-label">Receita</div>
-            <div class="rb-val">${fmt(receita)}</div>
-          </div>
-          <div class="rel-box custo">
-            <div class="rb-label">Custo</div>
-            <div class="rb-val">${fmt(custoTotal)}</div>
-          </div>
-          <div class="rel-box lucro">
-            <div class="rb-label">Lucro</div>
-            <div class="rb-val" style="${isNeg ? 'color:var(--red)' : ''}">${fmt(lucro)}</div>
-          </div>
+          <div class="rel-box"><div class="rb-label">Receita</div><div class="rb-val">${fmt(receita)}</div></div>
+          <div class="rel-box custo"><div class="rb-label">Custo</div><div class="rb-val">${fmt(custoTotal)}</div></div>
+          <div class="rel-box lucro"><div class="rb-label">Lucro</div><div class="rb-val" style="${isNeg ? 'color:var(--red)' : ''}">${fmt(lucro)}</div></div>
         </div>
-        <div class="rel-bar-wrap">
-          <div class="rel-bar ${isNeg ? 'negativo' : ''}" style="width:${pct}%"></div>
-        </div>
+        <div class="rel-bar-wrap"><div class="rel-bar ${isNeg ? 'negativo' : ''}" style="width:${pct}%"></div></div>
       </div>`;
     }).join('');
+  } catch (e) { l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
+}
+
+async function deletarVenda(id, btn) {
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    btn.textContent = 'Confirmar?';
+    btn._timer = setTimeout(() => { btn.classList.remove('confirming'); btn.textContent = '🗑 Excluir'; }, 3000);
+    return;
+  }
+  clearTimeout(btn._timer);
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    await apiFetch(`/vendas/${id}`, { method: 'DELETE' });
+    document.getElementById(`hist-${id}`)?.remove();
+    await carregarProdutos();
+    await carregarResumo();
+    showToast('Venda removida', 'green-toast');
+    const lista = document.getElementById('historico-lista');
+    if (!lista.querySelector('.historico-item'))
+      lista.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>';
   } catch (e) {
-    l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`;
+    showToast('Erro: ' + e.message, 'error-toast');
+    btn.classList.remove('confirming'); btn.textContent = '🗑 Excluir'; btn.disabled = false;
   }
 }
 
@@ -450,10 +474,7 @@ async function carregarHistorico() {
   try {
     const v = await apiFetch('/vendas');
     await carregarResumo();
-    if (!v.length) {
-      l.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>';
-      return;
-    }
+    if (!v.length) { l.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>'; return; }
     l.innerHTML = v.map((venda, i) => `
       <div class="historico-item" id="hist-${venda.id}">
         <span class="hist-num">#${v.length - i}</span>
@@ -466,12 +487,17 @@ async function carregarHistorico() {
           <button class="hist-del" onclick="deletarVenda(${venda.id}, this)">🗑 Excluir</button>
         </div>
       </div>`).join('');
-  } catch (e) {
-    l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`;
-  }
+  } catch (e) { l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
 }
 
-document.addEventListener('DOMContentLoaded', carregarTudo);
+/* ── Init ─────────────────────────────────── */
+document.getElementById('new-price').addEventListener('input', atualizarMargem);
+document.getElementById('new-cost').addEventListener('input', atualizarMargem);
+
+document.addEventListener('DOMContentLoaded', () => {
+  carregarTudo();
+  setupFormEnter();
+});
 
 setInterval(async () => {
   const a = document.querySelector('.section.active').id;

@@ -61,18 +61,19 @@ button { touch-action: manipulation; }
   border-radius: var(--rl);
   color: #FEF3C7;
 }
-.header-left { display: flex; align-items: center; gap: 12px; }
-.header-actions { display: flex; gap: 6px; }
+.header-left { display: flex; align-items: flex-start; }
+.header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.header-sub { display: flex; align-items: center; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
 .evento-badge {
   display: inline-block;
   background: rgba(255,255,255,.18);
   border: 1px solid rgba(255,255,255,.28);
   border-radius: 20px;
-  padding: 3px 10px;
-  font-size: 11px;
+  padding: 2px 8px;
+  font-size: 10px;
   font-weight: 700;
   color: #FEF3C7;
-  max-width: 140px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -929,6 +930,9 @@ button { touch-action: manipulation; }
 @media (max-width: 620px) {
   .tabs        { display: none; }
   #bottom-nav  { display: flex; }
+
+  .header h1 { font-size: 17px; }
+  .btn-refresh { padding: 8px 10px; font-size: 16px; min-width: 38px; min-height: 38px; }
 
   .app { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 

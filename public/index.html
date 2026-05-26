@@ -56,6 +56,7 @@
         <input id="busca-produto" class="input search-inp" type="search" placeholder="Buscar produto…"
           oninput="renderVenda()" autocomplete="off" />
       </div>
+      <div id="cat-filter-venda" class="sort-bar" style="margin-bottom:6px"></div>
       <div id="sort-venda" class="sort-bar">
         <button class="sort-btn active" data-sort="vendido" onclick="setSortVenda('vendido')">🔥 Vendidos</button>
         <button class="sort-btn" data-sort="az" onclick="setSortVenda('az')">A-Z</button>
@@ -69,6 +70,7 @@
       <div class="card-form">
         <h3>+ Adicionar produto</h3>
         <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
+        <input id="new-cat" class="input" placeholder="Categoria (opcional)" type="text" list="cat-list" style="margin-bottom:8px" />
         <div class="form-row three">
           <input id="new-price" class="input" placeholder="Preço de venda R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
           <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
@@ -89,6 +91,8 @@
         <button class="sort-btn" data-sort="vendido" onclick="setSortEstoque('vendido')">Vendidos</button>
       </div>
       <div id="stock-list"><div class="loading">Carregando...</div></div>
+      <p class="section-label" style="margin-top:1rem">Histórico de reposição</p>
+      <div id="reposicao-lista"></div>
     </div>
 
     <!-- ABA RELATÓRIO -->
@@ -138,6 +142,8 @@
         </div>
         <div id="fundo-resultado"></div>
       </div>
+      <p class="section-label" style="margin-top:1rem">Vendas por operador</p>
+      <div id="operador-lista"></div>
       <p class="section-label" style="margin-top:1rem">Desempenho por produto</p>
       <div id="sort-relatorio" class="sort-bar" style="margin-top:8px">
         <button class="sort-btn active" data-sort="vendido" onclick="setSortRelatorio('vendido')">Vendidos</button>
@@ -288,6 +294,25 @@
       <button class="btn-primary" id="login-btn" onclick="fazerLogin()">Entrar</button>
     </div>
   </div>
+
+  <!-- PDF OVERLAY -->
+  <div id="pdf-overlay">
+    <div class="pdf-toolbar">
+      <button class="pdf-tb-btn" onclick="fecharPdfOverlay()">← Voltar</button>
+      <span class="pdf-toolbar-title">Relatório PDF</span>
+      <button class="pdf-tb-btn" onclick="imprimirPdf()">🖨 Imprimir</button>
+    </div>
+    <iframe id="pdf-frame" title="Relatório PDF"></iframe>
+  </div>
+
+  <datalist id="cat-list">
+    <option value="Cervejas">
+    <option value="Drinks">
+    <option value="Refrigerantes">
+    <option value="Água">
+    <option value="Comida">
+    <option value="Outros">
+  </datalist>
 
   <script src="/js/app.js"></script>
 </body>

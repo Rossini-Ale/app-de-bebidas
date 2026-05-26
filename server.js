@@ -84,7 +84,7 @@ async function runMigrations() {
   }
   for (const tbl of ['produtos', 'vendas']) {
     try { await db.query(`ALTER TABLE ${tbl} ADD COLUMN evento_id INT NOT NULL DEFAULT 1`); } catch (_) {}
-    await db.query(`UPDATE ${tbl} SET evento_id = 1 WHERE evento_id IS NULL OR evento_id = 0`);
+    await db.query(`UPDATE ${tbl} SET evento_id = 1`);
   }
   try { await db.query(`ALTER TABLE vendas ADD COLUMN forma_pagamento VARCHAR(10) NOT NULL DEFAULT 'dinheiro'`); } catch (_) {}
   try { await db.query(`ALTER TABLE vendas ADD COLUMN operador VARCHAR(50) NOT NULL DEFAULT 'Caixa'`); } catch (_) {}

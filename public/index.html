@@ -19,6 +19,7 @@
     </header>
 
     <nav class="tabs">
+      <div id="tab-pill"></div>
       <button class="tab active" data-tab="venda" onclick="showTab('venda')">🛒 Venda</button>
       <button class="tab" data-tab="estoque" onclick="showTab('estoque')">📦 Estoque</button>
       <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">📊 Relatório</button>
@@ -128,6 +129,7 @@
 
   <!-- NAVEGAÇÃO INFERIOR (mobile) -->
   <nav id="bottom-nav">
+    <div id="bnav-pill"></div>
     <button class="bnav-tab active" data-tab="venda" onclick="showTab('venda')">
       <span class="bnav-icon-wrap">
         <span class="bnav-icon">🛒</span>
@@ -215,6 +217,9 @@
       <button class="qm-confirm" onclick="confirmarQtyCustom()">✓ Adicionar</button>
     </div>
   </div>
+
+  <!-- ANIMAÇÃO DE SUCESSO -->
+  <div id="success-anim"><div class="success-circle">✓</div></div>
 
   <div class="toast" id="toast"></div>
   <script src="/js/app.js"></script>

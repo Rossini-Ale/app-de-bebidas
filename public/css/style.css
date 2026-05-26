@@ -76,6 +76,18 @@ button { touch-action: manipulation; }
   padding: 4px;
   margin-bottom: 1.25rem;
   border: 1px solid var(--border);
+  position: relative;
+}
+#tab-pill {
+  position: absolute;
+  top: 4px; bottom: 4px;
+  left: 0; width: 0;
+  border-radius: 7px;
+  background: var(--amber);
+  box-shadow: 0 2px 8px rgba(217,119,6,.35);
+  transition: left .22s ease, width .22s ease;
+  z-index: 0;
+  pointer-events: none;
 }
 .tab {
   flex: 1;
@@ -87,15 +99,15 @@ button { touch-action: manipulation; }
   color: var(--muted);
   cursor: pointer;
   font-family: inherit;
-  transition: all .15s;
+  transition: color .15s;
   white-space: nowrap;
   min-height: 44px;
+  position: relative;
+  z-index: 1;
 }
 .tab.active {
-  background: var(--amber);
   color: #fff;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(217,119,6,.35);
 }
 
 /* ── SECTIONS ────────────────────────────── */
@@ -221,6 +233,40 @@ button { touch-action: manipulation; }
 .produto-card.in-cart .pc-btn            { background: var(--green); color: #fff; border-color: var(--green); }
 .produto-card.no-stock .pc-btn           { color: var(--muted); cursor: not-allowed; }
 
+/* Stock bar */
+.pc-stock-bar-wrap {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--border);
+  border-radius: 0 0 calc(var(--rl) - 2px) calc(var(--rl) - 2px);
+  overflow: hidden;
+}
+.pc-stock-bar { height: 100%; transition: width .4s ease; }
+
+/* Success animation */
+#success-anim {
+  display: none;
+  position: fixed; inset: 0;
+  z-index: 300;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+}
+#success-anim.show { display: flex; }
+.success-circle {
+  width: 88px; height: 88px;
+  background: var(--green);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 40px;
+  box-shadow: 0 8px 32px rgba(5,150,105,.4);
+  animation: successPop .5s cubic-bezier(.22,.68,0,1.2) forwards;
+}
+@keyframes successPop {
+  0%   { transform: scale(0); opacity: 0; }
+  70%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 
 /* ── ESTOQUE ─────────────────────────────── */
 .stock-item {
@@ -567,6 +613,16 @@ button { touch-action: manipulation; }
   z-index: 100;
   gap: 2px;
 }
+#bnav-pill {
+  position: absolute;
+  left: 0; width: 0;
+  top: 0; height: 0;
+  border-radius: 10px;
+  background: var(--bg-sec);
+  transition: left .22s ease, width .22s ease, top .22s ease, height .22s ease;
+  z-index: 0;
+  pointer-events: none;
+}
 .bnav-tab {
   flex: 1;
   display: flex; flex-direction: column;
@@ -574,9 +630,10 @@ button { touch-action: manipulation; }
   gap: 3px; padding: 6px 4px;
   border: none; background: none;
   border-radius: 10px; cursor: pointer;
-  font-family: inherit; transition: background .15s; min-height: 52px;
+  font-family: inherit; transition: none; min-height: 52px;
+  position: relative; z-index: 1;
 }
-.bnav-tab.active { background: var(--bg-sec); }
+.bnav-tab.active { background: transparent; }
 .bnav-icon-wrap  { position: relative; display: inline-block; }
 .bnav-icon       { font-size: 22px; line-height: 1; }
 .bnav-label      { font-size: 10px; font-weight: 600; color: var(--muted); }

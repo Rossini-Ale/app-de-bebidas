@@ -5,6 +5,23 @@ let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
 
+function countUp(el, toVal, formatFn, duration = 550) {
+  if (!el) return;
+  const fromVal = parseFloat(el.dataset.countVal) || 0;
+  el.dataset.countVal = toVal;
+  if (el._countRaf) cancelAnimationFrame(el._countRaf);
+  if (fromVal === toVal) { el.textContent = formatFn(toVal); return; }
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = formatFn(fromVal + (toVal - fromVal) * eased);
+    if (t < 1) el._countRaf = requestAnimationFrame(step);
+    else el.textContent = formatFn(toVal);
+  }
+  el._countRaf = requestAnimationFrame(step);
+}
+
 
 function parseDataUTC(str) {
   const s = String(str);
@@ -42,11 +59,43 @@ function showToast(msg, tipo = '') {
 }
 
 /* ── Navegação ────────────────────────────── */
+function updateTabPill(tab, immediate) {
+  const pill = document.getElementById('tab-pill');
+  const activeBtn = document.querySelector(`.tab[data-tab="${tab}"]`);
+  const container = document.querySelector('.tabs');
+  if (!pill || !activeBtn || !container) return;
+  const cRect = container.getBoundingClientRect();
+  if (!cRect.width) return;
+  const aRect = activeBtn.getBoundingClientRect();
+  if (immediate) pill.style.transition = 'none';
+  pill.style.left  = (aRect.left - cRect.left) + 'px';
+  pill.style.width = aRect.width + 'px';
+  if (immediate) requestAnimationFrame(() => requestAnimationFrame(() => { pill.style.transition = ''; }));
+}
+
+function updateBnavPill(tab, immediate) {
+  const pill = document.getElementById('bnav-pill');
+  const activeBtn = document.querySelector(`.bnav-tab[data-tab="${tab}"]`);
+  const container = document.getElementById('bottom-nav');
+  if (!pill || !activeBtn || !container) return;
+  const cRect = container.getBoundingClientRect();
+  if (!cRect.width) return;
+  const aRect = activeBtn.getBoundingClientRect();
+  if (immediate) pill.style.transition = 'none';
+  pill.style.top    = (aRect.top - cRect.top) + 'px';
+  pill.style.height = aRect.height + 'px';
+  pill.style.left   = (aRect.left - cRect.left) + 'px';
+  pill.style.width  = aRect.width + 'px';
+  if (immediate) requestAnimationFrame(() => requestAnimationFrame(() => { pill.style.transition = ''; }));
+}
+
 function showTab(tab) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab, .bnav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   document.querySelectorAll(`[data-tab="${tab}"]`).forEach(t => t.classList.add('active'));
+  updateTabPill(tab);
+  updateBnavPill(tab);
   if (tab === 'estoque')   renderEstoque();
   if (tab === 'historico') carregarHistorico();
   if (tab === 'relatorio') carregarRelatorio();
@@ -92,6 +141,7 @@ function renderVenda() {
   }
   // Produtos com estoque vêm primeiro; sem estoque ficam no final
   const sorted = [...produtos].sort((a, b) => (a.estoque === 0) - (b.estoque === 0));
+  const maxEstoque = Math.max(...sorted.map(p => p.estoque), 1);
 
   l.innerHTML = '<div class="produto-grid">' + sorted.map(p => {
     const noStock    = p.estoque === 0;
@@ -106,12 +156,15 @@ function renderVenda() {
     const classes    = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : '',
                         veryLow ? 'very-low-stock' : lowStock ? 'low-stock' : ''].filter(Boolean).join(' ');
     const onclick    = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
+    const barPct     = noStock ? 0 : Math.round((p.estoque / maxEstoque) * 100);
+    const barColor   = p.estoque <= 2 ? 'var(--red)' : p.estoque <= 5 ? 'var(--amber)' : 'var(--green)';
     return `<div class="${classes}" data-id="${p.id}" ${onclick}>
       ${badge}
       <div class="pc-nome">${p.nome}</div>
       <div class="pc-preco">${fmt(p.preco)}</div>
       <div class="pc-stock">${stockLabel}</div>
       <button class="pc-btn" ${noStock ? 'disabled' : ''}>+</button>
+      <div class="pc-stock-bar-wrap"><div class="pc-stock-bar" style="width:${barPct}%;background:${barColor}"></div></div>
     </div>`;
   }).join('') + '</div>';
 }
@@ -463,6 +516,7 @@ async function finalizarVenda() {
   try {
     const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento }) });
     vibrar([40, 20, 40]);
+    mostrarSuccessAnim();
     ultimaVendaId = venda.id;
     carrinho = [];
     renderCarrinho();
@@ -471,6 +525,22 @@ async function finalizarVenda() {
     showToast('✓ ' + fmt(total) + ' registrado!', 'green-toast');
     mostrarDesfazer(total);
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
+}
+
+/* ── Animação de sucesso ──────────────────── */
+function mostrarSuccessAnim() {
+  const el = document.getElementById('success-anim');
+  if (!el) return;
+  el.style.opacity = '';
+  el.style.transition = '';
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  setTimeout(() => {
+    el.style.transition = 'opacity .35s';
+    el.style.opacity = '0';
+    setTimeout(() => { el.classList.remove('show'); el.style.transition = ''; el.style.opacity = ''; }, 350);
+  }, 700);
 }
 
 /* ── Desfazer ─────────────────────────────── */
@@ -501,12 +571,12 @@ async function desfazerUltimaVenda() {
 async function carregarResumo() {
   try {
     const r = await apiFetch('/vendas/resumo');
-    document.getElementById('m-vendas').textContent = r.total_vendas;
-    document.getElementById('m-total').textContent  = fmtShort(r.total_arrecadado);
-    document.getElementById('m-lucro').textContent  = fmtShort(r.total_lucro);
-    document.getElementById('h-vendas').textContent = r.total_vendas;
-    document.getElementById('h-total').textContent  = fmtShort(r.total_arrecadado);
-    document.getElementById('h-ticket').textContent = fmtShort(r.ticket_medio);
+    countUp(document.getElementById('m-vendas'), r.total_vendas,        v => String(Math.round(v)));
+    countUp(document.getElementById('m-total'),  r.total_arrecadado,    fmtShort);
+    countUp(document.getElementById('m-lucro'),  r.total_lucro,         fmtShort);
+    countUp(document.getElementById('h-vendas'), r.total_vendas,        v => String(Math.round(v)));
+    countUp(document.getElementById('h-total'),  r.total_arrecadado,    fmtShort);
+    countUp(document.getElementById('h-ticket'), r.ticket_medio,        fmtShort);
   } catch {}
 }
 
@@ -515,15 +585,18 @@ async function carregarRelatorio() {
   l.innerHTML = '<div class="loading">Carregando...</div>';
   try {
     const [itens, resumo] = await Promise.all([apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo')]);
-    document.getElementById('r-total').textContent    = fmtShort(resumo.total_arrecadado);
-    document.getElementById('r-lucro').textContent    = fmtShort(resumo.total_lucro);
-    const margem = resumo.total_arrecadado > 0
-      ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) + '%' : '—';
-    document.getElementById('r-margem').textContent   = margem;
+    countUp(document.getElementById('r-total'), resumo.total_arrecadado, fmtShort);
+    countUp(document.getElementById('r-lucro'), resumo.total_lucro,      fmtShort);
+    const margemNum = resumo.total_arrecadado > 0
+      ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) : 0;
+    if (resumo.total_arrecadado > 0)
+      countUp(document.getElementById('r-margem'), margemNum, v => Math.round(v) + '%');
+    else
+      document.getElementById('r-margem').textContent = '—';
     const pag = resumo.pagamentos || {};
-    document.getElementById('r-dinheiro').textContent = fmtShort(pag.dinheiro || 0);
-    document.getElementById('r-pix').textContent      = fmtShort(pag.pix      || 0);
-    document.getElementById('r-cartao').textContent   = fmtShort(pag.cartao   || 0);
+    countUp(document.getElementById('r-dinheiro'), pag.dinheiro || 0, fmtShort);
+    countUp(document.getElementById('r-pix'),      pag.pix      || 0, fmtShort);
+    countUp(document.getElementById('r-cartao'),   pag.cartao   || 0, fmtShort);
 
     if (!itens.length || itens.every(i => i.qtd_vendida == 0)) {
       l.innerHTML = '<div class="empty-state">📊<br/>Nenhuma venda registrada ainda</div>';
@@ -780,6 +853,8 @@ document.getElementById('new-price').addEventListener('input', atualizarMargem);
 document.getElementById('new-cost').addEventListener('input', atualizarMargem);
 
 document.addEventListener('DOMContentLoaded', () => {
+  updateTabPill('venda', true);
+  updateBnavPill('venda', true);
   carregarTudo();
   setupFormEnter();
 });

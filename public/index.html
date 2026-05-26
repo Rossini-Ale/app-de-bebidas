@@ -21,7 +21,7 @@
       </div>
       <div class="header-actions">
         <button class="btn-refresh" id="btn-dark" onclick="toggleDarkMode()" title="Alternar tema">🌙</button>
-        <button class="btn-refresh" onclick="abrirQrCardapio()" title="QR Code do Cardápio">⬛</button>
+        <button class="btn-refresh" id="btn-qr-cardapio" onclick="abrirQrCardapio()" title="QR Code do Cardápio">⬛</button>
         <button class="btn-refresh" onclick="location.reload()">↺</button>
         <button class="btn-refresh btn-logout" id="btn-logout" onclick="fazerLogout()" title="Sair">⎋</button>
       </div>
@@ -144,7 +144,10 @@
         <button class="btn-pdf" id="btn-gerar-pdf" onclick="gerarPDF()">📄 PDF</button>
         <button class="btn-whatsapp" onclick="compartilharWhatsApp()">📲 WhatsApp</button>
         <button class="btn-csv" onclick="exportarCSV()">⬇ CSV</button>
+      </div>
+      <div class="rel-actions" style="margin-top:8px">
         <button class="btn-cardapio" id="btn-exportar-cardapio" onclick="exportarCardapioPDF()">📋 Cardápio PDF</button>
+        <button class="btn-cardapio" onclick="abrirQrCardapio()">⬛ QR Cardápio</button>
       </div>
       <p class="section-label" style="margin-top:1rem">Vendas por hora</p>
       <div class="grafico-horas" id="grafico-hora"></div>

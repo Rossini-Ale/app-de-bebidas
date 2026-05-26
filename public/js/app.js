@@ -367,7 +367,6 @@ function renderVenda() {
       <div class="pc-preco">${fmt(p.preco)}</div>
       ${comboBadge}
       <div class="pc-stock">${stockLabel}</div>
-      <button class="pc-btn" ${noStock ? 'disabled' : ''}>+</button>
       <div class="pc-stock-bar-wrap"><div class="pc-stock-bar" style="width:${barPct}%;background:${barColor}"></div></div>
     </div>`;
   }).join('') + '</div>';

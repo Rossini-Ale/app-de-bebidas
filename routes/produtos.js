@@ -49,6 +49,8 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
+    const [[{ cnt }]] = await db.query('SELECT COUNT(*) as cnt FROM venda_itens WHERE produto_id = ?', [req.params.id]);
+    if (cnt > 0) return res.status(400).json({ error: 'Produto tem vendas registradas. Exclua as vendas primeiro.' });
     await db.query('DELETE FROM produtos WHERE id = ?', [req.params.id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }

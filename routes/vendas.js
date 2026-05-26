@@ -90,4 +90,23 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.delete('/:id', async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [itens] = await conn.query('SELECT * FROM venda_itens WHERE venda_id = ?', [req.params.id]);
+    for (const item of itens) {
+      await conn.query('UPDATE produtos SET estoque = estoque + ? WHERE id = ?', [item.quantidade, item.produto_id]);
+    }
+    await conn.query('DELETE FROM vendas WHERE id = ?', [req.params.id]);
+    await conn.commit();
+    res.json({ success: true });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
+  }
+});
+
 module.exports = router;

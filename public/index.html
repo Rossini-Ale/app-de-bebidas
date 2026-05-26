@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bar do Evento 🍺</title>
+  <title>Caixa UNIFSP 🤠</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
   <div class="app">
     <header class="header">
       <div class="header-left">
-        <div class="header-logo">🍺</div>
+        <div class="header-logo">🤠</div>
         <div>
-          <h1>Bar do Evento</h1>
+          <h1>Caixa UNIFSP</h1>
           <p id="status-conexao" class="status-ok">● Online</p>
         </div>
       </div>
@@ -20,10 +20,10 @@
     </header>
 
     <nav class="tabs">
-      <button class="tab active" onclick="showTab('venda', this)">🛒 Venda</button>
-      <button class="tab" onclick="showTab('estoque', this)">📦 Estoque</button>
-      <button class="tab" onclick="showTab('relatorio', this)">📊 Relatório</button>
-      <button class="tab" onclick="showTab('historico', this)">📋 Histórico</button>
+      <button class="tab active" data-tab="venda" onclick="showTab('venda')">🛒 Venda</button>
+      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">📦 Estoque</button>
+      <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">📊 Relatório</button>
+      <button class="tab" data-tab="historico" onclick="showTab('historico')">📋 Histórico</button>
     </nav>
 
     <!-- ABA VENDA -->
@@ -47,7 +47,7 @@
           <p class="section-label">Toque para adicionar</p>
           <div id="venda-lista"><div class="loading">Carregando...</div></div>
         </div>
-        <div>
+        <div class="carrinho-panel">
           <p class="section-label">Pedido atual</p>
           <div id="carrinho-empty" class="empty-state">🛒<br/>Nenhum item</div>
           <div id="carrinho-itens"></div>
@@ -75,10 +75,7 @@
       <div id="stock-list"><div class="loading">Carregando...</div></div>
       <div class="card-form">
         <h3>+ Adicionar produto</h3>
-        <div class="form-row two">
-          <input id="new-name" class="input" placeholder="Nome do produto" type="text" />
-          <input id="new-emoji" class="input" placeholder="Emoji (ex: 🍺)" type="text" />
-        </div>
+        <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
         <div class="form-row three">
           <input id="new-price" class="input" placeholder="Preço de venda R$" type="number" min="0" step="0.5" />
           <input id="new-cost" class="input" placeholder="Custo R$" type="number" min="0" step="0.5" />
@@ -130,6 +127,33 @@
       </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>
+  </div>
+
+  <!-- NAVEGAÇÃO INFERIOR (mobile) -->
+  <nav id="bottom-nav">
+    <button class="bnav-tab active" data-tab="venda" onclick="showTab('venda')">
+      <span class="bnav-icon">🛒</span>
+      <span class="bnav-label">Venda</span>
+    </button>
+    <button class="bnav-tab" data-tab="estoque" onclick="showTab('estoque')">
+      <span class="bnav-icon">📦</span>
+      <span class="bnav-label">Estoque</span>
+    </button>
+    <button class="bnav-tab" data-tab="relatorio" onclick="showTab('relatorio')">
+      <span class="bnav-icon">📊</span>
+      <span class="bnav-label">Relatório</span>
+    </button>
+    <button class="bnav-tab" data-tab="historico" onclick="showTab('historico')">
+      <span class="bnav-icon">📋</span>
+      <span class="bnav-label">Histórico</span>
+    </button>
+  </nav>
+
+  <!-- BARRA FLUTUANTE DO CARRINHO (mobile) -->
+  <div id="cart-bar">
+    <button id="cart-bar-clear" onclick="limparCarrinho()">Limpar</button>
+    <div id="cart-bar-info"></div>
+    <button id="cart-bar-btn" onclick="finalizarVenda()">✓ Finalizar</button>
   </div>
 
   <div class="toast" id="toast"></div>

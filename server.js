@@ -27,7 +27,7 @@ db.getConnection()
   .then(conn => {
     conn.release();
     console.log('✅ MySQL conectado!');
-    app.listen(PORT, () => console.log(`🍺 Servidor na porta ${PORT}`));
+    app.listen(PORT, () => console.log(`🤠 Servidor na porta ${PORT}`));
   })
   .catch(err => {
     console.error('❌ Erro MySQL:', err.message);

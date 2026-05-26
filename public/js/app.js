@@ -125,7 +125,15 @@ async function carregarTudo() {
 /* ── Produtos ─────────────────────────────── */
 async function carregarProdutos() {
   try {
+    const anteriores = [...produtos];
     produtos = await apiFetch('/produtos');
+    if (anteriores.length) {
+      produtos.forEach(p => {
+        const ant = anteriores.find(o => o.id === p.id);
+        if (ant && ant.estoque > 0 && p.estoque === 0)
+          showToast(`⚠ ${p.nome} zerou!`, 'error-toast');
+      });
+    }
     renderVenda();
     renderEstoque();
   } catch (e) {
@@ -862,4 +870,4 @@ document.addEventListener('DOMContentLoaded', () => {
 setInterval(async () => {
   const a = document.querySelector('.section.active').id;
   if (a === 'tab-venda') { await carregarProdutos(); await carregarResumo(); }
-}, 30000);
+}, 10000);

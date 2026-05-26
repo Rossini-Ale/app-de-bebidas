@@ -394,6 +394,57 @@ button { touch-action: manipulation; }
 .hist-del:hover, .hist-del:active { border-color: var(--red); color: var(--red); }
 .hist-del.confirming { background: var(--red); color: #fff; border-color: var(--red); font-weight: 600; }
 
+/* ── MODAL DE QUANTIDADE ─────────────────── */
+#qty-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 150;
+}
+#qty-overlay.open { display: block; }
+
+#qty-modal {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 700px;
+  background: var(--bg-card);
+  border-radius: var(--rl) var(--rl) 0 0;
+  padding: 20px 20px 36px;
+  z-index: 151;
+  box-shadow: 0 -4px 28px rgba(0,0,0,.15);
+}
+#qty-modal.open { display: block; }
+.qm-label   { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 2px; }
+.qm-nome    { font-size: 20px; font-weight: 700; margin-bottom: 3px; }
+.qm-estoque { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+
+.qty-presets { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin-bottom: 12px; }
+.qty-preset-btn {
+  padding: 14px 4px;
+  background: var(--bg-sec); border: 2px solid var(--border);
+  border-radius: var(--r); font-size: 20px; font-weight: 700;
+  cursor: pointer; font-family: inherit; min-height: 56px;
+  transition: all .12s;
+}
+.qty-preset-btn:active,
+.qty-preset-btn.active { background: var(--amber); color: #fff; border-color: var(--amber); }
+
+.qm-custom { display: flex; gap: 8px; }
+.qm-custom-input {
+  flex: 1; padding: 12px; font-size: 18px; font-weight: 700;
+  border: 1px solid var(--border-s); border-radius: var(--r);
+  font-family: inherit; background: var(--bg-card); color: var(--text);
+  text-align: center; min-height: 52px;
+}
+.qm-custom-input:focus { outline: none; border-color: var(--amber); box-shadow: 0 0 0 3px rgba(217,119,6,.12); }
+.qm-confirm {
+  padding: 12px 20px; background: var(--amber); color: #fff;
+  border: none; border-radius: var(--r);
+  font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; min-height: 52px; white-space: nowrap;
+}
+.qm-confirm:active { background: var(--amber-d); }
+
 /* ── MISC ────────────────────────────────── */
 .empty-state { text-align: center; padding: 2rem 0; color: var(--muted); font-size: 14px; line-height: 2; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
@@ -499,7 +550,17 @@ button { touch-action: manipulation; }
   display: flex; align-items: center; justify-content: center;
 }
 .cs-ctrl:active { background: rgba(255,255,255,.35); }
-.cs-qty   { color: #fff; font-size: 15px; font-weight: 700; min-width: 24px; text-align: center; }
+.cs-qty {
+  color: #fff; font-size: 15px; font-weight: 700; min-width: 28px; text-align: center;
+  cursor: pointer; border-radius: 5px; padding: 2px 5px;
+  border-bottom: 1px dashed rgba(255,255,255,.5);
+}
+.cs-qty:active { background: rgba(255,255,255,.2); }
+.cs-qty-inp {
+  width: 52px; text-align: center; font-size: 15px; font-weight: 700;
+  background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.6);
+  border-radius: 6px; color: #fff; padding: 3px 4px; font-family: inherit;
+}
 .cs-price { color: rgba(255,255,255,.9); font-size: 13px; font-weight: 600; min-width: 64px; text-align: right; flex-shrink: 0; }
 
 #cart-bar-row {

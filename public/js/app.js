@@ -1,5 +1,5 @@
 const API = '';
-let produtos = [], carrinho = [], editingId = null, cartSheetOpen = false;
+let produtos = [], carrinho = [], editingId = null, cartSheetOpen = false, qtyPickerId = null;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -96,7 +96,7 @@ function renderVenda() {
     const noStock    = p.estoque === 0;
     const itemCart   = carrinho.find(c => c.id === p.id);
     const inCart     = !!itemCart;
-    const badge      = inCart ? `<span class="pc-badge">${itemCart.qty}</span>` : '';
+    const badge      = inCart ? `<span class="pc-badge" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${itemCart.qty}</span>` : '';
     const stockLabel = noStock ? 'Sem estoque' : p.estoque + ' un.';
     const classes    = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : ''].filter(Boolean).join(' ');
     const onclick    = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
@@ -269,25 +269,34 @@ async function addProduto() {
 }
 
 /* ── Carrinho ─────────────────────────────── */
-function addCarrinho(id) {
+function setQtyCarrinho(id, qty) {
   const p = produtos.find(x => x.id === id);
-  if (!p || p.estoque === 0) return;
-  const ex = carrinho.find(c => c.id === id);
-  if (ex && ex.qty >= p.estoque) { showToast('⚠ Estoque insuficiente'); return; }
-  if (ex) ex.qty++;
-  else carrinho.push({ id, qty: 1 });
+  if (!p) return;
+  const safe = Math.min(Math.max(0, qty), p.estoque);
+  if (safe === 0) {
+    carrinho = carrinho.filter(c => c.id !== id);
+  } else {
+    const ex = carrinho.find(c => c.id === id);
+    if (ex) ex.qty = safe;
+    else carrinho.push({ id, qty: safe });
+  }
+  if (safe < qty) showToast(`⚠ Só ${p.estoque} em estoque`, 'error-toast');
   vibrar(25);
   flashCard(id);
   renderCarrinho();
 }
 
+function addCarrinho(id) {
+  const p = produtos.find(x => x.id === id);
+  if (!p || p.estoque === 0) return;
+  const ex = carrinho.find(c => c.id === id);
+  if (ex && ex.qty >= p.estoque) { showToast('⚠ Estoque insuficiente'); return; }
+  setQtyCarrinho(id, (ex?.qty || 0) + 1);
+}
+
 function removeCarrinho(id) {
-  const i = carrinho.findIndex(c => c.id === id);
-  if (i >= 0) {
-    if (carrinho[i].qty > 1) carrinho[i].qty--;
-    else carrinho.splice(i, 1);
-  }
-  renderCarrinho();
+  const ex = carrinho.find(c => c.id === id);
+  if (ex) setQtyCarrinho(id, ex.qty - 1);
 }
 
 function removeAllCarrinho(id) {
@@ -346,12 +355,30 @@ function renderCartSheet() {
       <span class="cs-name">${p.nome}</span>
       <div class="cs-controls">
         <button class="cs-ctrl" onclick="removeCarrinho(${c.id})">−</button>
-        <span class="cs-qty">${c.qty}</span>
+        <span class="cs-qty" id="csq-${c.id}" onclick="editQtyInline(${c.id})" title="Toque para editar">${c.qty}</span>
         <button class="cs-ctrl" onclick="addCarrinho(${c.id})">+</button>
       </div>
       <span class="cs-price">${fmt(p.preco * c.qty)}</span>
     </div>`;
   }).join('');
+}
+
+function editQtyInline(id) {
+  const el = document.getElementById('csq-' + id);
+  if (!el || el.querySelector('input')) return;
+  const p   = produtos.find(x => x.id === id);
+  const cur = carrinho.find(c => c.id === id)?.qty || 1;
+  el.innerHTML = `<input class="cs-qty-inp" type="number" min="0" max="${p?.estoque || 99}" value="${cur}"
+    onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape')renderCarrinho()"
+    onblur="salvarQtyInline(${id},this)" />`;
+  const inp = el.querySelector('input');
+  inp.focus(); inp.select();
+}
+
+function salvarQtyInline(id, inp) {
+  const v = parseInt(inp.value);
+  if (!isNaN(v)) setQtyCarrinho(id, v);
+  else renderCarrinho();
 }
 
 function toggleCartSheet() {
@@ -488,6 +515,41 @@ async function carregarHistorico() {
         </div>
       </div>`).join('');
   } catch (e) { l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
+}
+
+/* ── Seletor de Quantidade ────────────────── */
+function abrirQtyPicker(id) {
+  const p = produtos.find(x => x.id === id);
+  if (!p || p.estoque === 0) return;
+  qtyPickerId = id;
+  const curQty = carrinho.find(c => c.id === id)?.qty || 0;
+  document.getElementById('qm-nome').textContent    = p.nome;
+  document.getElementById('qm-estoque').textContent = `${p.estoque} em estoque · R$${(p.preco).toFixed(2).replace('.',',')} cada`;
+  document.getElementById('qty-custom-inp').value   = '';
+  document.querySelectorAll('.qty-preset-btn').forEach(btn => {
+    btn.classList.toggle('active', Number(btn.dataset.qty) === curQty);
+  });
+  document.getElementById('qty-overlay').classList.add('open');
+  document.getElementById('qty-modal').classList.add('open');
+  setTimeout(() => document.getElementById('qty-custom-inp').focus(), 50);
+}
+
+function fecharQtyPicker() {
+  qtyPickerId = null;
+  document.getElementById('qty-overlay').classList.remove('open');
+  document.getElementById('qty-modal').classList.remove('open');
+}
+
+function confirmarQtyPicker(qty) {
+  if (!qtyPickerId) return;
+  const id = qtyPickerId;
+  fecharQtyPicker();
+  setQtyCarrinho(id, qty);
+}
+
+function confirmarQtyCustom() {
+  const v = parseInt(document.getElementById('qty-custom-inp').value);
+  if (v > 0) confirmarQtyPicker(v);
 }
 
 /* ── PDF ──────────────────────────────────── */

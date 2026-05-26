@@ -48,13 +48,6 @@
 
     <!-- ABA ESTOQUE -->
     <div id="tab-estoque" class="section">
-      <div class="metrics" style="grid-template-columns:1fr;">
-        <div class="metric">
-          <div class="label">Produtos cadastrados</div>
-          <div class="value" id="m-produtos">—</div>
-        </div>
-      </div>
-      <div id="stock-list"><div class="loading">Carregando...</div></div>
       <div class="card-form">
         <h3>+ Adicionar produto</h3>
         <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
@@ -66,6 +59,13 @@
         <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
         <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
       </div>
+      <div class="metrics" style="grid-template-columns:1fr;margin-top:1rem">
+        <div class="metric">
+          <div class="label">Produtos cadastrados</div>
+          <div class="value" id="m-produtos">—</div>
+        </div>
+      </div>
+      <div id="stock-list"><div class="loading">Carregando...</div></div>
     </div>
 
     <!-- ABA RELATÓRIO -->
@@ -141,6 +141,26 @@
       <button id="cart-bar-clear" onclick="limparCarrinho()">Limpar</button>
       <button id="cart-bar-info" onclick="toggleCartSheet()"></button>
       <button id="cart-bar-btn" onclick="finalizarVenda()">✓ Finalizar</button>
+    </div>
+  </div>
+
+  <!-- MODAL QUANTIDADE -->
+  <div id="qty-overlay" onclick="fecharQtyPicker()"></div>
+  <div id="qty-modal">
+    <p class="qm-label">Quantidade</p>
+    <p id="qm-nome" class="qm-nome"></p>
+    <p id="qm-estoque" class="qm-estoque"></p>
+    <div class="qty-presets">
+      <button class="qty-preset-btn" data-qty="1"  onclick="confirmarQtyPicker(1)">1</button>
+      <button class="qty-preset-btn" data-qty="2"  onclick="confirmarQtyPicker(2)">2</button>
+      <button class="qty-preset-btn" data-qty="3"  onclick="confirmarQtyPicker(3)">3</button>
+      <button class="qty-preset-btn" data-qty="5"  onclick="confirmarQtyPicker(5)">5</button>
+      <button class="qty-preset-btn" data-qty="10" onclick="confirmarQtyPicker(10)">10</button>
+    </div>
+    <div class="qm-custom">
+      <input id="qty-custom-inp" class="qm-custom-input" type="number" min="1" placeholder="Outro…"
+        onkeydown="if(event.key==='Enter')confirmarQtyCustom()" />
+      <button class="qm-confirm" onclick="confirmarQtyCustom()">✓ Adicionar</button>
     </div>
   </div>
 

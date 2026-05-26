@@ -190,8 +190,11 @@ async function carregarProdutos() {
     if (anteriores.length) {
       produtos.forEach(p => {
         const ant = anteriores.find(o => o.id === p.id);
-        if (ant && ant.estoque > 0 && p.estoque === 0)
+        if (!ant) return;
+        if (ant.estoque > 0 && p.estoque === 0)
           showToast(`⚠ ${p.nome} zerou!`, 'error-toast');
+        else if (ant.estoque > 24 && p.estoque <= 24)
+          showToast(`⚠ Estoque baixo: ${p.nome} (${p.estoque} un.)`, 'error-toast');
       });
     }
     renderVenda();
@@ -225,8 +228,8 @@ function renderVenda() {
 
   l.innerHTML = '<div class="produto-grid">' + lista.map(p => {
     const noStock    = p.estoque === 0;
-    const veryLow    = p.estoque > 0 && p.estoque <= 2;
-    const lowStock   = p.estoque > 0 && p.estoque <= 5;
+    const veryLow    = p.estoque > 0 && p.estoque <= 24;
+    const lowStock   = p.estoque > 0 && p.estoque <= 50;
     const itemCart   = carrinho.find(c => c.id === p.id);
     const inCart     = !!itemCart;
     const badge      = inCart ? `<span class="pc-badge" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${itemCart.qty}</span>` : '';
@@ -237,7 +240,7 @@ function renderVenda() {
                         veryLow ? 'very-low-stock' : lowStock ? 'low-stock' : ''].filter(Boolean).join(' ');
     const onclick    = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
     const barPct     = noStock ? 0 : Math.round((p.estoque / maxEstoque) * 100);
-    const barColor   = p.estoque <= 2 ? 'var(--red)' : p.estoque <= 5 ? 'var(--amber)' : 'var(--green)';
+    const barColor   = p.estoque <= 24 ? 'var(--red)' : p.estoque <= 50 ? 'var(--amber)' : 'var(--green)';
     return `<div class="${classes}" data-id="${p.id}" ${onclick}>
       ${badge}
       <div class="pc-nome">${p.nome}</div>
@@ -280,6 +283,8 @@ function renderEstoque() {
     }
     const margem = p.custo > 0 ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null;
     const isRepondo = reposicaoId === p.id;
+    const qtyColor = p.estoque === 0 ? 'color:var(--red)' : p.estoque <= 24 ? 'color:var(--red)' : p.estoque <= 50 ? 'color:var(--amber)' : '';
+    const qtyLabel = p.estoque <= 24 && p.estoque > 0 ? `⚠ ${p.estoque}` : `${p.estoque}`;
     return `<div class="stock-item">
       <div class="stock-info">
         <div class="stock-name">${p.nome}</div>
@@ -298,7 +303,7 @@ function renderEstoque() {
       </div>
       <div class="stock-qty">
         <button class="qty-btn" onclick="ajustarEstoque(${p.id}, -1)">−</button>
-        <span class="qty-num">${p.estoque}</span>
+        <span class="qty-num" style="${qtyColor}">${qtyLabel}</span>
         <button class="qty-btn" onclick="ajustarEstoque(${p.id}, +1)">+</button>
       </div>
     </div>`;

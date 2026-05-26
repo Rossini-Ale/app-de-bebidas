@@ -9,6 +9,19 @@ let eventoAtual = null;
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
 
+function fmtMoeda(v) { return Number(v).toFixed(2).replace('.', ','); }
+function lerMoeda(id) {
+  const raw = document.getElementById(id)?.value || '0';
+  return parseFloat(raw.replace(',', '.')) || 0;
+}
+function mascaraMoedaInline(el) {
+  const digits = el.value.replace(/\D/g, '').slice(-8);
+  if (!digits) { el.value = ''; return; }
+  const padded = digits.padStart(3, '0');
+  const intPart = padded.slice(0, -2).replace(/^0+/, '') || '0';
+  el.value = intPart + ',' + padded.slice(-2);
+}
+
 function countUp(el, toVal, formatFn, duration = 550) {
   if (!el) return;
   const fromVal = parseFloat(el.dataset.countVal) || 0;
@@ -339,8 +352,8 @@ function renderEstoque() {
         </div>
         <div class="stock-edit-grid">
           <input class="input input-sm" id="edit-nome-${p.id}" value="${p.nome}" placeholder="Nome" type="text" style="grid-column:1/-1" />
-          <input class="input input-sm" id="edit-preco-${p.id}" value="${p.preco}" placeholder="Preço R$" type="number" min="0" step="0.5" />
-          <input class="input input-sm" id="edit-custo-${p.id}" value="${p.custo}" placeholder="Custo R$" type="number" min="0" step="0.5" />
+          <input class="input input-sm" id="edit-preco-${p.id}" value="${fmtMoeda(p.preco)}" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
+          <input class="input input-sm" id="edit-custo-${p.id}" value="${fmtMoeda(p.custo)}" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
         </div>
         <div class="stock-edit-actions">
           <button class="btn-save" onclick="salvarEdicao(${p.id})">✓ Salvar</button>
@@ -411,8 +424,8 @@ function cancelarEdicao() {
 
 async function salvarEdicao(id) {
   const nome  = document.getElementById(`edit-nome-${id}`).value.trim();
-  const preco = parseFloat(document.getElementById(`edit-preco-${id}`).value);
-  const custo = parseFloat(document.getElementById(`edit-custo-${id}`).value) || 0;
+  const preco = lerMoeda(`edit-preco-${id}`);
+  const custo = lerMoeda(`edit-custo-${id}`);
   if (!nome || isNaN(preco)) { showToast('⚠ Preencha nome e preço', 'error-toast'); return; }
   const p = produtos.find(x => x.id === id);
   try {
@@ -460,8 +473,8 @@ async function ajustarEstoque(id, delta) {
 
 /* ── Margem ao vivo ───────────────────────── */
 function atualizarMargem() {
-  const preco = parseFloat(document.getElementById('new-price').value);
-  const custo = parseFloat(document.getElementById('new-cost').value);
+  const preco = lerMoeda('new-price');
+  const custo = lerMoeda('new-cost');
   const hint  = document.getElementById('margin-hint');
   if (!isNaN(preco) && !isNaN(custo) && preco > 0) {
     const margem   = Math.round(((preco - custo) / preco) * 100);
@@ -492,8 +505,8 @@ function setupFormEnter() {
 
 async function addProduto() {
   const nome    = document.getElementById('new-name').value.trim();
-  const preco   = parseFloat(document.getElementById('new-price').value);
-  const custo   = parseFloat(document.getElementById('new-cost').value) || 0;
+  const preco   = lerMoeda('new-price');
+  const custo   = lerMoeda('new-cost');
   const estoque = parseInt(document.getElementById('new-qty').value);
   if (!nome || isNaN(preco) || isNaN(estoque)) {
     showToast('⚠ Preencha nome, preço e quantidade', 'error-toast');
@@ -699,12 +712,12 @@ function selecionarPagamento(metodo) {
 }
 
 function setRecebido(valor) {
-  document.getElementById('pm-recebido').value = valor;
+  document.getElementById('pm-recebido').value = fmtMoeda(valor);
   calcularTroco();
 }
 
 function calcularTroco() {
-  const recebido = parseFloat(document.getElementById('pm-recebido').value) || 0;
+  const recebido = lerMoeda('pm-recebido');
   const total    = totalCarrinho();
   const el       = document.getElementById('pm-troco');
   if (recebido <= 0) { el.textContent = ''; return; }
@@ -979,12 +992,12 @@ function confirmarQtyCustom() {
 function carregarFundo() {
   const val = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
   const inp = document.getElementById('fundo-inp');
-  if (inp && !inp.matches(':focus')) inp.value = val || '';
+  if (inp && !inp.matches(':focus')) inp.value = val > 0 ? fmtMoeda(val) : '';
   atualizarFundoResultado();
 }
 
 function salvarFundo() {
-  const val = parseFloat(document.getElementById('fundo-inp')?.value || '0') || 0;
+  const val = lerMoeda('fundo-inp');
   localStorage.setItem('fundo_caixa', val);
   atualizarFundoResultado();
   showToast('Fundo salvo!', 'green-toast');
@@ -1247,8 +1260,6 @@ ${fundoHtml}
 }
 
 /* ── Init ─────────────────────────────────── */
-document.getElementById('new-price').addEventListener('input', atualizarMargem);
-document.getElementById('new-cost').addEventListener('input', atualizarMargem);
 
 document.addEventListener('DOMContentLoaded', async () => {
   aplicarTema();

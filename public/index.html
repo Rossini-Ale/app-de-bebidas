@@ -68,9 +68,9 @@
         <h3>+ Adicionar produto</h3>
         <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
         <div class="form-row three">
-          <input id="new-price" class="input" placeholder="Preço de venda R$" type="number" min="0" step="0.5" />
-          <input id="new-cost" class="input" placeholder="Custo R$" type="number" min="0" step="0.5" />
-          <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" />
+          <input id="new-price" class="input" placeholder="Preço de venda R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
+          <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
+          <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
         </div>
         <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
         <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
@@ -130,7 +130,7 @@
       <div class="fundo-card">
         <span class="fundo-title">Fundo de caixa</span>
         <div class="fundo-input-row">
-          <input id="fundo-inp" class="input fundo-inp" type="number" min="0" step="1" placeholder="R$ 0" />
+          <input id="fundo-inp" class="input fundo-inp" type="text" inputmode="numeric" placeholder="R$ 0" oninput="mascaraMoedaInline(this)" />
           <button class="fundo-save-btn" onclick="salvarFundo()">✓ Salvar</button>
         </div>
         <div id="fundo-resultado"></div>
@@ -231,8 +231,8 @@
         <button class="pm-nota-btn" onclick="setRecebido(50)">R$50</button>
         <button class="pm-nota-btn" onclick="setRecebido(100)">R$100</button>
       </div>
-      <input id="pm-recebido" class="pm-recebido-inp" type="number" min="0" step="0.5"
-        placeholder="Ou digite o valor…" oninput="calcularTroco()" />
+      <input id="pm-recebido" class="pm-recebido-inp" type="text" inputmode="numeric"
+        placeholder="Ou digite o valor…" oninput="mascaraMoedaInline(this);calcularTroco()" />
       <div id="pm-troco" class="pm-troco"></div>
     </div>
 

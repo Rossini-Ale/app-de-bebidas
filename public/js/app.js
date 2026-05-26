@@ -96,7 +96,9 @@ function toggleDarkMode() {
 
 /* ── Combo toggle ─────────────────────────── */
 function toggleComboRow(prefix) {
-  const check = document.getElementById(`${prefix}-combo-check`);
+  // new product uses 'new-combo-check'; edit products use 'combo-check-{id}'
+  const checkId = prefix === 'new' ? 'new-combo-check' : `combo-check-${prefix}`;
+  const check = document.getElementById(checkId);
   const row = document.getElementById(`combo-row-${prefix}`);
   if (row) row.style.display = check?.checked ? 'grid' : 'none';
 }
@@ -394,15 +396,20 @@ function renderEstoque() {
           <input class="input input-sm" id="edit-nome-${p.id}" value="${p.nome}" placeholder="Nome" type="text" style="grid-column:1/-1" />
           <input class="input input-sm" id="edit-preco-${p.id}" value="${fmtMoeda(p.preco)}" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
           <input class="input input-sm" id="edit-custo-${p.id}" value="${fmtMoeda(p.custo)}" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
-          <input class="input input-sm" id="edit-cat-${p.id}" value="${p.categoria || ''}" placeholder="Categoria (opcional)" type="text" list="cat-list" style="grid-column:1/-1" />
+          <select class="input input-sm" id="edit-cat-${p.id}" style="grid-column:1/-1">
+            <option value="" ${!p.categoria ? 'selected' : ''}>Sem categoria</option>
+            <option value="Bebidas" ${p.categoria === 'Bebidas' ? 'selected' : ''}>Bebidas</option>
+            <option value="Comidas" ${p.categoria === 'Comidas' ? 'selected' : ''}>Comidas</option>
+            <option value="Outros" ${p.categoria === 'Outros' ? 'selected' : ''}>Outros</option>
+          </select>
         </div>
         <label class="combo-toggle-label">
-          <input type="checkbox" id="${p.id}-combo-check" ${hasCombo ? 'checked' : ''} onchange="toggleComboRow('${p.id}')" />
+          <input type="checkbox" id="combo-check-${p.id}" ${hasCombo ? 'checked' : ''} onchange="toggleComboRow('${p.id}')" />
           Ativar combo por quantidade
         </label>
         <div class="combo-row" id="combo-row-${p.id}" style="display:${hasCombo ? 'grid' : 'none'}">
-          <input class="input input-sm" id="edit-combo-qtd-${p.id}" placeholder="Qtd mínima" type="number" min="2" inputmode="numeric" value="${p.combo_qtd || ''}" />
-          <input class="input input-sm" id="edit-combo-preco-${p.id}" placeholder="Preço combo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" value="${p.combo_preco ? fmtMoeda(p.combo_preco) : ''}" />
+          <input class="input input-sm" id="edit-combo-qtd-${p.id}" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" value="${p.combo_qtd || ''}" />
+          <input class="input input-sm" id="edit-combo-preco-${p.id}" placeholder="Preço combo (ex: 5.00)" type="number" step="0.01" min="0.01" inputmode="decimal" value="${p.combo_preco ? Number(p.combo_preco).toFixed(2) : ''}" />
         </div>
         <div class="stock-edit-actions">
           <button class="btn-save" onclick="salvarEdicao(${p.id})">✓ Salvar</button>
@@ -517,18 +524,21 @@ async function salvarEdicao(id) {
   const preco    = lerMoeda(`edit-preco-${id}`);
   const custo    = lerMoeda(`edit-custo-${id}`);
   const categoria = (document.getElementById(`edit-cat-${id}`)?.value || '').trim();
-  const comboAtivo = document.getElementById(`${id}-combo-check`)?.checked;
-  const comboQtdVal = parseInt(document.getElementById(`edit-combo-qtd-${id}`)?.value) || null;
-  const comboPreco  = comboAtivo ? lerMoeda(`edit-combo-preco-${id}`) : null;
+  const comboAtivo  = document.getElementById(`combo-check-${id}`)?.checked;
+  const comboQtdVal = parseInt(document.getElementById(`edit-combo-qtd-${id}`)?.value);
+  const comboPrecVal = parseFloat(document.getElementById(`edit-combo-preco-${id}`)?.value);
   if (!nome || isNaN(preco)) { showToast('⚠ Preencha nome e preço', 'error-toast'); return; }
+  if (comboAtivo && (isNaN(comboQtdVal) || comboQtdVal < 2 || isNaN(comboPrecVal) || comboPrecVal <= 0)) {
+    showToast('⚠ Preencha quantidade mínima (≥2) e preço do combo', 'error-toast'); return;
+  }
   const p = produtos.find(x => x.id === id);
   try {
     const updated = await apiFetch(`/produtos/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
         nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo: p.estoque_minimo, categoria,
-        combo_qtd:   comboAtivo ? comboQtdVal || null : null,
-        combo_preco: comboAtivo ? comboPreco  || null : null
+        combo_qtd:   comboAtivo ? comboQtdVal : null,
+        combo_preco: comboAtivo ? comboPrecVal : null
       })
     });
     const i = produtos.findIndex(x => x.id === id);
@@ -607,15 +617,18 @@ async function addProduto() {
   const custo    = lerMoeda('new-cost');
   const estoque  = parseInt(document.getElementById('new-qty').value) || 0;
   const categoria = (document.getElementById('new-cat')?.value || '').trim();
-  const comboAtivo = document.getElementById('new-combo-check')?.checked;
-  const comboQtdVal = parseInt(document.getElementById('new-combo-qtd')?.value) || null;
-  const comboPreco  = comboAtivo ? lerMoeda('new-combo-preco') : null;
+  const comboAtivo  = document.getElementById('new-combo-check')?.checked;
+  const comboQtdVal = parseInt(document.getElementById('new-combo-qtd')?.value);
+  const comboPrecVal = parseFloat(document.getElementById('new-combo-preco')?.value);
   if (!nome) { showToast('⚠ Informe o nome do produto', 'error-toast'); return; }
+  if (comboAtivo && (isNaN(comboQtdVal) || comboQtdVal < 2 || isNaN(comboPrecVal) || comboPrecVal <= 0)) {
+    showToast('⚠ Preencha quantidade mínima (≥2) e preço do combo', 'error-toast'); return;
+  }
   try {
     const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({
       nome, preco, custo, estoque, categoria,
-      combo_qtd:   comboAtivo ? comboQtdVal || null : null,
-      combo_preco: comboAtivo ? comboPreco  || null : null
+      combo_qtd:   comboAtivo ? comboQtdVal : null,
+      combo_preco: comboAtivo ? comboPrecVal : null
     }) });
     produtos.push(novo);
     ['new-name', 'new-cat', 'new-price', 'new-cost', 'new-qty', 'new-combo-qtd', 'new-combo-preco'].forEach(id => {
@@ -1576,6 +1589,41 @@ function handleWsMsg(data) {
       break;
     }
   }
+}
+
+/* ── QR Code Cardápio ────────────────────── */
+async function abrirQrCardapio() {
+  const overlay = document.getElementById('qr-overlay');
+  const wrap    = document.getElementById('qr-img-wrap');
+  const urlEl   = document.getElementById('qr-url');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  wrap.innerHTML = '<div style="color:var(--muted);padding:2rem">Gerando QR…</div>';
+  try {
+    const res  = await fetch('/api/publico/cardapio-qr');
+    const svg  = await res.text();
+    wrap.innerHTML = svg;
+    const svgEl = wrap.querySelector('svg');
+    if (svgEl) { svgEl.style.width = '220px'; svgEl.style.height = '220px'; svgEl.style.display = 'block'; svgEl.style.margin = '0 auto'; }
+    const cardapioUrl = `${location.protocol}//${location.host}/cardapio`;
+    urlEl.textContent = cardapioUrl;
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--red);font-size:13px">Erro ao gerar QR: ${e.message}</div>`;
+  }
+}
+function fecharQr() {
+  const overlay = document.getElementById('qr-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+function baixarQr() {
+  const svg = document.querySelector('#qr-img-wrap svg');
+  if (!svg) return;
+  const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cardapio-qr.svg';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 /* ── Init ─────────────────────────────────── */

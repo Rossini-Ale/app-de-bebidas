@@ -6,6 +6,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const http = require('http');
 const { WebSocketServer } = require('ws');
+const QRCode = require('qrcode');
 const db = require('./db');
 const appEvents = require('./events');
 
@@ -71,6 +72,17 @@ app.get('/api/publico/produtos', async (req, res) => {
 });
 
 app.get('/cardapio', (req, res) => res.sendFile(path.join(__dirname, 'public', 'cardapio.html')));
+
+app.get('/api/publico/cardapio-qr', async (req, res) => {
+  try {
+    const host = req.get('host');
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const url = `${proto}://${host}/cardapio`;
+    const svg = await QRCode.toString(url, { type: 'svg', margin: 2, width: 300 });
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.send(svg);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));

@@ -8,7 +8,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'railway',
   waitForConnections: true,
   connectionLimit: 10,
-  timezone: '-03:00'
+  timezone: 'Z'
 });
 
 module.exports = pool;

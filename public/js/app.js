@@ -301,6 +301,7 @@ function atualizarCartBar() {
   const bar     = document.getElementById('cart-bar');
   const badge   = document.getElementById('cart-badge');
   const infoBtn = document.getElementById('cart-bar-info');
+  const sheet   = document.getElementById('cart-sheet');
   const isVenda = document.getElementById('tab-venda').classList.contains('active');
   const totalItens = carrinho.reduce((s, c) => s + c.qty, 0);
 
@@ -313,8 +314,15 @@ function atualizarCartBar() {
   if (!totalItens || !isVenda) {
     bar.classList.remove('visible');
     cartSheetOpen = false;
-    document.getElementById('cart-sheet')?.classList.remove('open');
+    sheet?.classList.remove('open');
     return;
+  }
+
+  // Abre o sheet automaticamente sempre que há itens
+  if (!cartSheetOpen) {
+    cartSheetOpen = true;
+    renderCartSheet();
+    sheet?.classList.add('open');
   }
 
   const total = carrinho.reduce((s, c) => {

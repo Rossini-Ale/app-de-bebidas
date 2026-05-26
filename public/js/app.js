@@ -637,6 +637,7 @@ async function gerarPDF() {
     const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
     const totalCusto = itens.reduce((s, i) => s + Number(i.custo_total), 0);
     const margem = resumo.total_arrecadado > 0 ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) : 0;
+    const pag = resumo.pagamentos || {};
 
     const linhas = itens.filter(i => Number(i.qtd_vendida) > 0).map(item => {
       const qtd        = Number(item.qtd_vendida);
@@ -670,7 +671,8 @@ async function gerarPDF() {
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;padding:28px 32px;font-size:14px}
   h1{font-size:22px;font-weight:800;margin-bottom:3px}
   .sub{color:#666;font-size:12px;margin-bottom:24px}
-  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px}
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+  .pay-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px}
   .sb{background:#f5f5f5;border-radius:8px;padding:12px 14px}
   .sl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:4px;font-weight:700}
   .sv{font-size:19px;font-weight:800}
@@ -699,6 +701,12 @@ async function gerarPDF() {
   <div class="sb"><div class="sl">Arrecadado</div><div class="sv">${fmt(resumo.total_arrecadado)}</div></div>
   <div class="sb"><div class="sl">Custo total</div><div class="sv">${fmt(totalCusto)}</div></div>
   <div class="sb"><div class="sl">Lucro (${margem}%)</div><div class="sv green">${fmt(resumo.total_lucro)}</div></div>
+</div>
+<h2 style="margin-bottom:8px">Formas de pagamento</h2>
+<div class="pay-summary">
+  <div class="sb"><div class="sl">💵 Dinheiro</div><div class="sv">${fmt(pag.dinheiro || 0)}</div></div>
+  <div class="sb"><div class="sl">Pix</div><div class="sv">${fmt(pag.pix || 0)}</div></div>
+  <div class="sb"><div class="sl">💳 Cartão</div><div class="sv">${fmt(pag.cartao || 0)}</div></div>
 </div>
 <h2>Por produto</h2>
 <table>

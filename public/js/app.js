@@ -4,10 +4,6 @@ let produtos = [], carrinho = [], editingId = null;
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
 
-const AVATAR_COLORS = ['#D97706','#059669','#0284C7','#7C3AED','#DB2777','#0891B2','#65A30D','#DC2626'];
-function avatarColor(nome) {
-  return AVATAR_COLORS[(nome || ' ').toUpperCase().charCodeAt(0) % AVATAR_COLORS.length];
-}
 
 function parseDataUTC(str) {
   const s = String(str);
@@ -106,7 +102,6 @@ function renderVenda() {
     const onclick    = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
     return `<div class="${classes}" data-id="${p.id}" ${onclick}>
       ${badge}
-      <div class="pc-avatar" style="background:${avatarColor(p.nome)}">${p.nome[0].toUpperCase()}</div>
       <div class="pc-nome">${p.nome}</div>
       <div class="pc-preco">${fmt(p.preco)}</div>
       <div class="pc-stock">${stockLabel}</div>
@@ -126,7 +121,6 @@ function renderEstoque() {
     if (editingId === p.id) {
       return `<div class="stock-item editing">
         <div class="stock-edit-header">
-          <div class="stock-avatar" style="background:${avatarColor(p.nome)}">${p.nome[0].toUpperCase()}</div>
           <span>Editando produto</span>
         </div>
         <div class="stock-edit-grid">
@@ -142,7 +136,6 @@ function renderEstoque() {
     }
     const margem = p.custo > 0 ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null;
     return `<div class="stock-item">
-      <div class="stock-avatar" style="background:${avatarColor(p.nome)}">${p.nome[0].toUpperCase()}</div>
       <div class="stock-info">
         <div class="stock-name">${p.nome}</div>
         <div class="stock-sub">Venda ${fmt(p.preco)} · Custo ${fmt(p.custo)}</div>
@@ -423,7 +416,6 @@ async function carregarRelatorio() {
       const isNeg     = lucro < 0;
       return `<div class="relatorio-item">
         <div class="rel-header">
-          <div class="rel-avatar" style="background:${avatarColor(item.nome)}">${item.nome[0].toUpperCase()}</div>
           <span class="rel-nome">${item.nome}</span>
           <span class="rel-qtd">${item.qtd_vendida} vendidos</span>
         </div>
@@ -537,7 +529,7 @@ async function gerarPDF() {
 </style>
 </head>
 <body>
-<h1>🤠 Caixa UNIFSP</h1>
+<h1>Caixa UNIFSP</h1>
 <p class="sub">Relatório de vendas · gerado em ${agora}</p>
 <div class="summary">
   <div class="sb"><div class="sl">Vendas</div><div class="sv">${resumo.total_vendas}</div></div>

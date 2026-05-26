@@ -5,7 +5,7 @@ let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHi
 let histPagina = 1;
 const HIST_POR_PAG = 20;
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
-let dinheiroVendas = 0, wakeLock = null, reposicaoId = null;
+let dinheiroVendas = 0, wakeLock = null, reposicaoId = null, reposicaoModo = 'add';
 let eventoAtual = null, operadorAtual = 'Caixa', venderAoCusto = false;
 let categoriaFiltro = '';
 let wsConn = null, wsConectado = false;
@@ -400,13 +400,14 @@ function renderEstoque() {
         ${margem !== null ? `<div class="stock-margin">Margem: ${margem}%</div>` : ''}
         <div class="stock-actions">
           <button class="stock-act-btn edit" onclick="editarProduto(${p.id})">✏ Editar</button>
-          <button class="stock-act-btn repor ${isRepondo ? 'active' : ''}" onclick="abrirReposicao(${p.id})">+ Repor</button>
+          <button class="stock-act-btn repor ${isRepondo && reposicaoModo==='add' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'add')">+ Repor</button>
+          <button class="stock-act-btn retirar ${isRepondo && reposicaoModo==='sub' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'sub')">− Retirar</button>
           <button class="stock-act-btn del"  onclick="excluirProduto(${p.id}, this)">Excluir</button>
         </div>
         ${isRepondo ? `<div class="repor-row">
-          <input id="repor-inp-${p.id}" class="input repor-inp" type="number" min="1" placeholder="Qtd a adicionar…"
+          <input id="repor-inp-${p.id}" class="input repor-inp" type="number" min="1" placeholder="${reposicaoModo==='add' ? 'Qtd a adicionar…' : 'Qtd a retirar…'}"
             onkeydown="if(event.key==='Enter')confirmarReposicao(${p.id})" />
-          <button class="btn-repor-ok" onclick="confirmarReposicao(${p.id})">✓ Adicionar</button>
+          <button class="btn-repor-ok ${reposicaoModo==='sub' ? 'retirar' : ''}" onclick="confirmarReposicao(${p.id})">${reposicaoModo==='add' ? '✓ Adicionar' : '✓ Retirar'}</button>
         </div>` : ''}
       </div>
       <div class="stock-qty">
@@ -432,29 +433,38 @@ function renderReposicoes(rows) {
     el.innerHTML = '<div class="empty-state" style="padding:1rem 0">Nenhuma reposição registrada</div>';
     return;
   }
-  el.innerHTML = rows.map(r => `
-    <div class="reposicao-item">
+  el.innerHTML = rows.map(r => {
+    const qty = Number(r.quantidade);
+    const isNeg = qty < 0;
+    return `<div class="reposicao-item">
       <div class="rep-info">
         <span class="rep-nome">${r.produto_nome}</span>
         <span class="rep-hora">${fmtDataHora(r.criado_em)}</span>
       </div>
       <div class="rep-right">
-        <span class="rep-qty">+${r.quantidade}</span>
+        <span class="rep-qty" style="${isNeg ? 'color:var(--red)' : ''}">${isNeg ? qty : '+' + qty}</span>
         <span class="rep-op">${r.operador}</span>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
-function abrirReposicao(id) {
+function abrirReposicao(id, modo = 'add') {
   editingId = null;
-  reposicaoId = reposicaoId === id ? null : id;
+  if (reposicaoId === id && reposicaoModo === modo) {
+    reposicaoId = null;
+  } else {
+    reposicaoId = id;
+    reposicaoModo = modo;
+  }
   renderEstoque();
   if (reposicaoId) setTimeout(() => document.getElementById(`repor-inp-${id}`)?.focus(), 50);
 }
 
 async function confirmarReposicao(id) {
-  const delta = parseInt(document.getElementById(`repor-inp-${id}`)?.value || '0');
-  if (!delta || delta <= 0) return;
+  const val = parseInt(document.getElementById(`repor-inp-${id}`)?.value || '0');
+  if (!val || val <= 0) return;
+  const delta = reposicaoModo === 'sub' ? -val : val;
   try {
     const updated = await apiFetch(`/produtos/${id}/estoque`, { method: 'PATCH', body: JSON.stringify({ delta, registrar: true }) });
     const i = produtos.findIndex(p => p.id === id);
@@ -462,7 +472,7 @@ async function confirmarReposicao(id) {
     reposicaoId = null;
     renderEstoque(); renderVenda();
     carregarReposicoes();
-    showToast(`+${delta} unidades adicionadas`, 'green-toast');
+    showToast(delta > 0 ? `+${val} unidades adicionadas` : `−${val} unidades retiradas`, delta > 0 ? 'green-toast' : '');
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 

@@ -37,7 +37,7 @@ router.patch('/:id/estoque', async (req, res) => {
     const [rows] = await db.query('SELECT * FROM produtos WHERE id = ?', [req.params.id]);
     const produto = rows[0];
 
-    if (registrar && delta > 0) {
+    if (registrar && delta !== 0) {
       await db.query(
         'INSERT INTO reposicoes (produto_id, quantidade, operador, evento_id) VALUES (?, ?, ?, ?)',
         [req.params.id, delta, req.operador, req.eventoId]

@@ -410,6 +410,13 @@ button { touch-action: manipulation; }
 .stock-act-btn.repor { color: var(--green-d); }
 .stock-act-btn.repor:hover, .stock-act-btn.repor:active { border-color: var(--green); color: var(--green-d); background: #F0FDF4; }
 .stock-act-btn.repor.active { border-color: var(--green); color: var(--green-d); background: #F0FDF4; }
+.stock-act-btn.retirar { color: var(--red); }
+.stock-act-btn.retirar:hover, .stock-act-btn.retirar:active { border-color: var(--red); color: var(--red); background: #FEF2F2; }
+.stock-act-btn.retirar.active { border-color: var(--red); color: var(--red); background: #FEF2F2; }
+.btn-repor-ok.retirar { background: var(--red); }
+.btn-repor-ok.retirar:hover, .btn-repor-ok.retirar:active { background: #B91C1C; }
+[data-theme="dark"] .stock-act-btn.retirar:hover,
+[data-theme="dark"] .stock-act-btn.retirar.active { background: rgba(220,38,38,.1); }
 .repor-row { display: flex; gap: 8px; margin-top: 8px; }
 .repor-inp { flex: 1; font-size: 14px; padding: 8px 10px; min-height: 40px; }
 .btn-repor-ok {

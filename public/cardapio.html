@@ -326,7 +326,7 @@
           /* Stock label */
           const stockHtml = esgotado
             ? `<div class="pc-stock sem-estoque">Esgotado</div>`
-            : `<div class="pc-stock">${p.estoque} disponível${p.estoque !== 1 ? 's' : ''}</div>`;
+            : '';
 
           /* Combo badge */
           const comboHtml = (p.combo_qtd && p.combo_preco)

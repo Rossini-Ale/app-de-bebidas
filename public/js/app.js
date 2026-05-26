@@ -95,11 +95,16 @@ function renderVenda() {
 
   l.innerHTML = '<div class="produto-grid">' + sorted.map(p => {
     const noStock    = p.estoque === 0;
+    const veryLow    = p.estoque > 0 && p.estoque <= 2;
+    const lowStock   = p.estoque > 0 && p.estoque <= 5;
     const itemCart   = carrinho.find(c => c.id === p.id);
     const inCart     = !!itemCart;
     const badge      = inCart ? `<span class="pc-badge" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${itemCart.qty}</span>` : '';
-    const stockLabel = noStock ? 'Sem estoque' : p.estoque + ' un.';
-    const classes    = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : ''].filter(Boolean).join(' ');
+    const stockLabel = noStock  ? 'Sem estoque' :
+                       veryLow  ? `⚠ ${p.estoque} un.` :
+                                  `${p.estoque} un.`;
+    const classes    = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : '',
+                        veryLow ? 'very-low-stock' : lowStock ? 'low-stock' : ''].filter(Boolean).join(' ');
     const onclick    = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
     return `<div class="${classes}" data-id="${p.id}" ${onclick}>
       ${badge}
@@ -628,6 +633,36 @@ function confirmarQtyPicker(qty) {
 function confirmarQtyCustom() {
   const v = parseInt(document.getElementById('qty-custom-inp').value);
   if (v > 0) confirmarQtyPicker(v);
+}
+
+/* ── WhatsApp ─────────────────────────────── */
+async function compartilharWhatsApp() {
+  try {
+    const resumo = await apiFetch('/vendas/resumo');
+    const agora  = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
+    const margem = resumo.total_arrecadado > 0 ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) : 0;
+    const pag    = resumo.pagamentos || {};
+
+    const linhasPag = [
+      pag.dinheiro > 0 ? `💵 Dinheiro: ${fmt(pag.dinheiro)}` : '',
+      pag.pix      > 0 ? `📱 Pix: ${fmt(pag.pix)}`           : '',
+      pag.cartao   > 0 ? `💳 Cartão: ${fmt(pag.cartao)}`      : '',
+    ].filter(Boolean).join('\n');
+
+    const texto = [
+      `🤠 *Caixa UNIFSP*`,
+      ``,
+      `📊 *${resumo.total_vendas}* vendas`,
+      `💰 *${fmt(resumo.total_arrecadado)}* arrecadado`,
+      `📈 *${fmt(resumo.total_lucro)}* de lucro *(${margem}%)*`,
+      linhasPag ? `\n${linhasPag}` : '',
+      ``,
+      `_${agora}_`,
+    ].filter(s => s !== undefined).join('\n');
+
+    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    window.open(url, '_blank');
+  } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
 /* ── PDF ──────────────────────────────────── */

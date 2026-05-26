@@ -171,7 +171,11 @@ button { touch-action: manipulation; }
 .produto-card:active:not(.no-stock) { transform: scale(.97); }
 .produto-card:hover:not(.no-stock) { border-color: var(--amber); background: #FFFBF0; }
 .produto-card.no-stock { opacity: .4; cursor: not-allowed; }
-.produto-card.in-cart { border-color: var(--amber); background: #FFFBF0; }
+.produto-card.in-cart         { border-color: var(--amber); background: #FFFBF0; }
+.produto-card.low-stock:not(.in-cart)      { border-color: var(--amber); }
+.produto-card.very-low-stock:not(.in-cart) { border-color: var(--red); background: #FFF8F8; }
+.produto-card.low-stock .pc-stock          { color: var(--amber); font-weight: 700; }
+.produto-card.very-low-stock .pc-stock     { color: var(--red); font-weight: 700; }
 .produto-card.flash { animation: flashAdd .22s ease; }
 .produto-card.in-cart.flash { animation: flashAddInCart .22s ease; }
 
@@ -340,23 +344,23 @@ button { touch-action: manipulation; }
 }
 .btn-secondary:hover, .btn-secondary:active { border-color: var(--amber); color: var(--text); }
 
-/* ── BOTÃO PDF ───────────────────────────── */
-.btn-pdf {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 11px 20px;
+/* ── BOTÕES RELATÓRIO ────────────────────── */
+.rel-actions { display: flex; gap: 8px; }
+.btn-pdf, .btn-whatsapp {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px 16px;
   background: var(--bg-card);
   border: 1px solid var(--border-s);
   border-radius: var(--r);
   font-size: 14px; font-weight: 700;
-  color: var(--amber-d);
   cursor: pointer; font-family: inherit;
-  min-height: 44px;
-  transition: all .15s;
+  min-height: 44px; transition: all .15s;
 }
-.btn-pdf:hover, .btn-pdf:active { background: #FFFBF0; border-color: var(--amber); }
+.btn-pdf      { color: var(--amber-d); }
+.btn-whatsapp { color: #25D366; }
+.btn-pdf:hover,      .btn-pdf:active      { background: #FFFBF0; border-color: var(--amber); }
+.btn-whatsapp:hover, .btn-whatsapp:active { background: #F0FFF4; border-color: #25D366; }
 .btn-pdf:disabled { opacity: .6; cursor: not-allowed; }
 
 /* ── RELATÓRIO ───────────────────────────── */

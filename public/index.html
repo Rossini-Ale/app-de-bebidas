@@ -63,14 +63,10 @@
 
     <!-- ABA ESTOQUE -->
     <div id="tab-estoque" class="section">
-      <div class="metrics" style="grid-template-columns:1fr 1fr;">
+      <div class="metrics" style="grid-template-columns:1fr;">
         <div class="metric">
-          <div class="label">Produtos</div>
+          <div class="label">Produtos cadastrados</div>
           <div class="value" id="m-produtos">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">Alertas de estoque</div>
-          <div class="value danger" id="m-alertas">—</div>
         </div>
       </div>
       <div id="stock-list"><div class="loading">Carregando...</div></div>
@@ -82,10 +78,7 @@
           <input id="new-cost" class="input" placeholder="Custo R$" type="number" min="0" step="0.5" />
           <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" />
         </div>
-        <div class="form-row two">
-          <input id="new-alert" class="input" placeholder="Alerta mínimo" type="number" min="0" />
-          <div class="margin-hint" id="margin-hint">Margem: —</div>
-        </div>
+        <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
         <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
       </div>
     </div>
@@ -106,7 +99,8 @@
           <div class="value" id="r-margem">—</div>
         </div>
       </div>
-      <p class="section-label">Desempenho por produto</p>
+      <button class="btn-pdf" id="btn-gerar-pdf" onclick="gerarPDF()">📄 Gerar PDF</button>
+      <p class="section-label" style="margin-top:1rem">Desempenho por produto</p>
       <div id="relatorio-lista"><div class="loading">Carregando...</div></div>
     </div>
 

@@ -117,9 +117,7 @@ function renderVenda() {
 
 function renderEstoque() {
   const l = document.getElementById('stock-list');
-  const al = produtos.filter(p => p.estoque <= p.estoque_minimo).length;
   document.getElementById('m-produtos').textContent = produtos.length;
-  document.getElementById('m-alertas').textContent = al;
   if (!produtos.length) {
     l.innerHTML = '<div class="empty-state">Nenhum produto ainda</div>';
     return;
@@ -135,7 +133,6 @@ function renderEstoque() {
           <input class="input input-sm" id="edit-nome-${p.id}" value="${p.nome}" placeholder="Nome" type="text" style="grid-column:1/-1" />
           <input class="input input-sm" id="edit-preco-${p.id}" value="${p.preco}" placeholder="Preço R$" type="number" min="0" step="0.5" />
           <input class="input input-sm" id="edit-custo-${p.id}" value="${p.custo}" placeholder="Custo R$" type="number" min="0" step="0.5" />
-          <input class="input input-sm" id="edit-alerta-${p.id}" value="${p.estoque_minimo}" placeholder="Alerta mínimo" type="number" min="0" />
         </div>
         <div class="stock-edit-actions">
           <button class="btn-save" onclick="salvarEdicao(${p.id})">✓ Salvar</button>
@@ -143,13 +140,12 @@ function renderEstoque() {
         </div>
       </div>`;
     }
-    const low    = p.estoque <= p.estoque_minimo;
     const margem = p.custo > 0 ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null;
     return `<div class="stock-item">
       <div class="stock-avatar" style="background:${avatarColor(p.nome)}">${p.nome[0].toUpperCase()}</div>
       <div class="stock-info">
-        <div class="stock-name">${p.nome}${low ? '<span class="badge-low">estoque baixo</span>' : ''}</div>
-        <div class="stock-sub">Venda ${fmt(p.preco)} · Custo ${fmt(p.custo)} · alerta em ${p.estoque_minimo} un.</div>
+        <div class="stock-name">${p.nome}</div>
+        <div class="stock-sub">Venda ${fmt(p.preco)} · Custo ${fmt(p.custo)}</div>
         ${margem !== null ? `<div class="stock-margin">Margem: ${margem}%</div>` : ''}
         <div class="stock-actions">
           <button class="stock-act-btn edit" onclick="editarProduto(${p.id})">✏ Editar</button>
@@ -158,7 +154,7 @@ function renderEstoque() {
       </div>
       <div class="stock-qty">
         <button class="qty-btn" onclick="ajustarEstoque(${p.id}, -1)">−</button>
-        <span class="qty-num ${low ? 'qty-low' : ''}">${p.estoque}</span>
+        <span class="qty-num">${p.estoque}</span>
         <button class="qty-btn" onclick="ajustarEstoque(${p.id}, +1)">+</button>
       </div>
     </div>`;
@@ -177,16 +173,15 @@ function cancelarEdicao() {
 }
 
 async function salvarEdicao(id) {
-  const nome          = document.getElementById(`edit-nome-${id}`).value.trim();
-  const preco         = parseFloat(document.getElementById(`edit-preco-${id}`).value);
-  const custo         = parseFloat(document.getElementById(`edit-custo-${id}`).value) || 0;
-  const estoque_minimo = parseInt(document.getElementById(`edit-alerta-${id}`).value) || 5;
+  const nome  = document.getElementById(`edit-nome-${id}`).value.trim();
+  const preco = parseFloat(document.getElementById(`edit-preco-${id}`).value);
+  const custo = parseFloat(document.getElementById(`edit-custo-${id}`).value) || 0;
   if (!nome || isNaN(preco)) { showToast('⚠ Preencha nome e preço', 'error-toast'); return; }
   const p = produtos.find(x => x.id === id);
   try {
     const updated = await apiFetch(`/produtos/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo })
+      body: JSON.stringify({ nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo: p.estoque_minimo })
     });
     const i = produtos.findIndex(x => x.id === id);
     if (i >= 0) produtos[i] = updated;
@@ -244,7 +239,7 @@ function atualizarMargem() {
 
 /* Enter avança campos do formulário */
 function setupFormEnter() {
-  const campos = ['new-name', 'new-price', 'new-cost', 'new-qty', 'new-alert'];
+  const campos = ['new-name', 'new-price', 'new-cost', 'new-qty'];
   campos.forEach((id, i) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -259,19 +254,18 @@ function setupFormEnter() {
 }
 
 async function addProduto() {
-  const nome          = document.getElementById('new-name').value.trim();
-  const preco         = parseFloat(document.getElementById('new-price').value);
-  const custo         = parseFloat(document.getElementById('new-cost').value) || 0;
-  const estoque       = parseInt(document.getElementById('new-qty').value);
-  const estoque_minimo = parseInt(document.getElementById('new-alert').value) || 5;
+  const nome    = document.getElementById('new-name').value.trim();
+  const preco   = parseFloat(document.getElementById('new-price').value);
+  const custo   = parseFloat(document.getElementById('new-cost').value) || 0;
+  const estoque = parseInt(document.getElementById('new-qty').value);
   if (!nome || isNaN(preco) || isNaN(estoque)) {
     showToast('⚠ Preencha nome, preço e quantidade', 'error-toast');
     return;
   }
   try {
-    const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, preco, custo, estoque, estoque_minimo }) });
+    const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, preco, custo, estoque }) });
     produtos.push(novo);
-    ['new-name', 'new-price', 'new-cost', 'new-qty', 'new-alert'].forEach(id => {
+    ['new-name', 'new-price', 'new-cost', 'new-qty'].forEach(id => {
       document.getElementById(id).value = '';
     });
     document.getElementById('margin-hint').textContent = 'Margem: —';
@@ -488,6 +482,86 @@ async function carregarHistorico() {
         </div>
       </div>`).join('');
   } catch (e) { l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
+}
+
+/* ── PDF ──────────────────────────────────── */
+async function gerarPDF() {
+  const btn = document.getElementById('btn-gerar-pdf');
+  if (btn) { btn.textContent = '⏳ Gerando...'; btn.disabled = true; }
+  try {
+    const [itens, resumo] = await Promise.all([apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo')]);
+    const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
+    const totalCusto = itens.reduce((s, i) => s + Number(i.custo_total), 0);
+    const margem = resumo.total_arrecadado > 0 ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) : 0;
+
+    const linhas = itens.filter(i => Number(i.qtd_vendida) > 0).map(item => {
+      const lucro = Number(item.lucro);
+      return `<tr>
+        <td>${item.nome}</td>
+        <td class="num">${item.qtd_vendida}</td>
+        <td class="num">${fmt(item.receita)}</td>
+        <td class="num">${fmt(item.custo_total)}</td>
+        <td class="num ${lucro >= 0 ? 'green' : 'red'}">${fmt(lucro)}</td>
+      </tr>`;
+    }).join('');
+
+    const totalQtd = itens.reduce((s, i) => s + Number(i.qtd_vendida), 0);
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório – Caixa UNIFSP</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;padding:28px 32px;font-size:14px}
+  h1{font-size:22px;font-weight:800;margin-bottom:3px}
+  .sub{color:#666;font-size:12px;margin-bottom:24px}
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px}
+  .sb{background:#f5f5f5;border-radius:8px;padding:12px 14px}
+  .sl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:4px;font-weight:700}
+  .sv{font-size:19px;font-weight:800}
+  .sv.green{color:#059669}
+  h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:10px}
+  table{width:100%;border-collapse:collapse}
+  thead tr{background:#f0f0f0}
+  th{text-align:left;padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#666;border-bottom:2px solid #ddd}
+  td{padding:9px 12px;border-bottom:1px solid #eee;font-size:13px}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .green{color:#059669;font-weight:700}
+  .red{color:#dc2626;font-weight:700}
+  tfoot tr{background:#f8f8f8;font-weight:700}
+  tfoot td{border-top:2px solid #ccc;border-bottom:none;padding:10px 12px}
+  .footer{margin-top:28px;color:#aaa;font-size:11px;text-align:center}
+  @media print{body{padding:0}}
+</style>
+</head>
+<body>
+<h1>🤠 Caixa UNIFSP</h1>
+<p class="sub">Relatório de vendas · gerado em ${agora}</p>
+<div class="summary">
+  <div class="sb"><div class="sl">Vendas</div><div class="sv">${resumo.total_vendas}</div></div>
+  <div class="sb"><div class="sl">Arrecadado</div><div class="sv">${fmt(resumo.total_arrecadado)}</div></div>
+  <div class="sb"><div class="sl">Custo total</div><div class="sv">${fmt(totalCusto)}</div></div>
+  <div class="sb"><div class="sl">Lucro (${margem}%)</div><div class="sv green">${fmt(resumo.total_lucro)}</div></div>
+</div>
+<h2>Por produto</h2>
+<table>
+  <thead><tr><th>Produto</th><th class="num">Qtd</th><th class="num">Receita</th><th class="num">Custo</th><th class="num">Lucro</th></tr></thead>
+  <tbody>${linhas || '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">Nenhuma venda registrada</td></tr>'}</tbody>
+  <tfoot><tr><td>Total</td><td class="num">${totalQtd}</td><td class="num">${fmt(resumo.total_arrecadado)}</td><td class="num">${fmt(totalCusto)}</td><td class="num green">${fmt(resumo.total_lucro)}</td></tr></tfoot>
+</table>
+<p class="footer">Caixa UNIFSP · ${agora}</p>
+</body>
+</html>`;
+
+    const w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 400);
+  } catch (e) { showToast('Erro ao gerar PDF: ' + e.message, 'error-toast'); }
+  finally { if (btn) { btn.textContent = '📄 Gerar PDF'; btn.disabled = false; } }
 }
 
 /* ── Init ─────────────────────────────────── */

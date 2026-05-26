@@ -390,11 +390,16 @@ button { touch-action: manipulation; }
 .stock-name  { font-size: 14px; font-weight: 600; }
 .stock-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .stock-margin{ font-size: 11px; color: var(--green); font-weight: 600; margin-top: 2px; }
-.stock-actions { display: flex; gap: 6px; margin-top: 7px; }
+.stock-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
 .stock-act-btn {
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -402,7 +407,8 @@ button { touch-action: manipulation; }
   background: var(--bg-sec);
   color: var(--muted);
   transition: all .12s;
-  min-height: 32px;
+  min-height: 36px;
+  text-align: center;
 }
 .stock-act-btn.edit:hover, .stock-act-btn.edit:active { border-color: var(--amber); color: var(--amber-d); background: #FFFBF0; }
 .stock-act-btn.del:hover,  .stock-act-btn.del:active  { border-color: var(--red);   color: var(--red);   background: #FEF2F2; }

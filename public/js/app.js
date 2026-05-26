@@ -399,9 +399,9 @@ function renderEstoque() {
         <div class="stock-sub">Venda ${fmt(p.preco)} · Custo ${fmt(p.custo)}</div>
         ${margem !== null ? `<div class="stock-margin">Margem: ${margem}%</div>` : ''}
         <div class="stock-actions">
-          <button class="stock-act-btn edit" onclick="editarProduto(${p.id})">✏ Editar</button>
           <button class="stock-act-btn repor ${isRepondo && reposicaoModo==='add' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'add')">+ Repor</button>
           <button class="stock-act-btn retirar ${isRepondo && reposicaoModo==='sub' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'sub')">− Retirar</button>
+          <button class="stock-act-btn edit" onclick="editarProduto(${p.id})">✏ Editar</button>
           <button class="stock-act-btn del"  onclick="excluirProduto(${p.id}, this)">Excluir</button>
         </div>
         ${isRepondo ? `<div class="repor-row">

@@ -31,6 +31,35 @@
 [data-theme="dark"] #undo-btn { background: rgba(0,0,0,.12); border-color: rgba(0,0,0,.2); color: #2C1A00; }
 [data-theme="dark"] .toast:not(.green-toast):not(.error-toast) { background: #F0D99A; color: #2C1A00; }
 
+/* Cards de produto */
+[data-theme="dark"] .produto-card:hover:not(.no-stock)          { background: rgba(217,119,6,.12); }
+[data-theme="dark"] .produto-card.in-cart                       { background: rgba(217,119,6,.15); }
+[data-theme="dark"] .produto-card.very-low-stock:not(.in-cart)  { background: rgba(220,38,38,.1); }
+
+/* Botões de ação do estoque */
+[data-theme="dark"] .stock-act-btn.edit:hover,
+[data-theme="dark"] .stock-act-btn.edit:active  { background: rgba(217,119,6,.12); }
+[data-theme="dark"] .stock-act-btn.del:hover,
+[data-theme="dark"] .stock-act-btn.del:active   { background: rgba(220,38,38,.1); }
+[data-theme="dark"] .stock-act-btn.repor:hover,
+[data-theme="dark"] .stock-act-btn.repor:active,
+[data-theme="dark"] .stock-act-btn.repor.active { background: rgba(5,150,105,.12); }
+
+/* Botões do relatório */
+[data-theme="dark"] .btn-pdf:hover,      [data-theme="dark"] .btn-pdf:active      { background: rgba(217,119,6,.1); }
+[data-theme="dark"] .btn-whatsapp:hover, [data-theme="dark"] .btn-whatsapp:active { background: rgba(37,211,102,.08); }
+[data-theme="dark"] .btn-csv:hover,      [data-theme="dark"] .btn-csv:active      { background: rgba(5,150,105,.1); }
+
+/* Modal de custo e badge */
+[data-theme="dark"] .btn-custo-mode.active { background: rgba(220,38,38,.12); }
+
+/* Animação de sucesso */
+[data-theme="dark"] #success-anim { background: rgba(0,0,0,.6); }
+[data-theme="dark"] .success-circle { background: var(--green); }
+
+/* Cart bar */
+[data-theme="dark"] #cart-bar-btn:active { background: rgba(5,150,105,.2); }
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);

@@ -4,7 +4,7 @@ let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
 let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHistorico = 'recente';
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
 let dinheiroVendas = 0, wakeLock = null, reposicaoId = null;
-let eventoAtual = null, operadorAtual = 'Caixa';
+let eventoAtual = null, operadorAtual = 'Caixa', venderAoCusto = false;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -688,17 +688,38 @@ function renderCarrinho() {
 
 /* ── Pagamento ────────────────────────────── */
 function totalCarrinho() {
-  return carrinho.reduce((s, c) => { const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty; }, 0);
+  return carrinho.reduce((s, c) => {
+    const p = produtos.find(x => x.id === c.id);
+    return s + (venderAoCusto ? (p.custo || 0) : p.preco) * c.qty;
+  }, 0);
 }
 
 function abrirPagamento() {
   if (!carrinho.length) return;
-  document.getElementById('pm-total').textContent = fmt(totalCarrinho());
+  venderAoCusto = false;
+  atualizarModalCusto();
   document.getElementById('pm-recebido').value = '';
   document.getElementById('pm-troco').textContent = '';
   selecionarPagamento('dinheiro');
   document.getElementById('pay-overlay').classList.add('open');
   document.getElementById('pay-modal').classList.add('open');
+}
+
+function toggleCustoMode() {
+  venderAoCusto = !venderAoCusto;
+  atualizarModalCusto();
+  document.getElementById('pm-recebido').value = '';
+  document.getElementById('pm-troco').textContent = '';
+}
+
+function atualizarModalCusto() {
+  const total  = totalCarrinho();
+  const btn    = document.getElementById('btn-custo');
+  const pmTotal = document.getElementById('pm-total');
+  btn.classList.toggle('active', venderAoCusto);
+  btn.textContent = venderAoCusto ? '✓ Vendendo ao custo' : 'Vender ao custo';
+  pmTotal.textContent = fmt(total);
+  pmTotal.style.color = venderAoCusto ? 'var(--muted)' : '';
 }
 
 function fecharPagamento() {
@@ -738,7 +759,8 @@ async function finalizarVenda() {
   const total = totalCarrinho();
   const itens = carrinho.map(c => ({ produto_id: c.id, quantidade: c.qty }));
   try {
-    const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento, operador: operadorAtual }) });
+    const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento, operador: operadorAtual, ao_custo: venderAoCusto }) });
+    venderAoCusto = false;
     vibrar([40, 20, 40]);
     mostrarSuccessAnim();
     ultimaVendaId = venda.id;

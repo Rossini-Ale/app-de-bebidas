@@ -642,6 +642,17 @@ button { touch-action: manipulation; }
 .pm-recebido-inp:focus { outline: none; border-color: var(--amber); box-shadow: 0 0 0 3px rgba(217,119,6,.12); }
 .pm-troco { font-size: 20px; font-weight: 700; text-align: center; min-height: 32px; margin-bottom: 16px; }
 
+.btn-custo-mode {
+  width: 100%; padding: 11px; margin-bottom: 10px;
+  background: transparent; color: var(--muted);
+  border: 1px dashed var(--border-s); border-radius: var(--r);
+  font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; min-height: 44px;
+  transition: all .15s;
+}
+.btn-custo-mode.active {
+  background: #FFF8F8; color: var(--red); border-color: var(--red); border-style: solid;
+}
+[data-theme="dark"] .btn-custo-mode.active { background: rgba(220,38,38,.12); }
 .pm-confirm {
   width: 100%; padding: 16px; background: var(--green); color: #fff;
   border: none; border-radius: var(--r); font-size: 17px; font-weight: 700;

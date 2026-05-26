@@ -57,7 +57,7 @@ router.get('/relatorio', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { itens, forma_pagamento = 'dinheiro' } = req.body;
+  const { itens, forma_pagamento = 'dinheiro', ao_custo = false } = req.body;
   if (!itens || itens.length === 0)
     return res.status(400).json({ error: 'Nenhum item enviado' });
 
@@ -75,10 +75,11 @@ router.post('/', async (req, res) => {
       if (!rows.length) throw new Error(`Produto ${item.produto_id} não encontrado`);
       const p = rows[0];
       if (p.estoque < item.quantidade) throw new Error(`Estoque insuficiente para "${p.nome}"`);
-      total += p.preco * item.quantidade;
+      const precoVenda = ao_custo ? (p.custo || 0) : p.preco;
+      total += precoVenda * item.quantidade;
       totalItens += item.quantidade;
       descricoes.push(`${item.quantidade}× ${p.nome}`);
-      itensFinal.push({ ...item, preco_unitario: p.preco });
+      itensFinal.push({ ...item, preco_unitario: precoVenda });
     }
 
     const [vendaResult] = await conn.query(

@@ -2,6 +2,8 @@ const API = '';
 let produtos = [], carrinho = [], editingId = null, cartSheetOpen = false, qtyPickerId = null;
 let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
 let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHistorico = 'recente';
+let histPagina = 1;
+const HIST_POR_PAG = 20;
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
 let dinheiroVendas = 0, wakeLock = null, reposicaoId = null;
 let eventoAtual = null, operadorAtual = 'Caixa', venderAoCusto = false;
@@ -168,7 +170,13 @@ function setSortRelatorio(s) {
 }
 function setSortHistorico(s) {
   sortHistorico = s;
+  histPagina = 1;
   document.querySelectorAll('#sort-historico .sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === s));
+  renderHistoricoLista();
+}
+
+function setBuscaHistorico() {
+  histPagina = 1;
   renderHistoricoLista();
 }
 
@@ -950,13 +958,10 @@ async function deletarVenda(id, btn) {
   try {
     await apiFetch(`/vendas/${id}`, { method: 'DELETE' });
     historicoVendas = historicoVendas?.filter(v => v.id !== id);
-    document.getElementById(`hist-${id}`)?.remove();
+    renderHistoricoLista();
     await carregarProdutos();
     await carregarResumo();
     showToast('Venda removida', 'green-toast');
-    const lista = document.getElementById('historico-lista');
-    if (!lista.querySelector('.historico-item'))
-      lista.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>';
   } catch (e) {
     showToast('Erro: ' + e.message, 'error-toast');
     btn.classList.remove('confirming'); btn.textContent = '🗑 Excluir'; btn.disabled = false;
@@ -979,11 +984,31 @@ function renderHistoricoLista() {
   if (!historicoVendas) return;
   const v = historicoVendas;
   if (!v.length) { l.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>'; return; }
+
   const sorted = sortHistorico === 'valor'
     ? [...v].sort((a, b) => Number(b.total) - Number(a.total))
-    : [...v]; // 'recente': API já retorna DESC por data
+    : [...v];
+
+  const busca = (document.getElementById('busca-historico')?.value || '').trim().toLowerCase();
+  const filtrado = busca
+    ? sorted.filter(venda =>
+        (venda.descricao || '').toLowerCase().includes(busca) ||
+        (venda.operador  || '').toLowerCase().includes(busca) ||
+        (venda.forma_pagamento || '').toLowerCase().includes(busca))
+    : sorted;
+
+  if (!filtrado.length) {
+    l.innerHTML = '<div class="empty-state">Nenhuma venda encontrada</div>';
+    return;
+  }
+
+  const totalPags = Math.ceil(filtrado.length / HIST_POR_PAG);
+  histPagina = Math.min(histPagina, totalPags);
+  const inicio = (histPagina - 1) * HIST_POR_PAG;
+  const pagina = filtrado.slice(inicio, inicio + HIST_POR_PAG);
+
   const labelPag = { dinheiro: '💵 Dinheiro', pix: 'Pix', cartao: '💳 Cartão' };
-  l.innerHTML = sorted.map(venda => {
+  const itensHtml = pagina.map(venda => {
     const num = v.length - v.findIndex(x => x.id === venda.id);
     return `<div class="historico-item" id="hist-${venda.id}">
       <span class="hist-num">#${num}</span>
@@ -999,6 +1024,21 @@ function renderHistoricoLista() {
       </div>
     </div>`;
   }).join('');
+
+  const paginacaoHtml = totalPags > 1 ? `
+    <div class="hist-paginacao">
+      <button class="hist-pag-btn" onclick="setHistPagina(${histPagina - 1})" ${histPagina <= 1 ? 'disabled' : ''}>← Anterior</button>
+      <span class="hist-pag-info">${histPagina} / ${totalPags}</span>
+      <button class="hist-pag-btn" onclick="setHistPagina(${histPagina + 1})" ${histPagina >= totalPags ? 'disabled' : ''}>Próxima →</button>
+    </div>` : '';
+
+  l.innerHTML = itensHtml + paginacaoHtml;
+}
+
+function setHistPagina(n) {
+  histPagina = n;
+  renderHistoricoLista();
+  document.getElementById('tab-historico').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 /* ── Seletor de Quantidade ────────────────── */

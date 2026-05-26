@@ -163,6 +163,10 @@
           <div class="value" id="h-ticket">—</div>
         </div>
       </div>
+      <div class="search-wrap" style="margin-top:.5rem">
+        <input id="busca-historico" class="input search-inp" type="search" placeholder="Buscar venda…"
+          oninput="setBuscaHistorico()" autocomplete="off" />
+      </div>
       <div id="sort-historico" class="sort-bar">
         <button class="sort-btn active" data-sort="recente" onclick="setSortHistorico('recente')">Recente</button>
         <button class="sort-btn" data-sort="valor" onclick="setSortHistorico('valor')">Valor</button>

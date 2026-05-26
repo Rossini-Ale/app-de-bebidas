@@ -588,6 +588,11 @@ button { touch-action: manipulation; }
 }
 .hist-del:hover, .hist-del:active { border-color: var(--red); color: var(--red); }
 .hist-del.confirming { background: var(--red); color: #fff; border-color: var(--red); font-weight: 600; }
+.hist-paginacao { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.hist-pag-btn { padding: 8px 16px; border-radius: var(--r); border: 1px solid var(--border-s); background: var(--bg-card); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; min-height: 40px; transition: all .12s; }
+.hist-pag-btn:hover:not(:disabled) { border-color: var(--amber); color: var(--amber); }
+.hist-pag-btn:disabled { opacity: .35; cursor: not-allowed; }
+.hist-pag-info { font-size: 13px; color: var(--muted); font-weight: 700; min-width: 60px; text-align: center; }
 
 /* ── BARRA DESFAZER ──────────────────────── */
 #undo-bar {

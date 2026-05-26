@@ -1598,7 +1598,6 @@ function exportarCardapioPDF() {
 
   const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
 
-  /* Agrupar por categoria */
   const cats = {};
   [...produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).forEach(p => {
     const cat = (p.categoria || '').trim() || 'Outros';
@@ -1613,15 +1612,16 @@ function exportarCardapioPDF() {
     const rows = items.map(p => {
       const esgotado = p.estoque === 0;
       const comboTxt = (p.combo_qtd && p.combo_preco)
-        ? `<div class="combo">${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+        ? `<div class="combo">🏷 ${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
       return `<div class="item${esgotado ? ' esgotado' : ''}">
-        <div class="item-nome">${p.nome}${esgotado ? ' <span class="tag-esg">Esgotado</span>' : ''}</div>
+        ${esgotado ? '<div class="esg-ribbon">Esgotado</div>' : ''}
+        <div class="item-nome">${p.nome}</div>
         <div class="item-preco">${fmt(p.preco)}</div>
         ${comboTxt}
       </div>`;
     }).join('');
     return `<div class="cat-block">
-      <div class="cat-title">${cat}</div>
+      <div class="cat-header"><span class="cat-title">${cat}</span></div>
       <div class="grid">${rows}</div>
     </div>`;
   }).join('');
@@ -1633,27 +1633,108 @@ function exportarCardapioPDF() {
 <title>Cardápio – Caixa UNIFSP</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;padding:28px 32px;font-size:14px;background:#FBF4E8}
-  h1{font-size:26px;font-weight:900;color:#92400E;margin-bottom:4px}
-  .sub{color:#8B6530;font-size:12px;margin-bottom:28px}
-  .cat-block{margin-bottom:28px}
-  .cat-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#B45309;padding-bottom:8px;border-bottom:2px solid #D97706;margin-bottom:12px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .item{background:#fff;border-radius:10px;padding:14px 12px;border:1px solid rgba(160,100,20,.15)}
-  .item.esgotado{opacity:.5}
-  .item-nome{font-size:14px;font-weight:700;margin-bottom:6px;line-height:1.3}
-  .item-preco{font-size:22px;font-weight:900;color:#D97706}
-  .combo{font-size:10px;color:#059669;font-weight:700;margin-top:4px}
-  .tag-esg{font-size:10px;background:#FEE2E2;color:#DC2626;border-radius:4px;padding:1px 5px;font-weight:700;vertical-align:middle}
-  .footer{margin-top:28px;color:#aaa;font-size:11px;text-align:center}
-  @media print{body{padding:16px;background:#fff}.item{border:1px solid #ddd}}
+  @page{size:A4 portrait;margin:18mm 14mm}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1C0A00;background:#fff;padding:0}
+
+  /* Cabeçalho */
+  .page-header{
+    background:linear-gradient(135deg,#78350F 0%,#D97706 100%);
+    color:#FEF3C7;
+    padding:20px 28px 18px;
+    border-radius:12px;
+    margin-bottom:24px;
+    display:flex;align-items:flex-end;justify-content:space-between;
+  }
+  .page-title{font-size:36px;font-weight:900;letter-spacing:-1px;line-height:1}
+  .page-sub{font-size:13px;opacity:.8;margin-top:4px}
+  .page-date{font-size:11px;opacity:.7;text-align:right}
+
+  /* Categoria */
+  .cat-block{margin-bottom:22px;break-inside:avoid}
+  .cat-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .cat-title{
+    font-size:11px;font-weight:900;
+    text-transform:uppercase;letter-spacing:.15em;
+    color:#92400E;
+    background:#FEF3C7;
+    border-left:5px solid #D97706;
+    padding:5px 14px 5px 10px;
+    border-radius:0 6px 6px 0;
+  }
+  .cat-line{flex:1;height:1px;background:#F3E0B0}
+
+  /* Grid de produtos: 2 colunas para texto grande */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  /* Card de produto */
+  .item{
+    border:1.5px solid #E8D5A0;
+    border-radius:10px;
+    padding:14px 16px;
+    background:#FFFDF7;
+    position:relative;
+    overflow:hidden;
+    break-inside:avoid;
+  }
+  .item.esgotado{opacity:.45;background:#F9F9F9;border-color:#E0E0E0}
+
+  .item-nome{
+    font-size:17px;font-weight:800;
+    line-height:1.2;margin-bottom:8px;
+    color:#1C0A00;
+  }
+  .item-preco{
+    font-size:32px;font-weight:900;
+    color:#D97706;letter-spacing:-1px;
+    line-height:1;
+  }
+  .combo{
+    display:inline-block;
+    font-size:11px;font-weight:700;
+    color:#065F46;
+    background:#D1FAE5;
+    border:1px solid #6EE7B7;
+    border-radius:5px;
+    padding:3px 8px;
+    margin-top:8px;
+  }
+
+  /* Ribbon esgotado */
+  .esg-ribbon{
+    position:absolute;top:9px;right:-20px;
+    background:#DC2626;color:#fff;
+    font-size:9px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.06em;
+    padding:3px 28px;
+    transform:rotate(35deg);
+  }
+
+  /* Rodapé */
+  .page-footer{
+    margin-top:20px;
+    text-align:center;
+    font-size:10px;color:#B08050;
+    border-top:1px solid #E8D5A0;
+    padding-top:12px;
+  }
+
+  @media print{
+    body{padding:0}
+    .cat-block{break-inside:avoid}
+    .item{break-inside:avoid}
+  }
 </style>
 </head>
 <body>
-<h1>Cardápio</h1>
-<p class="sub">Caixa UNIFSP · ${agora}</p>
+<div class="page-header">
+  <div>
+    <div class="page-title">Cardápio</div>
+    <div class="page-sub">Caixa UNIFSP</div>
+  </div>
+  <div class="page-date">Gerado em<br>${agora}</div>
+</div>
 ${catHtml}
-<p class="footer">Caixa UNIFSP · ${agora}</p>
+<div class="page-footer">Caixa UNIFSP · ${agora} · preços sujeitos a alteração</div>
 </body>
 </html>`;
 

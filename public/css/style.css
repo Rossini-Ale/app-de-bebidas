@@ -361,6 +361,19 @@ button { touch-action: manipulation; }
 .stock-act-btn.edit:hover, .stock-act-btn.edit:active { border-color: var(--amber); color: var(--amber-d); background: #FFFBF0; }
 .stock-act-btn.del:hover,  .stock-act-btn.del:active  { border-color: var(--red);   color: var(--red);   background: #FEF2F2; }
 .stock-act-btn.del.confirming { background: var(--red); color: #fff; border-color: var(--red); }
+.stock-act-btn.repor { color: var(--green-d); }
+.stock-act-btn.repor:hover, .stock-act-btn.repor:active { border-color: var(--green); color: var(--green-d); background: #F0FDF4; }
+.stock-act-btn.repor.active { border-color: var(--green); color: var(--green-d); background: #F0FDF4; }
+.repor-row { display: flex; gap: 8px; margin-top: 8px; }
+.repor-inp { flex: 1; font-size: 14px; padding: 8px 10px; min-height: 40px; }
+.btn-repor-ok {
+  padding: 8px 16px;
+  background: var(--green); color: #fff;
+  border: none; border-radius: var(--r);
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit; min-height: 40px;
+}
+.btn-repor-ok:hover, .btn-repor-ok:active { background: var(--green-d); }
 
 /* Modo edição inline */
 .stock-item.editing { flex-direction: column; align-items: stretch; gap: 10px; }
@@ -453,7 +466,7 @@ button { touch-action: manipulation; }
 
 /* ── BOTÕES RELATÓRIO ────────────────────── */
 .rel-actions { display: flex; gap: 8px; }
-.btn-pdf, .btn-whatsapp {
+.btn-pdf, .btn-whatsapp, .btn-csv {
   flex: 1;
   display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 11px 16px;
@@ -466,8 +479,10 @@ button { touch-action: manipulation; }
 }
 .btn-pdf      { color: var(--amber-d); }
 .btn-whatsapp { color: #25D366; }
+.btn-csv      { color: var(--green-d); }
 .btn-pdf:hover,      .btn-pdf:active      { background: #FFFBF0; border-color: var(--amber); }
 .btn-whatsapp:hover, .btn-whatsapp:active { background: #F0FFF4; border-color: #25D366; }
+.btn-csv:hover,      .btn-csv:active      { background: #F0FDF4; border-color: var(--green); }
 .btn-pdf:disabled { opacity: .6; cursor: not-allowed; }
 
 /* ── FUNDO DE CAIXA ──────────────────────── */

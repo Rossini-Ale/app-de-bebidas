@@ -3,7 +3,7 @@ let produtos = [], carrinho = [], editingId = null, cartSheetOpen = false, qtyPi
 let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
 let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHistorico = 'recente';
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
-let dinheiroVendas = 0, wakeLock = null;
+let dinheiroVendas = 0, wakeLock = null, reposicaoId = null;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -279,6 +279,7 @@ function renderEstoque() {
       </div>`;
     }
     const margem = p.custo > 0 ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null;
+    const isRepondo = reposicaoId === p.id;
     return `<div class="stock-item">
       <div class="stock-info">
         <div class="stock-name">${p.nome}</div>
@@ -286,8 +287,14 @@ function renderEstoque() {
         ${margem !== null ? `<div class="stock-margin">Margem: ${margem}%</div>` : ''}
         <div class="stock-actions">
           <button class="stock-act-btn edit" onclick="editarProduto(${p.id})">✏ Editar</button>
+          <button class="stock-act-btn repor ${isRepondo ? 'active' : ''}" onclick="abrirReposicao(${p.id})">+ Repor</button>
           <button class="stock-act-btn del"  onclick="excluirProduto(${p.id}, this)">Excluir</button>
         </div>
+        ${isRepondo ? `<div class="repor-row">
+          <input id="repor-inp-${p.id}" class="input repor-inp" type="number" min="1" placeholder="Qtd a adicionar…"
+            onkeydown="if(event.key==='Enter')confirmarReposicao(${p.id})" />
+          <button class="btn-repor-ok" onclick="confirmarReposicao(${p.id})">✓ Adicionar</button>
+        </div>` : ''}
       </div>
       <div class="stock-qty">
         <button class="qty-btn" onclick="ajustarEstoque(${p.id}, -1)">−</button>
@@ -298,7 +305,28 @@ function renderEstoque() {
   }).join('');
 }
 
+function abrirReposicao(id) {
+  editingId = null;
+  reposicaoId = reposicaoId === id ? null : id;
+  renderEstoque();
+  if (reposicaoId) setTimeout(() => document.getElementById(`repor-inp-${id}`)?.focus(), 50);
+}
+
+async function confirmarReposicao(id) {
+  const delta = parseInt(document.getElementById(`repor-inp-${id}`)?.value || '0');
+  if (!delta || delta <= 0) return;
+  try {
+    const updated = await apiFetch(`/produtos/${id}/estoque`, { method: 'PATCH', body: JSON.stringify({ delta }) });
+    const i = produtos.findIndex(p => p.id === id);
+    if (i >= 0) produtos[i] = updated;
+    reposicaoId = null;
+    renderEstoque(); renderVenda();
+    showToast(`+${delta} unidades adicionadas`, 'green-toast');
+  } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
+}
+
 function editarProduto(id) {
+  reposicaoId = null;
   editingId = id;
   renderEstoque();
   document.getElementById(`edit-nome-${id}`)?.focus();
@@ -933,6 +961,32 @@ async function compartilharWhatsApp() {
 
     const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
     window.open(url, '_blank');
+  } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
+}
+
+/* ── CSV ──────────────────────────────────── */
+async function exportarCSV() {
+  try {
+    const vendas = historicoVendas || await apiFetch('/vendas');
+    const linhas = [
+      ['#', 'Data', 'Hora', 'Descrição', 'Itens', 'Total (R$)', 'Pagamento'],
+      ...vendas.map((v, i) => {
+        const d = parseDataUTC(v.criado_em);
+        const data = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+        const desc = (v.descricao || '').replace(/"/g, '""');
+        return [vendas.length - i, data, hora, `"${desc}"`, v.itens_count,
+          Number(v.total).toFixed(2).replace('.', ','), v.forma_pagamento || 'dinheiro'];
+      })
+    ];
+    const csv = '﻿' + linhas.map(r => r.join(';')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }).replace(/\//g, '-');
+    a.href = url; a.download = `caixa-unifsp-${hoje}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV exportado!', 'green-toast');
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 

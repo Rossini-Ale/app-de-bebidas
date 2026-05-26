@@ -555,10 +555,16 @@ button { touch-action: manipulation; }
   .hist-right { gap: 4px; }
 
   .toast {
-    top: auto;
-    bottom: calc(76px + env(safe-area-inset-bottom, 0px) + 8px);
+    top: 12px;
+    bottom: auto;
+    font-size: 12px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    max-width: calc(100% - 2rem);
+    white-space: normal;
+    text-align: center;
+    line-height: 1.4;
   }
-  .toast.show { transform: translateX(-50%) translateY(0); }
 }
 
 @media (max-width: 380px) {

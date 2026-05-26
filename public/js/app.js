@@ -1591,6 +1591,86 @@ function handleWsMsg(data) {
   }
 }
 
+/* ── Exportar Cardápio PDF ───────────────── */
+function exportarCardapioPDF() {
+  const btn = document.getElementById('btn-exportar-cardapio');
+  if (btn) { btn.textContent = '⏳ Gerando...'; btn.disabled = true; }
+
+  const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
+
+  /* Agrupar por categoria */
+  const cats = {};
+  [...produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).forEach(p => {
+    const cat = (p.categoria || '').trim() || 'Outros';
+    if (!cats[cat]) cats[cat] = [];
+    cats[cat].push(p);
+  });
+  const catOrder = ['Bebidas', 'Comidas', 'Outros'];
+  const catKeys = [...new Set([...catOrder, ...Object.keys(cats)])].filter(k => cats[k]);
+
+  const catHtml = catKeys.map(cat => {
+    const items = cats[cat];
+    const rows = items.map(p => {
+      const esgotado = p.estoque === 0;
+      const comboTxt = (p.combo_qtd && p.combo_preco)
+        ? `<div class="combo">${p.combo_qtd}+ un. por ${fmt(p.combo_preco)} cada</div>` : '';
+      return `<div class="item${esgotado ? ' esgotado' : ''}">
+        <div class="item-nome">${p.nome}${esgotado ? ' <span class="tag-esg">Esgotado</span>' : ''}</div>
+        <div class="item-preco">${fmt(p.preco)}</div>
+        ${comboTxt}
+      </div>`;
+    }).join('');
+    return `<div class="cat-block">
+      <div class="cat-title">${cat}</div>
+      <div class="grid">${rows}</div>
+    </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cardápio – Caixa UNIFSP</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;padding:28px 32px;font-size:14px;background:#FBF4E8}
+  h1{font-size:26px;font-weight:900;color:#92400E;margin-bottom:4px}
+  .sub{color:#8B6530;font-size:12px;margin-bottom:28px}
+  .cat-block{margin-bottom:28px}
+  .cat-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#B45309;padding-bottom:8px;border-bottom:2px solid #D97706;margin-bottom:12px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .item{background:#fff;border-radius:10px;padding:14px 12px;border:1px solid rgba(160,100,20,.15)}
+  .item.esgotado{opacity:.5}
+  .item-nome{font-size:14px;font-weight:700;margin-bottom:6px;line-height:1.3}
+  .item-preco{font-size:22px;font-weight:900;color:#D97706}
+  .combo{font-size:10px;color:#059669;font-weight:700;margin-top:4px}
+  .tag-esg{font-size:10px;background:#FEE2E2;color:#DC2626;border-radius:4px;padding:1px 5px;font-weight:700;vertical-align:middle}
+  .footer{margin-top:28px;color:#aaa;font-size:11px;text-align:center}
+  @media print{body{padding:16px;background:#fff}.item{border:1px solid #ddd}}
+</style>
+</head>
+<body>
+<h1>Cardápio</h1>
+<p class="sub">Caixa UNIFSP · ${agora}</p>
+${catHtml}
+<p class="footer">Caixa UNIFSP · ${agora}</p>
+</body>
+</html>`;
+
+  const overlay = document.getElementById('pdf-overlay');
+  const frame   = document.getElementById('pdf-frame');
+  if (overlay && frame) {
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    frame.src  = url;
+    if (frame._blobUrl) URL.revokeObjectURL(frame._blobUrl);
+    frame._blobUrl = url;
+    overlay.style.display = 'flex';
+    document.querySelector('.pdf-toolbar-title').textContent = 'Cardápio PDF';
+  }
+  if (btn) { btn.textContent = '📋 Cardápio PDF'; btn.disabled = false; }
+}
+
 /* ── QR Code Cardápio ────────────────────── */
 async function abrirQrCardapio() {
   const overlay = document.getElementById('qr-overlay');

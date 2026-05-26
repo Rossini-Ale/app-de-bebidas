@@ -44,6 +44,11 @@
           <span class="ms-label">lucro</span>
         </div>
       </div>
+      <div id="sort-venda" class="sort-bar">
+        <button class="sort-btn active" data-sort="vendido" onclick="setSortVenda('vendido')">🔥 Vendidos</button>
+        <button class="sort-btn" data-sort="az" onclick="setSortVenda('az')">A-Z</button>
+        <button class="sort-btn" data-sort="estoque" onclick="setSortVenda('estoque')">Estoque</button>
+      </div>
       <div id="venda-lista"><div class="loading">Carregando...</div></div>
     </div>
 
@@ -65,6 +70,11 @@
           <div class="label">Produtos cadastrados</div>
           <div class="value" id="m-produtos">—</div>
         </div>
+      </div>
+      <div id="sort-estoque" class="sort-bar">
+        <button class="sort-btn active" data-sort="az" onclick="setSortEstoque('az')">A-Z</button>
+        <button class="sort-btn" data-sort="estoque" onclick="setSortEstoque('estoque')">Estoque</button>
+        <button class="sort-btn" data-sort="vendido" onclick="setSortEstoque('vendido')">Vendidos</button>
       </div>
       <div id="stock-list"><div class="loading">Carregando...</div></div>
     </div>
@@ -104,6 +114,11 @@
         <button class="btn-whatsapp" onclick="compartilharWhatsApp()">📲 WhatsApp</button>
       </div>
       <p class="section-label" style="margin-top:1rem">Desempenho por produto</p>
+      <div id="sort-relatorio" class="sort-bar" style="margin-top:8px">
+        <button class="sort-btn active" data-sort="vendido" onclick="setSortRelatorio('vendido')">Vendidos</button>
+        <button class="sort-btn" data-sort="az" onclick="setSortRelatorio('az')">A-Z</button>
+        <button class="sort-btn" data-sort="lucro" onclick="setSortRelatorio('lucro')">Lucro</button>
+      </div>
       <div id="relatorio-lista"><div class="loading">Carregando...</div></div>
     </div>
 
@@ -122,6 +137,10 @@
           <div class="label">Ticket médio</div>
           <div class="value" id="h-ticket">—</div>
         </div>
+      </div>
+      <div id="sort-historico" class="sort-bar">
+        <button class="sort-btn active" data-sort="recente" onclick="setSortHistorico('recente')">Recente</button>
+        <button class="sort-btn" data-sort="valor" onclick="setSortHistorico('valor')">Valor</button>
       </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>

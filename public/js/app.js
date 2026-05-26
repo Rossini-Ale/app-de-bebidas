@@ -1,6 +1,8 @@
 const API = '';
 let produtos = [], carrinho = [], editingId = null, cartSheetOpen = false, qtyPickerId = null;
 let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
+let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHistorico = 'recente';
+let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -103,6 +105,28 @@ function showTab(tab) {
   atualizarCartBar();
 }
 
+/* ── Ordenação ────────────────────────────── */
+function setSortVenda(s) {
+  sortVenda = s;
+  document.querySelectorAll('#sort-venda .sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === s));
+  renderVenda();
+}
+function setSortEstoque(s) {
+  sortEstoque = s;
+  document.querySelectorAll('#sort-estoque .sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === s));
+  renderEstoque();
+}
+function setSortRelatorio(s) {
+  sortRelatorio = s;
+  document.querySelectorAll('#sort-relatorio .sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === s));
+  renderRelatorioLista();
+}
+function setSortHistorico(s) {
+  sortHistorico = s;
+  document.querySelectorAll('#sort-historico .sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === s));
+  renderHistoricoLista();
+}
+
 /* ── API ──────────────────────────────────── */
 async function apiFetch(path, opts = {}) {
   const r = await fetch(API + '/api' + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
@@ -114,6 +138,11 @@ async function apiFetch(path, opts = {}) {
 async function carregarTudo() {
   try {
     await Promise.all([carregarProdutos(), carregarResumo()]);
+    apiFetch('/vendas/relatorio').then(itens => {
+      itens.forEach(i => { vendidoMap[i.id] = Number(i.qtd_vendida); });
+      if (sortVenda === 'vendido') renderVenda();
+      if (sortEstoque === 'vendido') renderEstoque();
+    }).catch(() => {});
     document.getElementById('status-conexao').textContent = '● Online';
     document.getElementById('status-conexao').className = 'status-ok';
   } catch (e) {
@@ -147,8 +176,13 @@ function renderVenda() {
     l.innerHTML = '<div class="empty-state">Nenhum produto cadastrado</div>';
     return;
   }
-  // Produtos com estoque vêm primeiro; sem estoque ficam no final
-  const sorted = [...produtos].sort((a, b) => (a.estoque === 0) - (b.estoque === 0));
+  const sorted = [...produtos].sort((a, b) => {
+    if (a.estoque === 0 && b.estoque > 0) return 1;
+    if (b.estoque === 0 && a.estoque > 0) return -1;
+    if (sortVenda === 'az')      return a.nome.localeCompare(b.nome, 'pt-BR');
+    if (sortVenda === 'estoque') return b.estoque - a.estoque;
+    return (vendidoMap[b.id] || 0) - (vendidoMap[a.id] || 0);
+  });
   const maxEstoque = Math.max(...sorted.map(p => p.estoque), 1);
 
   l.innerHTML = '<div class="produto-grid">' + sorted.map(p => {
@@ -184,7 +218,12 @@ function renderEstoque() {
     l.innerHTML = '<div class="empty-state">Nenhum produto ainda</div>';
     return;
   }
-  l.innerHTML = produtos.map(p => {
+  const sortedEstoque = [...produtos].sort((a, b) => {
+    if (sortEstoque === 'az')      return a.nome.localeCompare(b.nome, 'pt-BR');
+    if (sortEstoque === 'estoque') return b.estoque - a.estoque;
+    return (vendidoMap[b.id] || 0) - (vendidoMap[a.id] || 0);
+  });
+  l.innerHTML = sortedEstoque.map(p => {
     if (editingId === p.id) {
       return `<div class="stock-item editing">
         <div class="stock-edit-header">
@@ -593,6 +632,9 @@ async function carregarRelatorio() {
   l.innerHTML = '<div class="loading">Carregando...</div>';
   try {
     const [itens, resumo] = await Promise.all([apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo')]);
+    relatorioItens = itens;
+    itens.forEach(i => { vendidoMap[i.id] = Number(i.qtd_vendida); });
+
     countUp(document.getElementById('r-total'), resumo.total_arrecadado, fmtShort);
     countUp(document.getElementById('r-lucro'), resumo.total_lucro,      fmtShort);
     const margemNum = resumo.total_arrecadado > 0
@@ -606,31 +648,42 @@ async function carregarRelatorio() {
     countUp(document.getElementById('r-pix'),      pag.pix      || 0, fmtShort);
     countUp(document.getElementById('r-cartao'),   pag.cartao   || 0, fmtShort);
 
-    if (!itens.length || itens.every(i => i.qtd_vendida == 0)) {
-      l.innerHTML = '<div class="empty-state">📊<br/>Nenhuma venda registrada ainda</div>';
-      return;
-    }
-    const maxReceita = Math.max(...itens.map(i => Number(i.receita)), 1);
-    l.innerHTML = itens.map(item => {
-      const receita   = Number(item.receita);
-      const lucro     = Number(item.lucro);
-      const custoTotal = Number(item.custo_total);
-      const pct       = Math.max(0, Math.min(100, Math.round((receita / maxReceita) * 100)));
-      const isNeg     = lucro < 0;
-      return `<div class="relatorio-item">
-        <div class="rel-header">
-          <span class="rel-nome">${item.nome}</span>
-          <span class="rel-qtd">${item.qtd_vendida} vendidos</span>
-        </div>
-        <div class="rel-grid">
-          <div class="rel-box"><div class="rb-label">Receita</div><div class="rb-val">${fmt(receita)}</div></div>
-          <div class="rel-box custo"><div class="rb-label">Custo</div><div class="rb-val">${fmt(custoTotal)}</div></div>
-          <div class="rel-box lucro"><div class="rb-label">Lucro</div><div class="rb-val" style="${isNeg ? 'color:var(--red)' : ''}">${fmt(lucro)}</div></div>
-        </div>
-        <div class="rel-bar-wrap"><div class="rel-bar ${isNeg ? 'negativo' : ''}" style="width:${pct}%"></div></div>
-      </div>`;
-    }).join('');
+    renderRelatorioLista();
   } catch (e) { l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
+}
+
+function renderRelatorioLista() {
+  const l = document.getElementById('relatorio-lista');
+  if (!relatorioItens) return;
+  if (!relatorioItens.length || relatorioItens.every(i => i.qtd_vendida == 0)) {
+    l.innerHTML = '<div class="empty-state">📊<br/>Nenhuma venda registrada ainda</div>';
+    return;
+  }
+  const sorted = [...relatorioItens].sort((a, b) => {
+    if (sortRelatorio === 'az')    return a.nome.localeCompare(b.nome, 'pt-BR');
+    if (sortRelatorio === 'lucro') return Number(b.lucro) - Number(a.lucro);
+    return Number(b.qtd_vendida) - Number(a.qtd_vendida);
+  });
+  const maxReceita = Math.max(...sorted.map(i => Number(i.receita)), 1);
+  l.innerHTML = sorted.map(item => {
+    const receita    = Number(item.receita);
+    const lucro      = Number(item.lucro);
+    const custoTotal = Number(item.custo_total);
+    const pct        = Math.max(0, Math.min(100, Math.round((receita / maxReceita) * 100)));
+    const isNeg      = lucro < 0;
+    return `<div class="relatorio-item">
+      <div class="rel-header">
+        <span class="rel-nome">${item.nome}</span>
+        <span class="rel-qtd">${item.qtd_vendida} vendidos</span>
+      </div>
+      <div class="rel-grid">
+        <div class="rel-box"><div class="rb-label">Receita</div><div class="rb-val">${fmt(receita)}</div></div>
+        <div class="rel-box custo"><div class="rb-label">Custo</div><div class="rb-val">${fmt(custoTotal)}</div></div>
+        <div class="rel-box lucro"><div class="rb-label">Lucro</div><div class="rb-val" style="${isNeg ? 'color:var(--red)' : ''}">${fmt(lucro)}</div></div>
+      </div>
+      <div class="rel-bar-wrap"><div class="rel-bar ${isNeg ? 'negativo' : ''}" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
 }
 
 async function deletarVenda(id, btn) {
@@ -644,6 +697,7 @@ async function deletarVenda(id, btn) {
   btn.textContent = '…'; btn.disabled = true;
   try {
     await apiFetch(`/vendas/${id}`, { method: 'DELETE' });
+    historicoVendas = historicoVendas?.filter(v => v.id !== id);
     document.getElementById(`hist-${id}`)?.remove();
     await carregarProdutos();
     await carregarResumo();
@@ -663,22 +717,35 @@ async function carregarHistorico() {
   try {
     const v = await apiFetch('/vendas');
     await carregarResumo();
-    if (!v.length) { l.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>'; return; }
-    const labelPag = { dinheiro: '💵 Dinheiro', pix: 'Pix', cartao: '💳 Cartão' };
-    l.innerHTML = v.map((venda, i) => `
-      <div class="historico-item" id="hist-${venda.id}">
-        <span class="hist-num">#${v.length - i}</span>
-        <div class="hist-info">
-          <div class="hist-desc">${venda.descricao}</div>
-          <div class="hist-hora">${fmtDataHora(venda.criado_em)}</div>
-        </div>
-        <div class="hist-right">
-          <span class="hist-total">${fmt(venda.total)}</span>
-          <span class="hist-pag">${labelPag[venda.forma_pagamento] || venda.forma_pagamento || 'Dinheiro'}</span>
-          <button class="hist-del" onclick="deletarVenda(${venda.id}, this)">🗑 Excluir</button>
-        </div>
-      </div>`).join('');
+    historicoVendas = v;
+    renderHistoricoLista();
   } catch (e) { l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
+}
+
+function renderHistoricoLista() {
+  const l = document.getElementById('historico-lista');
+  if (!historicoVendas) return;
+  const v = historicoVendas;
+  if (!v.length) { l.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>'; return; }
+  const sorted = sortHistorico === 'valor'
+    ? [...v].sort((a, b) => Number(b.total) - Number(a.total))
+    : [...v]; // 'recente': API já retorna DESC por data
+  const labelPag = { dinheiro: '💵 Dinheiro', pix: 'Pix', cartao: '💳 Cartão' };
+  l.innerHTML = sorted.map(venda => {
+    const num = v.length - v.findIndex(x => x.id === venda.id);
+    return `<div class="historico-item" id="hist-${venda.id}">
+      <span class="hist-num">#${num}</span>
+      <div class="hist-info">
+        <div class="hist-desc">${venda.descricao}</div>
+        <div class="hist-hora">${fmtDataHora(venda.criado_em)}</div>
+      </div>
+      <div class="hist-right">
+        <span class="hist-total">${fmt(venda.total)}</span>
+        <span class="hist-pag">${labelPag[venda.forma_pagamento] || venda.forma_pagamento || 'Dinheiro'}</span>
+        <button class="hist-del" onclick="deletarVenda(${venda.id}, this)">🗑 Excluir</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 /* ── Seletor de Quantidade ────────────────── */

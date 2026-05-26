@@ -539,12 +539,28 @@ button { touch-action: manipulation; }
 .rel-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .rel-nome { font-size: 14px; font-weight: 700; flex: 1; }
 .rel-qtd  { font-size: 13px; background: var(--bg-sec); border-radius: 6px; padding: 3px 9px; font-weight: 600; color: var(--muted); }
+.badge-custo { display: inline-block; font-size: 10px; font-weight: 700; color: var(--red); background: #FEF2F2; border: 1px solid #FECACA; border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
+[data-theme="dark"] .badge-custo { background: rgba(220,38,38,.15); border-color: rgba(220,38,38,.3); }
+.custo-resumo-card {
+  background: #FFF8F8; border: 1px solid #FECACA; border-radius: var(--rl);
+  padding: 12px 16px; margin-bottom: 12px;
+}
+[data-theme="dark"] .custo-resumo-card { background: rgba(220,38,38,.08); border-color: rgba(220,38,38,.25); }
+.cr-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--red); margin-bottom: 8px; }
+.cr-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(220,38,38,.1); }
+.cr-row:last-child { border-bottom: none; }
+.cr-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.cr-val   { font-size: 13px; font-weight: 700; }
+.cr-val.red { color: var(--red); }
+.cr-val.green { color: var(--green); }
 .rel-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .rel-box  { background: var(--bg-sec); border-radius: 8px; padding: 8px 10px; text-align: center; }
 .rel-box .rb-label { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
 .rel-box .rb-val   { font-size: 14px; font-weight: 700; }
 .rel-box.lucro .rb-val { color: var(--green); }
 .rel-box.custo .rb-val { color: #B45309; }
+.rb-split { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; font-size: 10px; font-weight: 600; color: var(--muted); }
+.rb-split .red { color: var(--red); }
 .rel-bar-wrap { margin-top: 8px; background: var(--bg-sec); border-radius: 4px; height: 6px; overflow: hidden; }
 .rel-bar { height: 100%; background: var(--green); border-radius: 4px; transition: width .4s ease; }
 .rel-bar.negativo { background: var(--red); }

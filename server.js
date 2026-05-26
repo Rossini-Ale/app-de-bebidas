@@ -96,4 +96,5 @@ async function runMigrations() {
   }
   try { await db.query(`ALTER TABLE vendas ADD COLUMN forma_pagamento VARCHAR(10) NOT NULL DEFAULT 'dinheiro'`); } catch (_) {}
   try { await db.query(`ALTER TABLE vendas ADD COLUMN operador VARCHAR(50) NOT NULL DEFAULT 'Caixa'`); } catch (_) {}
+  try { await db.query(`ALTER TABLE vendas ADD COLUMN ao_custo BOOLEAN NOT NULL DEFAULT FALSE`); } catch (_) {}
 }

@@ -851,6 +851,21 @@ async function carregarRelatorio() {
     countUp(document.getElementById('r-pix'),      pag.pix      || 0, fmtShort);
     countUp(document.getElementById('r-cartao'),   pag.cartao   || 0, fmtShort);
 
+    const custoDiv = document.getElementById('custo-resumo');
+    const nCusto = Number(resumo.vendas_custo) || 0;
+    if (nCusto > 0) {
+      const recNormal = Number(resumo.arrecadado_normal) || 0;
+      const recCusto  = Number(resumo.arrecadado_custo)  || 0;
+      const nNormal   = Number(resumo.vendas_normal) || 0;
+      custoDiv.innerHTML = `<div class="custo-resumo-card">
+        <div class="cr-title">⚠ Inclui vendas ao preço de custo</div>
+        <div class="cr-row"><span class="cr-label">Vendas ao preço normal</span><span class="cr-val">${nNormal} venda${nNormal !== 1 ? 's' : ''} · ${fmt(recNormal)}</span></div>
+        <div class="cr-row"><span class="cr-label">Vendas ao preço de custo</span><span class="cr-val red">${nCusto} venda${nCusto !== 1 ? 's' : ''} · ${fmt(recCusto)}</span></div>
+      </div>`;
+    } else {
+      custoDiv.innerHTML = '';
+    }
+
     renderRelatorioLista();
     renderVendasPorHora(vendas);
     carregarFundo();
@@ -874,15 +889,23 @@ function renderRelatorioLista() {
     const receita    = Number(item.receita);
     const lucro      = Number(item.lucro);
     const custoTotal = Number(item.custo_total);
+    const qtdCusto   = Number(item.qtd_custo  || 0);
+    const qtdNormal  = Number(item.qtd_normal || 0);
+    const recNormal  = Number(item.receita_normal || 0);
+    const recCusto   = Number(item.receita_custo  || 0);
     const pct        = Math.max(0, Math.min(100, Math.round((receita / maxReceita) * 100)));
     const isNeg      = lucro < 0;
+    const badgeCusto = qtdCusto > 0 ? `<span class="badge-custo">${qtdCusto} ao custo</span>` : '';
+    const receitaDetalhe = qtdCusto > 0
+      ? `<div class="rb-split"><span>${fmt(recNormal)} normal</span><span class="red">${fmt(recCusto)} custo</span></div>`
+      : '';
     return `<div class="relatorio-item">
       <div class="rel-header">
         <span class="rel-nome">${item.nome}</span>
-        <span class="rel-qtd">${item.qtd_vendida} vendidos</span>
+        <span class="rel-qtd">${item.qtd_vendida} vendidos${badgeCusto}</span>
       </div>
       <div class="rel-grid">
-        <div class="rel-box"><div class="rb-label">Receita</div><div class="rb-val">${fmt(receita)}</div></div>
+        <div class="rel-box"><div class="rb-label">Receita</div><div class="rb-val">${fmt(receita)}</div>${receitaDetalhe}</div>
         <div class="rel-box custo"><div class="rb-label">Custo</div><div class="rb-val">${fmt(custoTotal)}</div></div>
         <div class="rel-box lucro"><div class="rb-label">Lucro</div><div class="rb-val" style="${isNeg ? 'color:var(--red)' : ''}">${fmt(lucro)}</div></div>
       </div>
@@ -1105,6 +1128,14 @@ async function exportarCSV() {
     linhas.push(csvRow('RESUMO', '', '', '', '', '', ''));
     linhas.push(csvRow('Vendas', 'Arrecadado (R$)', 'Custo total (R$)', 'Lucro (R$)', 'Margem', '', ''));
     linhas.push(csvRow(resumo.total_vendas, csvNum(resumo.total_arrecadado), csvNum(totalCusto), csvNum(resumo.total_lucro), `${margem}%`, '', ''));
+    const nCustoCSV = Number(resumo.vendas_custo) || 0;
+    if (nCustoCSV > 0) {
+      linhas.push('');
+      linhas.push(csvRow('SPLIT NORMAL / CUSTO', '', '', '', '', '', ''));
+      linhas.push(csvRow('Tipo', 'Qtd vendas', 'Arrecadado (R$)', '', '', '', ''));
+      linhas.push(csvRow('Preço normal', Number(resumo.vendas_normal), csvNum(resumo.arrecadado_normal), '', '', '', ''));
+      linhas.push(csvRow('Preço de custo', nCustoCSV, csvNum(resumo.arrecadado_custo), '', '', '', ''));
+    }
     linhas.push('');
 
     // ── Pagamentos ──
@@ -1120,8 +1151,8 @@ async function exportarCSV() {
     linhas.push('');
 
     // ── Por produto ──
-    linhas.push(csvRow('DESEMPENHO POR PRODUTO', '', '', '', '', '', ''));
-    linhas.push(csvRow('Produto', 'Qtd vendida', 'Preço unit (R$)', 'Custo unit (R$)', 'Lucro unit (R$)', 'Receita (R$)', 'Custo total (R$)', 'Lucro total (R$)'));
+    linhas.push(csvRow('DESEMPENHO POR PRODUTO', '', '', '', '', '', '', '', ''));
+    linhas.push(csvRow('Produto', 'Qtd total', 'Qtd normal', 'Qtd ao custo', 'Receita normal (R$)', 'Receita custo (R$)', 'Receita total (R$)', 'Custo total (R$)', 'Lucro (R$)'));
     const itensFiltrados = itens.filter(i => Number(i.qtd_vendida) > 0);
     itensFiltrados.forEach(item => {
       const qtd     = Number(item.qtd_vendida);
@@ -1130,9 +1161,10 @@ async function exportarCSV() {
       const lucro   = Number(item.lucro);
       linhas.push(csvRow(
         csvStr(item.nome), qtd,
-        csvNum(qtd > 0 ? receita / qtd : 0),
-        csvNum(qtd > 0 ? custo_t / qtd : 0),
-        csvNum(qtd > 0 ? lucro / qtd : 0),
+        Number(item.qtd_normal || 0),
+        Number(item.qtd_custo  || 0),
+        csvNum(item.receita_normal || 0),
+        csvNum(item.receita_custo  || 0),
         csvNum(receita), csvNum(custo_t), csvNum(lucro)
       ));
     });
@@ -1174,6 +1206,14 @@ async function gerarPDF() {
     const margem = resumo.total_arrecadado > 0 ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) : 0;
     const pag = resumo.pagamentos || {};
 
+    const nCustoPDF = Number(resumo.vendas_custo) || 0;
+    const custoSplitHtml = nCustoPDF > 0 ? `
+<h2 style="margin-bottom:8px">Vendas ao preço de custo</h2>
+<div class="pay-summary" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
+  <div class="sb"><div class="sl">Vendas ao preço normal</div><div class="sv">${Number(resumo.vendas_normal)} · ${fmt(Number(resumo.arrecadado_normal))}</div></div>
+  <div class="sb" style="border:1px solid #FECACA"><div class="sl" style="color:#DC2626">Vendas ao preço de custo</div><div class="sv" style="color:#DC2626">${nCustoPDF} · ${fmt(Number(resumo.arrecadado_custo))}</div></div>
+</div>` : '';
+
     const fundo = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
     const esperadoCaixa = fundo + (pag.dinheiro || 0);
     const fundoHtml = fundo > 0 ? `
@@ -1186,15 +1226,18 @@ async function gerarPDF() {
 
     const linhas = itens.filter(i => Number(i.qtd_vendida) > 0).map(item => {
       const qtd        = Number(item.qtd_vendida);
+      const qtdN       = Number(item.qtd_normal || 0);
+      const qtdC       = Number(item.qtd_custo  || 0);
       const receita    = Number(item.receita);
       const custoTotal = Number(item.custo_total);
       const lucro      = Number(item.lucro);
       const precoUnit  = qtd > 0 ? receita / qtd : 0;
       const custoUnit  = qtd > 0 ? custoTotal / qtd : 0;
       const lucroUnit  = qtd > 0 ? lucro / qtd : 0;
+      const qtdLabel   = qtdC > 0 ? `${qtd} <span style="color:#DC2626;font-size:10px">(${qtdC} custo)</span>` : qtd;
       return `<tr>
         <td>${item.nome}</td>
-        <td class="num">${qtd}</td>
+        <td class="num">${qtdLabel}</td>
         <td class="num">${fmt(precoUnit)}</td>
         <td class="num">${fmt(custoUnit)}</td>
         <td class="num ${lucroUnit >= 0 ? 'green' : 'red'}">${fmt(lucroUnit)}</td>
@@ -1254,6 +1297,7 @@ async function gerarPDF() {
   <div class="sb"><div class="sl">💳 Cartão</div><div class="sv">${fmt(pag.cartao || 0)}</div></div>
 </div>
 ${fundoHtml}
+${custoSplitHtml}
 <h2>Por produto</h2>
 <table>
   <thead>

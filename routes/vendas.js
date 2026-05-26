@@ -20,7 +20,11 @@ router.get('/resumo', async (req, res) => {
         COALESCE(SUM(v.total), 0) as total_arrecadado,
         COALESCE(SUM(v.itens_count), 0) as total_itens,
         COALESCE(AVG(v.total), 0) as ticket_medio,
-        COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as total_lucro
+        COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as total_lucro,
+        COUNT(DISTINCT CASE WHEN v.ao_custo = FALSE THEN v.id END) as vendas_normal,
+        COUNT(DISTINCT CASE WHEN v.ao_custo = TRUE  THEN v.id END) as vendas_custo,
+        COALESCE(SUM(CASE WHEN v.ao_custo = FALSE THEN v.total ELSE 0 END), 0) as arrecadado_normal,
+        COALESCE(SUM(CASE WHEN v.ao_custo = TRUE  THEN v.total ELSE 0 END), 0) as arrecadado_custo
       FROM vendas v
       LEFT JOIN venda_itens vi ON vi.venda_id = v.id
       LEFT JOIN produtos p ON vi.produto_id = p.id
@@ -42,7 +46,11 @@ router.get('/relatorio', async (req, res) => {
       SELECT
         p.id, p.nome, p.emoji, p.preco, p.custo,
         COALESCE(SUM(vi.quantidade), 0) as qtd_vendida,
+        COALESCE(SUM(CASE WHEN v.ao_custo = FALSE OR v.ao_custo IS NULL THEN vi.quantidade ELSE 0 END), 0) as qtd_normal,
+        COALESCE(SUM(CASE WHEN v.ao_custo = TRUE  THEN vi.quantidade ELSE 0 END), 0) as qtd_custo,
         COALESCE(SUM(vi.quantidade * vi.preco_unitario), 0) as receita,
+        COALESCE(SUM(CASE WHEN v.ao_custo = FALSE OR v.ao_custo IS NULL THEN vi.quantidade * vi.preco_unitario ELSE 0 END), 0) as receita_normal,
+        COALESCE(SUM(CASE WHEN v.ao_custo = TRUE  THEN vi.quantidade * vi.preco_unitario ELSE 0 END), 0) as receita_custo,
         COALESCE(SUM(vi.quantidade * p.custo), 0) as custo_total,
         COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as lucro
       FROM produtos p
@@ -83,8 +91,8 @@ router.post('/', async (req, res) => {
     }
 
     const [vendaResult] = await conn.query(
-      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador) VALUES (?, ?, ?, ?, ?, ?)',
-      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador]
+      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador, ao_custo ? 1 : 0]
     );
 
     for (const item of itensFinal) {

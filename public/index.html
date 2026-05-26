@@ -113,6 +113,14 @@
         <button class="btn-pdf" id="btn-gerar-pdf" onclick="gerarPDF()">📄 PDF</button>
         <button class="btn-whatsapp" onclick="compartilharWhatsApp()">📲 WhatsApp</button>
       </div>
+      <div class="fundo-card">
+        <span class="fundo-title">Fundo de caixa</span>
+        <div class="fundo-input-row">
+          <input id="fundo-inp" class="input fundo-inp" type="number" min="0" step="1" placeholder="R$ 0" />
+          <button class="fundo-save-btn" onclick="salvarFundo()">✓ Salvar</button>
+        </div>
+        <div id="fundo-resultado"></div>
+      </div>
       <p class="section-label" style="margin-top:1rem">Desempenho por produto</p>
       <div id="sort-relatorio" class="sort-bar" style="margin-top:8px">
         <button class="sort-btn active" data-sort="vendido" onclick="setSortRelatorio('vendido')">Vendidos</button>
@@ -182,7 +190,7 @@
       <div id="cart-sheet-items"></div>
     </div>
     <div id="cart-bar-row">
-      <button id="cart-bar-clear" onclick="limparCarrinho()">Limpar</button>
+      <button id="cart-bar-clear" onclick="limparCarrinhoConfirm()">Limpar</button>
       <button id="cart-bar-info" onclick="toggleCartSheet()"></button>
       <button id="cart-bar-btn" onclick="abrirPagamento()">✓ Finalizar</button>
     </div>

@@ -3,6 +3,7 @@ let produtos = [], carrinho = [], editingId = null, cartSheetOpen = false, qtyPi
 let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
 let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHistorico = 'recente';
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
+let dinheiroVendas = 0;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -412,6 +413,24 @@ function removeAllCarrinho(id) {
 
 function limparCarrinho() { carrinho = []; renderCarrinho(); }
 
+function limparCarrinhoConfirm() {
+  const btn = document.getElementById('cart-bar-clear');
+  if (!btn) return;
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    btn.textContent = 'Confirmar?';
+    btn._timer = setTimeout(() => {
+      btn.classList.remove('confirming');
+      btn.textContent = 'Limpar';
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn._timer);
+  btn.classList.remove('confirming');
+  btn.textContent = 'Limpar';
+  limparCarrinho();
+}
+
 function atualizarCartBar() {
   const bar     = document.getElementById('cart-bar');
   const badge   = document.getElementById('cart-badge');
@@ -497,6 +516,12 @@ function toggleCartSheet() {
 }
 
 function renderCarrinho() {
+  const clearBtn = document.getElementById('cart-bar-clear');
+  if (clearBtn?.classList.contains('confirming')) {
+    clearTimeout(clearBtn._timer);
+    clearBtn.classList.remove('confirming');
+    clearBtn.textContent = 'Limpar';
+  }
   if (cartSheetOpen) {
     if (!carrinho.length) {
       cartSheetOpen = false;
@@ -644,11 +669,13 @@ async function carregarRelatorio() {
     else
       document.getElementById('r-margem').textContent = '—';
     const pag = resumo.pagamentos || {};
+    dinheiroVendas = Number(pag.dinheiro) || 0;
     countUp(document.getElementById('r-dinheiro'), pag.dinheiro || 0, fmtShort);
     countUp(document.getElementById('r-pix'),      pag.pix      || 0, fmtShort);
     countUp(document.getElementById('r-cartao'),   pag.cartao   || 0, fmtShort);
 
     renderRelatorioLista();
+    carregarFundo();
   } catch (e) { l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
 }
 
@@ -783,6 +810,33 @@ function confirmarQtyCustom() {
   if (v > 0) confirmarQtyPicker(v);
 }
 
+/* ── Fundo de Caixa ───────────────────────── */
+function carregarFundo() {
+  const val = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+  const inp = document.getElementById('fundo-inp');
+  if (inp && !inp.matches(':focus')) inp.value = val || '';
+  atualizarFundoResultado();
+}
+
+function salvarFundo() {
+  const val = parseFloat(document.getElementById('fundo-inp')?.value || '0') || 0;
+  localStorage.setItem('fundo_caixa', val);
+  atualizarFundoResultado();
+  showToast('Fundo salvo!', 'green-toast');
+}
+
+function atualizarFundoResultado() {
+  const el = document.getElementById('fundo-resultado');
+  if (!el) return;
+  const fundo = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+  if (fundo === 0 && dinheiroVendas === 0) { el.innerHTML = ''; return; }
+  const esperado = fundo + dinheiroVendas;
+  el.innerHTML = `
+    <div class="fc-row"><span>Fundo inicial</span><span>${fmt(fundo)}</span></div>
+    <div class="fc-row"><span>Vendas em dinheiro</span><span>${fmt(dinheiroVendas)}</span></div>
+    <div class="fc-row fc-total"><span>Esperado no caixa</span><span>${fmt(esperado)}</span></div>`;
+}
+
 /* ── WhatsApp ─────────────────────────────── */
 async function compartilharWhatsApp() {
   try {
@@ -796,6 +850,9 @@ async function compartilharWhatsApp() {
       pag.pix      > 0 ? `📱 Pix: ${fmt(pag.pix)}`           : '',
       pag.cartao   > 0 ? `💳 Cartão: ${fmt(pag.cartao)}`      : '',
     ].filter(Boolean).join('\n');
+    const fundoWpp = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+    const linhaFundo = fundoWpp > 0
+      ? `\n🗃 Fundo: ${fmt(fundoWpp)} → Esperado no caixa: ${fmt(fundoWpp + (pag.dinheiro || 0))}` : '';
 
     const texto = [
       `🤠 *Caixa UNIFSP*`,
@@ -804,6 +861,7 @@ async function compartilharWhatsApp() {
       `💰 *${fmt(resumo.total_arrecadado)}* arrecadado`,
       `📈 *${fmt(resumo.total_lucro)}* de lucro *(${margem}%)*`,
       linhasPag ? `\n${linhasPag}` : '',
+      linhaFundo,
       ``,
       `_${agora}_`,
     ].filter(s => s !== undefined).join('\n');
@@ -823,6 +881,16 @@ async function gerarPDF() {
     const totalCusto = itens.reduce((s, i) => s + Number(i.custo_total), 0);
     const margem = resumo.total_arrecadado > 0 ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) : 0;
     const pag = resumo.pagamentos || {};
+
+    const fundo = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+    const esperadoCaixa = fundo + (pag.dinheiro || 0);
+    const fundoHtml = fundo > 0 ? `
+<h2 style="margin-bottom:8px">Fundo de caixa</h2>
+<div class="pay-summary" style="grid-template-columns:1fr 1fr 1fr;">
+  <div class="sb"><div class="sl">Fundo inicial</div><div class="sv">${fmt(fundo)}</div></div>
+  <div class="sb"><div class="sl">Vendas em dinheiro</div><div class="sv">${fmt(pag.dinheiro || 0)}</div></div>
+  <div class="sb"><div class="sl">Esperado no caixa</div><div class="sv green">${fmt(esperadoCaixa)}</div></div>
+</div>` : '';
 
     const linhas = itens.filter(i => Number(i.qtd_vendida) > 0).map(item => {
       const qtd        = Number(item.qtd_vendida);
@@ -893,6 +961,7 @@ async function gerarPDF() {
   <div class="sb"><div class="sl">Pix</div><div class="sv">${fmt(pag.pix || 0)}</div></div>
   <div class="sb"><div class="sl">💳 Cartão</div><div class="sv">${fmt(pag.cartao || 0)}</div></div>
 </div>
+${fundoHtml}
 <h2>Por produto</h2>
 <table>
   <thead>

@@ -82,8 +82,8 @@ router.post('/', async (req, res) => {
     }
 
     const [vendaResult] = await conn.query(
-      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id) VALUES (?, ?, ?, ?, ?)',
-      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId]
+      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador) VALUES (?, ?, ?, ?, ?, ?)',
+      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador]
     );
 
     for (const item of itensFinal) {

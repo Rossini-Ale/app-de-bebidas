@@ -4,7 +4,7 @@ let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
 let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHistorico = 'recente';
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
 let dinheiroVendas = 0, wakeLock = null, reposicaoId = null;
-let eventoAtual = null;
+let eventoAtual = null, operadorAtual = 'Caixa';
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -187,7 +187,8 @@ async function checkAuth() {
     const ev = await fetch(API + '/api/auth/me', { credentials: 'same-origin' });
     if (!ev.ok) { mostrarLogin(); return false; }
     const data = await ev.json();
-    eventoAtual = data;
+    eventoAtual   = data;
+    operadorAtual = data.operador || 'Caixa';
     setEventoBadge(data.nome);
     return true;
   } catch { mostrarLogin(); return false; }
@@ -210,12 +211,14 @@ function setEventoBadge(nome) {
 }
 
 async function fazerLogin() {
-  const btn    = document.getElementById('login-btn');
-  const evento = document.getElementById('login-evento').value.trim();
-  const senha  = document.getElementById('login-senha').value;
-  const erro   = document.getElementById('login-erro');
-  if (!evento) { erro.textContent = 'Informe o nome do evento'; return; }
-  if (!senha)  { erro.textContent = 'Informe a senha'; return; }
+  const btn      = document.getElementById('login-btn');
+  const evento   = document.getElementById('login-evento').value.trim();
+  const operador = document.getElementById('login-operador').value.trim();
+  const senha    = document.getElementById('login-senha').value;
+  const erro     = document.getElementById('login-erro');
+  if (!evento)   { erro.textContent = 'Informe o nome do evento'; return; }
+  if (!operador) { erro.textContent = 'Informe seu nome'; return; }
+  if (!senha)    { erro.textContent = 'Informe a senha'; return; }
   erro.textContent = '';
   btn.textContent = 'Entrando…'; btn.disabled = true;
   try {
@@ -223,11 +226,12 @@ async function fazerLogin() {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ evento, senha })
+      body: JSON.stringify({ evento, operador, senha })
     });
     const json = await data.json();
     if (!data.ok) { erro.textContent = json.error || 'Erro ao entrar'; return; }
-    eventoAtual = json.evento;
+    eventoAtual   = json.evento;
+    operadorAtual = json.operador || operador;
     setEventoBadge(json.evento.nome);
     ocultarLogin();
     relatorioItens = null; historicoVendas = null;
@@ -241,8 +245,9 @@ async function fazerLogout() {
   eventoAtual = null;
   produtos = []; carrinho = [];
   relatorioItens = null; historicoVendas = null;
-  document.getElementById('login-evento').value = '';
-  document.getElementById('login-senha').value = '';
+  document.getElementById('login-evento').value   = '';
+  document.getElementById('login-operador').value = '';
+  document.getElementById('login-senha').value    = '';
   mostrarLogin();
 }
 
@@ -733,7 +738,7 @@ async function finalizarVenda() {
   const total = totalCarrinho();
   const itens = carrinho.map(c => ({ produto_id: c.id, quantidade: c.qty }));
   try {
-    const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento }) });
+    const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento, operador: operadorAtual }) });
     vibrar([40, 20, 40]);
     mostrarSuccessAnim();
     ultimaVendaId = venda.id;
@@ -944,6 +949,7 @@ function renderHistoricoLista() {
       <div class="hist-right">
         <span class="hist-total">${fmt(venda.total)}</span>
         <span class="hist-pag">${labelPag[venda.forma_pagamento] || venda.forma_pagamento || 'Dinheiro'}</span>
+        ${venda.operador ? `<span class="hist-operador">${venda.operador}</span>` : ''}
         <button class="hist-del" onclick="deletarVenda(${venda.id}, this)">🗑 Excluir</button>
       </div>
     </div>`;

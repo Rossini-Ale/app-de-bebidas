@@ -40,13 +40,14 @@ app.post('/api/auth/login', async (req, res) => {
     }
     req.session.eventoId   = ev.id;
     req.session.eventoNome = ev.nome;
-    res.json({ ok: true, evento: ev });
+    req.session.operador   = (req.body.operador || '').trim() || 'Caixa';
+    res.json({ ok: true, evento: ev, operador: req.session.operador });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.session.eventoId) return res.status(401).json({ error: 'Não autenticado' });
-  res.json({ id: req.session.eventoId, nome: req.session.eventoNome });
+  res.json({ id: req.session.eventoId, nome: req.session.eventoNome, operador: req.session.operador || 'Caixa' });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -56,7 +57,8 @@ app.post('/api/auth/logout', (req, res) => {
 /* ── Auth middleware ──────────────────────── */
 function requireAuth(req, res, next) {
   if (!req.session.eventoId) return res.status(401).json({ error: 'Não autenticado' });
-  req.eventoId = req.session.eventoId;
+  req.eventoId  = req.session.eventoId;
+  req.operador  = req.session.operador || 'Caixa';
   next();
 }
 
@@ -93,4 +95,5 @@ async function runMigrations() {
     await db.query(`UPDATE ${tbl} SET evento_id = 1 WHERE evento_id IS NULL OR evento_id = 0`);
   }
   try { await db.query(`ALTER TABLE vendas ADD COLUMN forma_pagamento VARCHAR(10) NOT NULL DEFAULT 'dinheiro'`); } catch (_) {}
+  try { await db.query(`ALTER TABLE vendas ADD COLUMN operador VARCHAR(50) NOT NULL DEFAULT 'Caixa'`); } catch (_) {}
 }

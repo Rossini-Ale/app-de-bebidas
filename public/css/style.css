@@ -1053,6 +1053,50 @@ button { touch-action: manipulation; }
 .op-vendas { font-size: 12px; color: var(--muted); font-weight: 600; }
 .op-total { font-size: 15px; font-weight: 700; color: var(--amber); }
 
+/* ── COMBO ───────────────────────────────── */
+/* Combo badge on product card */
+.pc-combo {
+  font-size: 10px; font-weight: 700;
+  color: var(--green-d);
+  background: #F0FDF4; border: 1px solid #BBF7D0;
+  border-radius: 5px; padding: 2px 6px;
+  margin-bottom: 4px; display: inline-block;
+}
+[data-theme="dark"] .pc-combo { background: rgba(5,150,105,.12); border-color: rgba(5,150,105,.25); }
+.produto-card.combo-active { border-color: var(--green) !important; }
+.produto-card.combo-active .pc-combo { background: var(--green); color: #fff; border-color: var(--green); }
+
+/* Stock list combo info */
+.stock-combo { font-size: 11px; color: var(--green); font-weight: 600; margin-top: 2px; }
+
+/* Combo toggle in add/edit form */
+.combo-toggle-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--muted); cursor: pointer;
+  margin-bottom: 8px; margin-top: 2px;
+}
+.combo-toggle-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green); cursor: pointer; }
+.combo-row { display: none; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 6px; }
+
+/* Cart sheet combo indicator */
+.cs-combo { font-size: 10px; font-weight: 700; color: #fff; background: var(--green); border-radius: 4px; padding: 1px 5px; }
+
+/* Cardápio button */
+.btn-cardapio {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-s);
+  border-radius: var(--r);
+  font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  min-height: 44px; transition: all .15s;
+  color: var(--amber-d); text-decoration: none;
+}
+.btn-cardapio:hover, .btn-cardapio:active { background: #FFFBF0; border-color: var(--amber); }
+[data-theme="dark"] .btn-cardapio:hover, [data-theme="dark"] .btn-cardapio:active { background: rgba(217,119,6,.1); }
+
 /* Reposição history items */
 .reposicao-item {
   display: flex; align-items: center; gap: 10px;

@@ -346,19 +346,24 @@ function renderVenda() {
     const lowStock   = p.estoque > 0 && p.estoque <= 50;
     const itemCart   = carrinho.find(c => c.id === p.id);
     const inCart     = !!itemCart;
+    const comboActive = inCart && p.combo_qtd && p.combo_preco && itemCart.qty >= p.combo_qtd;
     const badge      = inCart ? `<span class="pc-badge" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${itemCart.qty}</span>` : '';
     const stockLabel = noStock  ? 'Sem estoque' :
                        veryLow  ? `⚠ ${p.estoque} un.` :
                                   `${p.estoque} un.`;
     const classes    = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : '',
-                        veryLow ? 'very-low-stock' : lowStock ? 'low-stock' : ''].filter(Boolean).join(' ');
+                        veryLow ? 'very-low-stock' : lowStock ? 'low-stock' : '',
+                        comboActive ? 'combo-active' : ''].filter(Boolean).join(' ');
     const onclick    = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
     const barPct     = noStock ? 0 : Math.round((p.estoque / maxEstoque) * 100);
     const barColor   = p.estoque <= 24 ? 'var(--red)' : p.estoque <= 50 ? 'var(--amber)' : 'var(--green)';
+    const comboBadge = (p.combo_qtd && p.combo_preco)
+      ? `<div class="pc-combo">${p.combo_qtd}× ${fmt(p.combo_preco)}</div>` : '';
     return `<div class="${classes}" data-id="${p.id}" ${onclick}>
       ${badge}
       <div class="pc-nome">${p.nome}</div>
       <div class="pc-preco">${fmt(p.preco)}</div>
+      ${comboBadge}
       <div class="pc-stock">${stockLabel}</div>
       <button class="pc-btn" ${noStock ? 'disabled' : ''}>+</button>
       <div class="pc-stock-bar-wrap"><div class="pc-stock-bar" style="width:${barPct}%;background:${barColor}"></div></div>
@@ -512,12 +517,19 @@ async function salvarEdicao(id) {
   const preco    = lerMoeda(`edit-preco-${id}`);
   const custo    = lerMoeda(`edit-custo-${id}`);
   const categoria = (document.getElementById(`edit-cat-${id}`)?.value || '').trim();
+  const comboAtivo = document.getElementById(`${id}-combo-check`)?.checked;
+  const comboQtdVal = parseInt(document.getElementById(`edit-combo-qtd-${id}`)?.value) || null;
+  const comboPreco  = comboAtivo ? lerMoeda(`edit-combo-preco-${id}`) : null;
   if (!nome || isNaN(preco)) { showToast('⚠ Preencha nome e preço', 'error-toast'); return; }
   const p = produtos.find(x => x.id === id);
   try {
     const updated = await apiFetch(`/produtos/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo: p.estoque_minimo, categoria })
+      body: JSON.stringify({
+        nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo: p.estoque_minimo, categoria,
+        combo_qtd:   comboAtivo ? comboQtdVal || null : null,
+        combo_preco: comboAtivo ? comboPreco  || null : null
+      })
     });
     const i = produtos.findIndex(x => x.id === id);
     if (i >= 0) produtos[i] = updated;
@@ -705,10 +717,7 @@ function atualizarCartBar() {
     sheet?.classList.add('open');
   }
 
-  const total = carrinho.reduce((s, c) => {
-    const p = produtos.find(x => x.id === c.id);
-    return s + p.preco * c.qty;
-  }, 0);
+  const total = totalCarrinho();
 
   if (infoBtn) {
     const arrow = cartSheetOpen ? '▾' : '▴';
@@ -722,14 +731,19 @@ function renderCartSheet() {
   if (!el) return;
   el.innerHTML = carrinho.map(c => {
     const p = produtos.find(x => x.id === c.id);
+    const comboActive = !venderAoCusto && p.combo_qtd && p.combo_preco && c.qty >= p.combo_qtd;
+    const precoUnit   = comboActive ? Number(p.combo_preco) : (venderAoCusto ? (p.custo || 0) : p.preco);
+    const total       = precoUnit * c.qty;
+    const comboLabel  = comboActive
+      ? ` <span class="cs-combo">Combo! ${fmt(p.combo_preco)}/un.</span>` : '';
     return `<div class="cs-item">
-      <span class="cs-name">${p.nome}</span>
+      <span class="cs-name">${p.nome}${comboLabel}</span>
       <div class="cs-controls">
         <button class="cs-ctrl" onclick="removeCarrinho(${c.id})">−</button>
         <span class="cs-qty" id="csq-${c.id}" onclick="editQtyInline(${c.id})" title="Toque para editar">${c.qty}</span>
         <button class="cs-ctrl" onclick="addCarrinho(${c.id})">+</button>
       </div>
-      <span class="cs-price">${fmt(p.preco * c.qty)}</span>
+      <span class="cs-price">${fmt(total)}</span>
     </div>`;
   }).join('');
 }
@@ -784,6 +798,9 @@ function renderCarrinho() {
 function totalCarrinho() {
   return carrinho.reduce((s, c) => {
     const p = produtos.find(x => x.id === c.id);
+    if (!venderAoCusto && p.combo_qtd && p.combo_preco && c.qty >= p.combo_qtd) {
+      return s + Number(p.combo_preco) * c.qty;
+    }
     return s + (venderAoCusto ? (p.custo || 0) : p.preco) * c.qty;
   }, 0);
 }

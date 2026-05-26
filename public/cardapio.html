@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cardápio – Caixa UNIFSP</title>
+  <style>
+    *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #FBF4E8;
+      --bg-card: #FFFFFF;
+      --bg-sec: #F2E9D0;
+      --text: #2C1A00;
+      --muted: #8B6530;
+      --border: rgba(160,100,20,.13);
+      --border-s: rgba(160,100,20,.28);
+      --amber: #D97706;
+      --amber-d: #B45309;
+      --green: #059669;
+      --green-d: #047857;
+      --red: #DC2626;
+      --r: 10px;
+      --rl: 14px;
+    }
+    [data-theme="dark"] {
+      --bg: #1A1108;
+      --bg-card: #241809;
+      --bg-sec: #2E200D;
+      --text: #FEF3C7;
+      --muted: #9B7A45;
+      --border: rgba(255,180,60,.1);
+      --border-s: rgba(255,180,60,.2);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      scrollbar-width: thin;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #92400E 0%, #D97706 100%);
+      color: #FEF3C7;
+      padding: 1rem 1.25rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(0,0,0,.18);
+    }
+    .header-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .header-title { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+    .header-sub   { font-size: 12px; opacity: .8; margin-top: 2px; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .ts-badge {
+      font-size: 11px; font-weight: 600;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.28);
+      border-radius: 20px; padding: 4px 10px;
+      white-space: nowrap;
+    }
+    .btn-theme {
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: var(--r);
+      padding: 8px 12px;
+      font-size: 16px;
+      cursor: pointer;
+      color: #FEF3C7;
+      font-family: inherit;
+      min-width: 40px; min-height: 40px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .12s;
+    }
+    .btn-theme:hover { background: rgba(255,255,255,.28); }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.25rem 1rem 2rem;
+    }
+
+    /* ── CATEGORY SECTION ── */
+    .cat-section { margin-bottom: 2rem; }
+    .cat-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .cat-title {
+      font-size: 13px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      color: var(--amber-d);
+    }
+    .cat-divider {
+      flex: 1; height: 1px;
+      background: linear-gradient(90deg, var(--amber) 0%, transparent 100%);
+      opacity: .35;
+    }
+    .cat-count {
+      font-size: 11px; color: var(--muted); font-weight: 600;
+      background: var(--bg-sec); border-radius: 20px; padding: 2px 8px;
+    }
+
+    /* ── PRODUCT GRID ── */
+    .produto-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    @media (min-width: 500px) {
+      .produto-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (min-width: 720px) {
+      .produto-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    /* ── PRODUCT CARD ── */
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .produto-card {
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: var(--rl);
+      padding: 16px 12px 14px;
+      text-align: center;
+      position: relative;
+      transition: border-color .15s, transform .12s;
+      animation: cardIn .25s ease both;
+      overflow: hidden;
+    }
+    .produto-card:hover { border-color: var(--amber); transform: translateY(-2px); }
+    .produto-card.esgotado { opacity: .55; }
+    .produto-card.esgotado:hover { transform: none; border-color: var(--border); }
+
+    /* Esgotado ribbon */
+    .ribbon-esgotado {
+      position: absolute;
+      top: 10px; right: -18px;
+      background: var(--red);
+      color: #fff;
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: 3px 24px;
+      transform: rotate(35deg);
+      box-shadow: 0 2px 6px rgba(220,38,38,.3);
+    }
+
+    .pc-emoji {
+      font-size: 32px;
+      line-height: 1;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .pc-emoji-placeholder {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: var(--bg-sec);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: var(--amber);
+      margin: 0 auto 8px;
+    }
+    .pc-nome {
+      font-size: 14px; font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+    .pc-preco {
+      font-size: 20px; font-weight: 800;
+      color: var(--amber);
+      margin-bottom: 4px;
+    }
+    .pc-combo {
+      font-size: 10px; font-weight: 700;
+      color: var(--green-d);
+      background: #F0FDF4; border: 1px solid #BBF7D0;
+      border-radius: 5px; padding: 2px 6px;
+      display: inline-block; margin-bottom: 4px;
+    }
+    [data-theme="dark"] .pc-combo { background: rgba(5,150,105,.15); border-color: rgba(5,150,105,.3); }
+    .pc-stock {
+      font-size: 11px; color: var(--muted);
+      margin-top: 4px;
+    }
+    .pc-stock.sem-estoque { color: var(--red); font-weight: 600; }
+
+    /* ── LOADING / EMPTY ── */
+    .loading {
+      text-align: center; padding: 3rem;
+      color: var(--muted); font-size: 15px;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .loading .spinner {
+      font-size: 28px;
+      display: block; margin-bottom: 10px;
+      animation: pulse 1.2s ease infinite;
+    }
+    .empty-state {
+      text-align: center; padding: 3rem;
+      color: var(--muted); font-size: 14px; line-height: 2;
+    }
+
+    /* ── STATUS BAR ── */
+    .status-bar {
+      max-width: 900px; margin: 0 auto;
+      padding: .5rem 1rem;
+      font-size: 11px; color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .ws-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); display: inline-block;
+      flex-shrink: 0;
+    }
+    .ws-dot.connected { background: var(--green); }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center; padding: 1.5rem;
+      font-size: 12px; color: var(--muted);
+      border-top: 1px solid var(--border);
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <div class="header-title">Cardápio</div>
+        <div class="header-sub">Caixa UNIFSP</div>
+      </div>
+      <div class="header-right">
+        <span class="ts-badge" id="ts-badge">—</span>
+        <button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Alternar tema">🌙</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="status-bar">
+    <span class="ws-dot" id="ws-dot"></span>
+    <span id="ws-label">Conectando…</span>
+  </div>
+
+  <main id="cardapio-content">
+    <div class="loading">
+      <span class="spinner">🍺</span>
+      Carregando cardápio…
+    </div>
+  </main>
+
+  <footer>
+    Cardápio atualizado em tempo real · Caixa UNIFSP
+  </footer>
+
+  <script>
+    /* ── Tema ── */
+    function aplicarTema() {
+      const tema = localStorage.getItem('tema') || 'light';
+      document.documentElement.setAttribute('data-theme', tema);
+      document.getElementById('btn-theme').textContent = tema === 'dark' ? '☀' : '🌙';
+    }
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('tema', next);
+      document.getElementById('btn-theme').textContent = next === 'dark' ? '☀' : '🌙';
+    }
+    aplicarTema();
+
+    /* ── Formatação ── */
+    function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
+
+    /* ── Renderização ── */
+    function renderCardapio(produtos) {
+      const main = document.getElementById('cardapio-content');
+      if (!produtos || !produtos.length) {
+        main.innerHTML = '<div class="empty-state">Nenhum produto disponível no momento.</div>';
+        return;
+      }
+
+      /* Separar por categoria; produtos sem estoque ficam por último dentro de cada cat */
+      const cats = {};
+      produtos.forEach(p => {
+        const cat = (p.categoria || '').trim() || '__sem_categoria__';
+        if (!cats[cat]) cats[cat] = [];
+        cats[cat].push(p);
+      });
+
+      /* Ordenar produtos dentro de cada categoria: em estoque primeiro */
+      Object.keys(cats).forEach(cat => {
+        cats[cat].sort((a, b) => {
+          if (a.estoque === 0 && b.estoque > 0) return 1;
+          if (b.estoque === 0 && a.estoque > 0) return -1;
+          return a.nome.localeCompare(b.nome, 'pt-BR');
+        });
+      });
+
+      const catKeys = Object.keys(cats).sort((a, b) => {
+        if (a === '__sem_categoria__') return 1;
+        if (b === '__sem_categoria__') return -1;
+        return a.localeCompare(b, 'pt-BR');
+      });
+
+      const hasMultipleCats = catKeys.filter(k => k !== '__sem_categoria__').length > 0;
+
+      let html = '';
+      catKeys.forEach((cat, catIdx) => {
+        const items = cats[cat];
+        html += '<div class="cat-section">';
+
+        if (hasMultipleCats && cat !== '__sem_categoria__') {
+          html += `<div class="cat-header">
+            <span class="cat-title">${cat}</span>
+            <div class="cat-divider"></div>
+            <span class="cat-count">${items.length}</span>
+          </div>`;
+        }
+
+        html += '<div class="produto-grid">';
+        items.forEach((p, i) => {
+          const esgotado  = p.estoque === 0;
+          const delay     = (catIdx * 0.03 + i * 0.04).toFixed(2);
+          const cardClass = esgotado ? 'produto-card esgotado' : 'produto-card';
+
+          /* Emoji or placeholder */
+          const emojiHtml = p.emoji
+            ? `<span class="pc-emoji">${p.emoji}</span>`
+            : `<div class="pc-emoji-placeholder">${p.nome.charAt(0).toUpperCase()}</div>`;
+
+          /* Stock label */
+          const stockHtml = esgotado
+            ? `<div class="pc-stock sem-estoque">Esgotado</div>`
+            : `<div class="pc-stock">${p.estoque} disponível${p.estoque !== 1 ? 's' : ''}</div>`;
+
+          /* Combo badge */
+          const comboHtml = (p.combo_qtd && p.combo_preco)
+            ? `<div class="pc-combo">${p.combo_qtd}+ un. → ${fmt(p.combo_preco)}</div>` : '';
+
+          /* Esgotado ribbon */
+          const ribbonHtml = esgotado ? '<div class="ribbon-esgotado">Esgotado</div>' : '';
+
+          html += `<div class="${cardClass}" style="animation-delay:${delay}s">
+            ${ribbonHtml}
+            ${emojiHtml}
+            <div class="pc-nome">${p.nome}</div>
+            <div class="pc-preco">${fmt(p.preco)}</div>
+            ${comboHtml}
+            ${stockHtml}
+          </div>`;
+        });
+        html += '</div></div>';
+      });
+
+      main.innerHTML = html;
+    }
+
+    /* ── Timestamp ── */
+    function atualizarTimestamp() {
+      const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('ts-badge').textContent = 'Atualizado às ' + agora;
+    }
+
+    /* ── Carregar cardápio ── */
+    async function carregarCardapio() {
+      try {
+        const res = await fetch('/api/publico/produtos');
+        if (!res.ok) throw new Error('Erro ' + res.status);
+        const produtos = await res.json();
+        renderCardapio(produtos);
+        atualizarTimestamp();
+      } catch (e) {
+        document.getElementById('cardapio-content').innerHTML =
+          `<div class="empty-state">Não foi possível carregar o cardápio.<br/><small>${e.message}</small></div>`;
+      }
+    }
+
+    /* ── WebSocket ── */
+    let ws = null;
+    const REFRESH_EVENTS = new Set(['produto_atualizado', 'produto_novo', 'produto_deletado', 'estoque_atualizado']);
+
+    function conectarWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const url   = `${proto}://${location.host}`;
+      try {
+        ws = new WebSocket(url);
+      } catch (e) {
+        setTimeout(conectarWS, 4000);
+        return;
+      }
+
+      ws.addEventListener('open', () => {
+        document.getElementById('ws-dot').classList.add('connected');
+        document.getElementById('ws-label').textContent = 'Ao vivo';
+      });
+
+      ws.addEventListener('message', evt => {
+        try {
+          const data = JSON.parse(evt.data);
+          if (data && REFRESH_EVENTS.has(data.type)) {
+            carregarCardapio();
+          }
+        } catch (_) {}
+      });
+
+      ws.addEventListener('close', () => {
+        document.getElementById('ws-dot').classList.remove('connected');
+        document.getElementById('ws-label').textContent = 'Reconectando…';
+        ws = null;
+        setTimeout(conectarWS, 4000);
+      });
+
+      ws.addEventListener('error', () => {
+        document.getElementById('ws-dot').classList.remove('connected');
+      });
+    }
+
+    /* ── Init ── */
+    carregarCardapio();
+    conectarWS();
+    setInterval(carregarCardapio, 30000);
+  </script>
+</body>
+</html>

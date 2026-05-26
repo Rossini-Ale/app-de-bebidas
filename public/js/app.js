@@ -328,36 +328,6 @@ function atualizarCartBar() {
 }
 
 function renderCarrinho() {
-  const itEl = document.getElementById('carrinho-itens');
-  const emEl = document.getElementById('carrinho-empty');
-  const ftEl = document.getElementById('carrinho-footer');
-  if (!carrinho.length) {
-    itEl.innerHTML = '';
-    if (emEl) emEl.style.display = 'block';
-    ftEl.style.display = 'none';
-    renderVenda();
-    atualizarCartBar();
-    return;
-  }
-  if (emEl) emEl.style.display = 'none';
-  ftEl.style.display = 'block';
-  itEl.innerHTML = carrinho.map(c => {
-    const p = produtos.find(x => x.id === c.id);
-    return `<div class="carrinho-item">
-      <span class="ci-name">${p.nome}</span>
-      <div class="ci-controls">
-        <button class="ci-ctrl" onclick="removeCarrinho(${c.id})">−</button>
-        <span class="ci-qty-val">${c.qty}</span>
-        <button class="ci-ctrl" onclick="addCarrinho(${c.id})">+</button>
-      </div>
-      <span class="ci-price">${fmt(p.preco * c.qty)}</span>
-      <button class="ci-remove" onclick="removeAllCarrinho(${c.id})">✕</button>
-    </div>`;
-  }).join('');
-  const total = carrinho.reduce((s, c) => {
-    const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty;
-  }, 0);
-  document.getElementById('carrinho-total').textContent = fmt(total);
   renderVenda();
   atualizarCartBar();
 }
@@ -487,12 +457,21 @@ async function gerarPDF() {
     const margem = resumo.total_arrecadado > 0 ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) : 0;
 
     const linhas = itens.filter(i => Number(i.qtd_vendida) > 0).map(item => {
-      const lucro = Number(item.lucro);
+      const qtd        = Number(item.qtd_vendida);
+      const receita    = Number(item.receita);
+      const custoTotal = Number(item.custo_total);
+      const lucro      = Number(item.lucro);
+      const precoUnit  = qtd > 0 ? receita / qtd : 0;
+      const custoUnit  = qtd > 0 ? custoTotal / qtd : 0;
+      const lucroUnit  = qtd > 0 ? lucro / qtd : 0;
       return `<tr>
         <td>${item.nome}</td>
-        <td class="num">${item.qtd_vendida}</td>
-        <td class="num">${fmt(item.receita)}</td>
-        <td class="num">${fmt(item.custo_total)}</td>
+        <td class="num">${qtd}</td>
+        <td class="num">${fmt(precoUnit)}</td>
+        <td class="num">${fmt(custoUnit)}</td>
+        <td class="num ${lucroUnit >= 0 ? 'green' : 'red'}">${fmt(lucroUnit)}</td>
+        <td class="num">${fmt(receita)}</td>
+        <td class="num">${fmt(custoTotal)}</td>
         <td class="num ${lucro >= 0 ? 'green' : 'red'}">${fmt(lucro)}</td>
       </tr>`;
     }).join('');
@@ -517,13 +496,15 @@ async function gerarPDF() {
   h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:10px}
   table{width:100%;border-collapse:collapse}
   thead tr{background:#f0f0f0}
-  th{text-align:left;padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#666;border-bottom:2px solid #ddd}
-  td{padding:9px 12px;border-bottom:1px solid #eee;font-size:13px}
+  th{text-align:left;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#666;border-bottom:2px solid #ddd;white-space:nowrap}
+  th.group{text-align:center;background:#e8e8e8;border-bottom:1px solid #ccc;font-size:10px;letter-spacing:.04em}
+  td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px}
   .num{text-align:right;font-variant-numeric:tabular-nums}
   .green{color:#059669;font-weight:700}
   .red{color:#dc2626;font-weight:700}
   tfoot tr{background:#f8f8f8;font-weight:700}
-  tfoot td{border-top:2px solid #ccc;border-bottom:none;padding:10px 12px}
+  tfoot td{border-top:2px solid #ccc;border-bottom:none;padding:8px 10px}
+  .sep{border-left:2px solid #ddd}
   .footer{margin-top:28px;color:#aaa;font-size:11px;text-align:center}
   @media print{body{padding:0}}
 </style>
@@ -539,9 +520,20 @@ async function gerarPDF() {
 </div>
 <h2>Por produto</h2>
 <table>
-  <thead><tr><th>Produto</th><th class="num">Qtd</th><th class="num">Receita</th><th class="num">Custo</th><th class="num">Lucro</th></tr></thead>
-  <tbody>${linhas || '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">Nenhuma venda registrada</td></tr>'}</tbody>
-  <tfoot><tr><td>Total</td><td class="num">${totalQtd}</td><td class="num">${fmt(resumo.total_arrecadado)}</td><td class="num">${fmt(totalCusto)}</td><td class="num green">${fmt(resumo.total_lucro)}</td></tr></tfoot>
+  <thead>
+    <tr>
+      <th rowspan="2">Produto</th>
+      <th rowspan="2" class="num">Qtd</th>
+      <th colspan="3" class="group sep">Por unidade</th>
+      <th colspan="3" class="group sep">Total</th>
+    </tr>
+    <tr>
+      <th class="num sep">Preço</th><th class="num">Custo</th><th class="num">Lucro</th>
+      <th class="num sep">Receita</th><th class="num">Custo</th><th class="num">Lucro</th>
+    </tr>
+  </thead>
+  <tbody>${linhas || '<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">Nenhuma venda registrada</td></tr>'}</tbody>
+  <tfoot><tr><td>Total</td><td class="num">${totalQtd}</td><td class="sep" colspan="3"></td><td class="num sep">${fmt(resumo.total_arrecadado)}</td><td class="num">${fmt(totalCusto)}</td><td class="num green">${fmt(resumo.total_lucro)}</td></tr></tfoot>
 </table>
 <p class="footer">Caixa UNIFSP · ${agora}</p>
 </body>

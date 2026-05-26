@@ -12,7 +12,7 @@ const vendasRouter   = require('./routes/vendas');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const SENHA_HASH = bcrypt.hashSync(process.env.APP_SENHA || 'unifsp2025', 10);
+const SENHA_HASH = bcrypt.hashSync(process.env.APP_SENHA || 'unifsp2026', 10);
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());

@@ -1,10 +1,13 @@
 const express = require('express');
-const router = express.Router();
-const db = require('../db');
+const router  = express.Router();
+const db      = require('../db');
 
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM vendas ORDER BY criado_em DESC');
+    const [rows] = await db.query(
+      'SELECT * FROM vendas WHERE evento_id = ? ORDER BY criado_em DESC',
+      [req.eventoId]
+    );
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -17,12 +20,23 @@ router.get('/resumo', async (req, res) => {
         COALESCE(SUM(v.total), 0) as total_arrecadado,
         COALESCE(SUM(v.itens_count), 0) as total_itens,
         COALESCE(AVG(v.total), 0) as ticket_medio,
-        COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as total_lucro
+        COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as total_lucro,
+        COUNT(DISTINCT CASE WHEN v.ao_custo = FALSE THEN v.id END) as vendas_normal,
+        COUNT(DISTINCT CASE WHEN v.ao_custo = TRUE  THEN v.id END) as vendas_custo,
+        COALESCE(SUM(CASE WHEN v.ao_custo = FALSE THEN v.total ELSE 0 END), 0) as arrecadado_normal,
+        COALESCE(SUM(CASE WHEN v.ao_custo = TRUE  THEN v.total ELSE 0 END), 0) as arrecadado_custo
       FROM vendas v
       LEFT JOIN venda_itens vi ON vi.venda_id = v.id
       LEFT JOIN produtos p ON vi.produto_id = p.id
-    `);
-    res.json(r);
+      WHERE v.evento_id = ?
+    `, [req.eventoId]);
+    const [porPag] = await db.query(
+      `SELECT forma_pagamento, COALESCE(SUM(total),0) as total FROM vendas WHERE evento_id = ? GROUP BY forma_pagamento`,
+      [req.eventoId]
+    );
+    const pagamentos = { dinheiro: 0, pix: 0, cartao: 0 };
+    porPag.forEach(row => { if (row.forma_pagamento in pagamentos) pagamentos[row.forma_pagamento] = Number(row.total); });
+    res.json({ ...r, pagamentos });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -32,20 +46,26 @@ router.get('/relatorio', async (req, res) => {
       SELECT
         p.id, p.nome, p.emoji, p.preco, p.custo,
         COALESCE(SUM(vi.quantidade), 0) as qtd_vendida,
+        COALESCE(SUM(CASE WHEN v.ao_custo = FALSE OR v.ao_custo IS NULL THEN vi.quantidade ELSE 0 END), 0) as qtd_normal,
+        COALESCE(SUM(CASE WHEN v.ao_custo = TRUE  THEN vi.quantidade ELSE 0 END), 0) as qtd_custo,
         COALESCE(SUM(vi.quantidade * vi.preco_unitario), 0) as receita,
+        COALESCE(SUM(CASE WHEN v.ao_custo = FALSE OR v.ao_custo IS NULL THEN vi.quantidade * vi.preco_unitario ELSE 0 END), 0) as receita_normal,
+        COALESCE(SUM(CASE WHEN v.ao_custo = TRUE  THEN vi.quantidade * vi.preco_unitario ELSE 0 END), 0) as receita_custo,
         COALESCE(SUM(vi.quantidade * p.custo), 0) as custo_total,
         COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as lucro
       FROM produtos p
       LEFT JOIN venda_itens vi ON vi.produto_id = p.id
+      LEFT JOIN vendas v ON vi.venda_id = v.id AND v.evento_id = ?
+      WHERE p.evento_id = ?
       GROUP BY p.id
       ORDER BY qtd_vendida DESC, p.nome ASC
-    `);
+    `, [req.eventoId, req.eventoId]);
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/', async (req, res) => {
-  const { itens } = req.body;
+  const { itens, forma_pagamento = 'dinheiro', ao_custo = false } = req.body;
   if (!itens || itens.length === 0)
     return res.status(400).json({ error: 'Nenhum item enviado' });
 
@@ -56,19 +76,23 @@ router.post('/', async (req, res) => {
     const descricoes = [], itensFinal = [];
 
     for (const item of itens) {
-      const [rows] = await conn.query('SELECT * FROM produtos WHERE id = ? FOR UPDATE', [item.produto_id]);
+      const [rows] = await conn.query(
+        'SELECT * FROM produtos WHERE id = ? AND evento_id = ? FOR UPDATE',
+        [item.produto_id, req.eventoId]
+      );
       if (!rows.length) throw new Error(`Produto ${item.produto_id} não encontrado`);
       const p = rows[0];
       if (p.estoque < item.quantidade) throw new Error(`Estoque insuficiente para "${p.nome}"`);
-      total += p.preco * item.quantidade;
+      const precoVenda = ao_custo ? (p.custo || 0) : p.preco;
+      total += precoVenda * item.quantidade;
       totalItens += item.quantidade;
       descricoes.push(`${item.quantidade}× ${p.nome}`);
-      itensFinal.push({ ...item, preco_unitario: p.preco });
+      itensFinal.push({ ...item, preco_unitario: precoVenda });
     }
 
     const [vendaResult] = await conn.query(
-      'INSERT INTO vendas (total, itens_count, descricao) VALUES (?, ?, ?)',
-      [total, totalItens, descricoes.join(', ')]
+      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador, ao_custo ? 1 : 0]
     );
 
     for (const item of itensFinal) {
@@ -94,6 +118,8 @@ router.delete('/:id', async (req, res) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
+    const [[venda]] = await conn.query('SELECT id FROM vendas WHERE id = ? AND evento_id = ?', [req.params.id, req.eventoId]);
+    if (!venda) return res.status(404).json({ error: 'Venda não encontrada' });
     const [itens] = await conn.query('SELECT * FROM venda_itens WHERE venda_id = ?', [req.params.id]);
     for (const item of itens) {
       await conn.query('UPDATE produtos SET estoque = estoque + ? WHERE id = ?', [item.quantidade, item.produto_id]);

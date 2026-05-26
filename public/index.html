@@ -2,24 +2,32 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Caixa UNIFSP 🤠</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Caixa UNIFSP</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
   <div class="app">
     <header class="header">
       <div class="header-left">
-        <div class="header-logo">🤠</div>
         <div>
           <h1>Caixa UNIFSP</h1>
-          <p id="status-conexao" class="status-ok">● Online</p>
+          <div class="header-sub">
+            <p id="status-conexao" class="status-ok">● Online</p>
+            <span id="evento-badge" class="evento-badge"></span>
+          </div>
         </div>
       </div>
-      <button class="btn-refresh" onclick="carregarTudo()">↺</button>
+      <div class="header-actions">
+        <button class="btn-refresh" id="btn-dark" onclick="toggleDarkMode()" title="Alternar tema">🌙</button>
+        <button class="btn-refresh" onclick="location.reload()">↺</button>
+        <button class="btn-refresh btn-logout" id="btn-logout" onclick="fazerLogout()" title="Sair">⎋</button>
+      </div>
     </header>
 
     <nav class="tabs">
+      <div id="tab-pill"></div>
       <button class="tab active" data-tab="venda" onclick="showTab('venda')">🛒 Venda</button>
       <button class="tab" data-tab="estoque" onclick="showTab('estoque')">📦 Estoque</button>
       <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">📊 Relatório</button>
@@ -28,65 +36,59 @@
 
     <!-- ABA VENDA -->
     <div id="tab-venda" class="section active">
-      <div class="metrics">
-        <div class="metric">
-          <div class="label">Vendas</div>
-          <div class="value" id="m-vendas">—</div>
+      <div class="metrics-strip">
+        <div class="ms-item">
+          <span class="ms-val" id="m-vendas">—</span>
+          <span class="ms-label">vendas</span>
         </div>
-        <div class="metric">
-          <div class="label">Arrecadado</div>
-          <div class="value" id="m-total">—</div>
+        <div class="ms-sep"></div>
+        <div class="ms-item">
+          <span class="ms-val" id="m-total">—</span>
+          <span class="ms-label">arrecadado</span>
         </div>
-        <div class="metric">
-          <div class="label">Lucro</div>
-          <div class="value green" id="m-lucro">—</div>
-        </div>
-      </div>
-      <div class="venda-grid">
-        <div>
-          <p class="section-label">Toque para adicionar</p>
-          <div id="venda-lista"><div class="loading">Carregando...</div></div>
-        </div>
-        <div class="carrinho-panel">
-          <p class="section-label">Pedido atual</p>
-          <div id="carrinho-empty" class="empty-state">🛒<br/>Nenhum item</div>
-          <div id="carrinho-itens"></div>
-          <div id="carrinho-footer" class="carrinho-footer" style="display:none;">
-            <div class="total-row"><span>Total</span><strong id="carrinho-total">R$ 0,00</strong></div>
-            <button class="btn-primary green" onclick="finalizarVenda()">✓ Finalizar venda</button>
-            <button class="btn-secondary" onclick="limparCarrinho()">Limpar pedido</button>
-          </div>
+        <div class="ms-sep"></div>
+        <div class="ms-item">
+          <span class="ms-val green" id="m-lucro">—</span>
+          <span class="ms-label">lucro</span>
         </div>
       </div>
+      <div class="search-wrap">
+        <input id="busca-produto" class="input search-inp" type="search" placeholder="Buscar produto…"
+          oninput="renderVenda()" autocomplete="off" />
+      </div>
+      <div id="sort-venda" class="sort-bar">
+        <button class="sort-btn active" data-sort="vendido" onclick="setSortVenda('vendido')">🔥 Vendidos</button>
+        <button class="sort-btn" data-sort="az" onclick="setSortVenda('az')">A-Z</button>
+        <button class="sort-btn" data-sort="estoque" onclick="setSortVenda('estoque')">Estoque</button>
+      </div>
+      <div id="venda-lista"><div class="loading">Carregando...</div></div>
     </div>
 
     <!-- ABA ESTOQUE -->
     <div id="tab-estoque" class="section">
-      <div class="metrics" style="grid-template-columns:1fr 1fr;">
-        <div class="metric">
-          <div class="label">Produtos</div>
-          <div class="value" id="m-produtos">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">Alertas de estoque</div>
-          <div class="value danger" id="m-alertas">—</div>
-        </div>
-      </div>
-      <div id="stock-list"><div class="loading">Carregando...</div></div>
       <div class="card-form">
         <h3>+ Adicionar produto</h3>
         <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
         <div class="form-row three">
-          <input id="new-price" class="input" placeholder="Preço de venda R$" type="number" min="0" step="0.5" />
-          <input id="new-cost" class="input" placeholder="Custo R$" type="number" min="0" step="0.5" />
-          <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" />
+          <input id="new-price" class="input" placeholder="Preço de venda R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
+          <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
+          <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
         </div>
-        <div class="form-row two">
-          <input id="new-alert" class="input" placeholder="Alerta mínimo" type="number" min="0" />
-          <div class="margin-hint" id="margin-hint">Margem: —</div>
-        </div>
+        <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
         <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
       </div>
+      <div class="metrics" style="grid-template-columns:1fr;margin-top:1rem">
+        <div class="metric">
+          <div class="label">Produtos cadastrados</div>
+          <div class="value" id="m-produtos">—</div>
+        </div>
+      </div>
+      <div id="sort-estoque" class="sort-bar">
+        <button class="sort-btn active" data-sort="az" onclick="setSortEstoque('az')">A-Z</button>
+        <button class="sort-btn" data-sort="estoque" onclick="setSortEstoque('estoque')">Estoque</button>
+        <button class="sort-btn" data-sort="vendido" onclick="setSortEstoque('vendido')">Vendidos</button>
+      </div>
+      <div id="stock-list"><div class="loading">Carregando...</div></div>
     </div>
 
     <!-- ABA RELATÓRIO -->
@@ -105,7 +107,43 @@
           <div class="value" id="r-margem">—</div>
         </div>
       </div>
-      <p class="section-label">Desempenho por produto</p>
+      <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;margin-top:.5rem">
+        <div class="metric">
+          <div class="label">💵 Dinheiro</div>
+          <div class="value" id="r-dinheiro">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Pix</div>
+          <div class="value" id="r-pix">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">💳 Cartão</div>
+          <div class="value" id="r-cartao">—</div>
+        </div>
+      </div>
+      <div id="custo-resumo"></div>
+      <div class="rel-actions">
+        <button class="btn-pdf" id="btn-gerar-pdf" onclick="gerarPDF()">📄 PDF</button>
+        <button class="btn-whatsapp" onclick="compartilharWhatsApp()">📲 WhatsApp</button>
+        <button class="btn-csv" onclick="exportarCSV()">⬇ CSV</button>
+      </div>
+      <p class="section-label" style="margin-top:1rem">Vendas por hora</p>
+      <div class="grafico-horas" id="grafico-hora"></div>
+
+      <div class="fundo-card">
+        <span class="fundo-title">Fundo de caixa</span>
+        <div class="fundo-input-row">
+          <input id="fundo-inp" class="input fundo-inp" type="text" inputmode="numeric" placeholder="R$ 0" oninput="mascaraMoedaInline(this)" />
+          <button class="fundo-save-btn" onclick="salvarFundo()">✓ Salvar</button>
+        </div>
+        <div id="fundo-resultado"></div>
+      </div>
+      <p class="section-label" style="margin-top:1rem">Desempenho por produto</p>
+      <div id="sort-relatorio" class="sort-bar" style="margin-top:8px">
+        <button class="sort-btn active" data-sort="vendido" onclick="setSortRelatorio('vendido')">Vendidos</button>
+        <button class="sort-btn" data-sort="az" onclick="setSortRelatorio('az')">A-Z</button>
+        <button class="sort-btn" data-sort="lucro" onclick="setSortRelatorio('lucro')">Lucro</button>
+      </div>
       <div id="relatorio-lista"><div class="loading">Carregando...</div></div>
     </div>
 
@@ -125,14 +163,26 @@
           <div class="value" id="h-ticket">—</div>
         </div>
       </div>
+      <div class="search-wrap" style="margin-top:.5rem">
+        <input id="busca-historico" class="input search-inp" type="search" placeholder="Buscar venda…"
+          oninput="setBuscaHistorico()" autocomplete="off" />
+      </div>
+      <div id="sort-historico" class="sort-bar">
+        <button class="sort-btn active" data-sort="recente" onclick="setSortHistorico('recente')">Recente</button>
+        <button class="sort-btn" data-sort="valor" onclick="setSortHistorico('valor')">Valor</button>
+      </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>
   </div>
 
   <!-- NAVEGAÇÃO INFERIOR (mobile) -->
   <nav id="bottom-nav">
+    <div id="bnav-pill"></div>
     <button class="bnav-tab active" data-tab="venda" onclick="showTab('venda')">
-      <span class="bnav-icon">🛒</span>
+      <span class="bnav-icon-wrap">
+        <span class="bnav-icon">🛒</span>
+        <span id="cart-badge" class="cart-badge"></span>
+      </span>
       <span class="bnav-label">Venda</span>
     </button>
     <button class="bnav-tab" data-tab="estoque" onclick="showTab('estoque')">
@@ -149,14 +199,98 @@
     </button>
   </nav>
 
-  <!-- BARRA FLUTUANTE DO CARRINHO (mobile) -->
-  <div id="cart-bar">
-    <button id="cart-bar-clear" onclick="limparCarrinho()">Limpar</button>
-    <div id="cart-bar-info"></div>
-    <button id="cart-bar-btn" onclick="finalizarVenda()">✓ Finalizar</button>
+  <!-- BARRA DESFAZER -->
+  <div id="undo-bar">
+    <span id="undo-msg"></span>
+    <button id="undo-btn" onclick="desfazerUltimaVenda()">↩ Desfazer</button>
   </div>
 
+  <!-- BARRA FLUTUANTE DO CARRINHO -->
+  <div id="cart-bar">
+    <div id="cart-sheet">
+      <div id="cart-sheet-items"></div>
+    </div>
+    <div id="cart-bar-row">
+      <button id="cart-bar-clear" onclick="limparCarrinhoConfirm()">Limpar</button>
+      <button id="cart-bar-info" onclick="toggleCartSheet()"></button>
+      <button id="cart-bar-btn" onclick="abrirPagamento()">✓ Finalizar</button>
+    </div>
+  </div>
+
+  <!-- MODAL PAGAMENTO -->
+  <div id="pay-overlay" onclick="fecharPagamento()"></div>
+  <div id="pay-modal">
+    <p class="pm-label">Finalizar venda</p>
+    <p id="pm-total" class="pm-total"></p>
+
+    <p class="pm-label" style="margin-top:16px;margin-bottom:8px">Forma de pagamento</p>
+    <div class="pay-methods">
+      <button class="pay-method-btn active" data-method="dinheiro" onclick="selecionarPagamento('dinheiro')">💵 Dinheiro</button>
+      <button class="pay-method-btn" data-method="pix"     onclick="selecionarPagamento('pix')">Pix</button>
+      <button class="pay-method-btn" data-method="cartao"  onclick="selecionarPagamento('cartao')">💳 Cartão</button>
+    </div>
+
+    <div id="pm-troco-row">
+      <p class="pm-label" style="margin-top:16px;margin-bottom:6px">Valor recebido</p>
+      <div class="pm-notas">
+        <button class="pm-nota-btn" onclick="setRecebido(10)">R$10</button>
+        <button class="pm-nota-btn" onclick="setRecebido(20)">R$20</button>
+        <button class="pm-nota-btn" onclick="setRecebido(50)">R$50</button>
+        <button class="pm-nota-btn" onclick="setRecebido(100)">R$100</button>
+      </div>
+      <input id="pm-recebido" class="pm-recebido-inp" type="text" inputmode="numeric"
+        placeholder="Ou digite o valor…" oninput="mascaraMoedaInline(this);calcularTroco()" />
+      <div id="pm-troco" class="pm-troco"></div>
+    </div>
+
+    <button id="btn-custo" class="btn-custo-mode" onclick="toggleCustoMode()">Vender ao custo</button>
+    <button class="pm-confirm" onclick="confirmarVenda()">✓ Confirmar venda</button>
+    <button class="pm-cancel"  onclick="fecharPagamento()">Cancelar</button>
+  </div>
+
+  <!-- MODAL QUANTIDADE -->
+  <div id="qty-overlay" onclick="fecharQtyPicker()"></div>
+  <div id="qty-modal">
+    <p class="qm-label">Quantidade</p>
+    <p id="qm-nome" class="qm-nome"></p>
+    <p id="qm-estoque" class="qm-estoque"></p>
+    <div class="qty-presets">
+      <button class="qty-preset-btn" data-qty="1"  onclick="confirmarQtyPicker(1)">1</button>
+      <button class="qty-preset-btn" data-qty="2"  onclick="confirmarQtyPicker(2)">2</button>
+      <button class="qty-preset-btn" data-qty="3"  onclick="confirmarQtyPicker(3)">3</button>
+      <button class="qty-preset-btn" data-qty="5"  onclick="confirmarQtyPicker(5)">5</button>
+      <button class="qty-preset-btn" data-qty="10" onclick="confirmarQtyPicker(10)">10</button>
+    </div>
+    <div class="qm-custom">
+      <input id="qty-custom-inp" class="qm-custom-input" type="number" min="1" placeholder="Outro…"
+        onkeydown="if(event.key==='Enter')confirmarQtyCustom()" />
+      <button class="qm-confirm" onclick="confirmarQtyCustom()">✓ Adicionar</button>
+    </div>
+  </div>
+
+  <!-- ANIMAÇÃO DE SUCESSO -->
+  <div id="success-anim"><div class="success-circle">✓</div></div>
+
   <div class="toast" id="toast"></div>
+
+  <!-- TELA DE LOGIN -->
+  <div id="login-screen">
+    <div id="login-card">
+      <h1 class="login-title">Caixa UNIFSP</h1>
+      <p class="login-sub">Faça login para acessar</p>
+      <div class="login-fields">
+        <input id="login-evento" class="input" type="text" placeholder="Nome do evento"
+          autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-operador').focus()" />
+        <input id="login-operador" class="input" type="text" placeholder="Seu nome"
+          autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()" />
+        <input id="login-senha" class="input" type="password" placeholder="Senha"
+          onkeydown="if(event.key==='Enter')fazerLogin()" />
+      </div>
+      <div id="login-erro" class="login-erro"></div>
+      <button class="btn-primary" id="login-btn" onclick="fazerLogin()">Entrar</button>
+    </div>
+  </div>
+
   <script src="/js/app.js"></script>
 </body>
 </html>

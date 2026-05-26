@@ -410,9 +410,7 @@ function renderEstoque() {
         </div>` : ''}
       </div>
       <div class="stock-qty">
-        <button class="qty-btn" onclick="ajustarEstoque(${p.id}, -1)">−</button>
         <span class="qty-num" style="${qtyColor}">${qtyLabel}</span>
-        <button class="qty-btn" onclick="ajustarEstoque(${p.id}, +1)">+</button>
       </div>
     </div>`;
   }).join('');

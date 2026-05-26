@@ -386,6 +386,7 @@ button { touch-action: manipulation; }
 .hist-hora { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .hist-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
 .hist-total { font-size: 15px; font-weight: 700; color: var(--amber); }
+.hist-pag   { font-size: 11px; color: var(--muted); background: var(--bg-sec); border-radius: 5px; padding: 2px 7px; font-weight: 600; }
 .hist-del {
   background: none; border: 1px solid var(--border-s); border-radius: 6px;
   padding: 5px 10px; font-size: 12px; color: var(--muted);
@@ -429,52 +430,52 @@ button { touch-action: manipulation; }
   width: 100%; max-width: 700px;
   background: var(--bg-card);
   border-radius: var(--rl) var(--rl) 0 0;
-  padding: 20px 20px 36px;
+  padding: 24px 24px 40px;
   z-index: 151;
   box-shadow: 0 -4px 28px rgba(0,0,0,.15);
 }
 #pay-modal.open { display: block; }
 .pm-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-.pm-total { font-size: 32px; font-weight: 800; color: var(--amber); margin-top: 4px; }
+.pm-total { font-size: 36px; font-weight: 800; color: var(--amber); margin-top: 6px; margin-bottom: 4px; }
 
-.pay-methods { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.pay-methods { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; margin-bottom: 20px; }
 .pay-method-btn {
-  padding: 14px 8px; background: var(--bg-sec);
+  padding: 16px 8px; background: var(--bg-sec);
   border: 2px solid var(--border); border-radius: var(--r);
   font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
-  min-height: 52px; transition: all .12s;
+  min-height: 56px; transition: all .12s;
 }
 .pay-method-btn.active { background: var(--amber); color: #fff; border-color: var(--amber); }
 .pay-method-btn:active { opacity: .85; }
 
-.pm-notas { display: flex; gap: 8px; margin-bottom: 8px; }
+.pm-notas { display: flex; gap: 8px; margin-top: 10px; margin-bottom: 10px; }
 .pm-nota-btn {
   flex: 1; padding: 10px; background: var(--bg-sec);
   border: 1px solid var(--border-s); border-radius: var(--r);
   font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
-  min-height: 44px; transition: all .12s;
+  min-height: 46px; transition: all .12s;
 }
 .pm-nota-btn:active { background: var(--amber); color: #fff; border-color: var(--amber); }
 
 .pm-recebido-inp {
-  width: 100%; padding: 12px; font-size: 20px; font-weight: 700;
+  width: 100%; padding: 13px; font-size: 22px; font-weight: 700;
   border: 1px solid var(--border-s); border-radius: var(--r);
   font-family: inherit; background: var(--bg-card); color: var(--text);
-  text-align: center; min-height: 52px; margin-bottom: 8px;
+  text-align: center; min-height: 56px; margin-bottom: 10px;
 }
 .pm-recebido-inp:focus { outline: none; border-color: var(--amber); box-shadow: 0 0 0 3px rgba(217,119,6,.12); }
-.pm-troco { font-size: 18px; font-weight: 700; text-align: center; min-height: 28px; margin-bottom: 12px; }
+.pm-troco { font-size: 20px; font-weight: 700; text-align: center; min-height: 32px; margin-bottom: 16px; }
 
 .pm-confirm {
-  width: 100%; padding: 14px; background: var(--green); color: #fff;
-  border: none; border-radius: var(--r); font-size: 16px; font-weight: 700;
-  cursor: pointer; font-family: inherit; min-height: 52px; margin-bottom: 8px;
+  width: 100%; padding: 16px; background: var(--green); color: #fff;
+  border: none; border-radius: var(--r); font-size: 17px; font-weight: 700;
+  cursor: pointer; font-family: inherit; min-height: 56px; margin-bottom: 10px;
 }
 .pm-confirm:active { background: var(--green-d); }
 .pm-cancel {
-  width: 100%; padding: 11px; background: transparent; color: var(--muted);
+  width: 100%; padding: 12px; background: transparent; color: var(--muted);
   border: 1px solid var(--border-s); border-radius: var(--r);
-  font-size: 13px; cursor: pointer; font-family: inherit; min-height: 44px;
+  font-size: 14px; cursor: pointer; font-family: inherit; min-height: 46px;
 }
 .pm-cancel:active { border-color: var(--amber); color: var(--text); }
 

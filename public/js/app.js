@@ -578,6 +578,7 @@ async function carregarHistorico() {
     const v = await apiFetch('/vendas');
     await carregarResumo();
     if (!v.length) { l.innerHTML = '<div class="empty-state">🧾<br/>Nenhuma venda ainda</div>'; return; }
+    const labelPag = { dinheiro: '💵 Dinheiro', pix: 'Pix', cartao: '💳 Cartão' };
     l.innerHTML = v.map((venda, i) => `
       <div class="historico-item" id="hist-${venda.id}">
         <span class="hist-num">#${v.length - i}</span>
@@ -587,6 +588,7 @@ async function carregarHistorico() {
         </div>
         <div class="hist-right">
           <span class="hist-total">${fmt(venda.total)}</span>
+          <span class="hist-pag">${labelPag[venda.forma_pagamento] || venda.forma_pagamento || 'Dinheiro'}</span>
           <button class="hist-del" onclick="deletarVenda(${venda.id}, this)">🗑 Excluir</button>
         </div>
       </div>`).join('');

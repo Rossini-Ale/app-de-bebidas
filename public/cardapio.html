@@ -330,7 +330,7 @@
 
           /* Combo badge */
           const comboHtml = (p.combo_qtd && p.combo_preco)
-            ? `<div class="pc-combo">${p.combo_qtd}+ un. → ${fmt(p.combo_preco)}</div>` : '';
+            ? `<div class="pc-combo">${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
 
           /* Esgotado ribbon */
           const ribbonHtml = esgotado ? '<div class="ribbon-esgotado">Esgotado</div>' : '';

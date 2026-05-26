@@ -360,7 +360,7 @@ function renderVenda() {
     const barPct     = noStock ? 0 : Math.round((p.estoque / maxEstoque) * 100);
     const barColor   = p.estoque <= 24 ? 'var(--red)' : p.estoque <= 50 ? 'var(--amber)' : 'var(--green)';
     const comboBadge = (p.combo_qtd && p.combo_preco)
-      ? `<div class="pc-combo">${p.combo_qtd}× ${fmt(p.combo_preco)}</div>` : '';
+      ? `<div class="pc-combo">${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
     return `<div class="${classes}" data-id="${p.id}" ${onclick}>
       ${badge}
       <div class="pc-nome">${p.nome}</div>
@@ -422,7 +422,7 @@ function renderEstoque() {
     const qtyColor = p.estoque === 0 ? 'color:var(--red)' : p.estoque <= 24 ? 'color:var(--red)' : p.estoque <= 50 ? 'color:var(--amber)' : '';
     const qtyLabel = p.estoque <= 24 && p.estoque > 0 ? `⚠ ${p.estoque}` : `${p.estoque}`;
     const comboInfo = (p.combo_qtd && p.combo_preco)
-      ? `<div class="stock-combo">Combo: ${p.combo_qtd}+ un. → ${fmt(p.combo_preco)} cada</div>` : '';
+      ? `<div class="stock-combo">Combo: ${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
     return `<div class="stock-item">
       <div class="stock-info">
         <div class="stock-name">${p.nome}</div>
@@ -748,7 +748,7 @@ function renderCartSheet() {
     const precoUnit   = comboActive ? Number(p.combo_preco) : (venderAoCusto ? (p.custo || 0) : p.preco);
     const total       = precoUnit * c.qty;
     const comboLabel  = comboActive
-      ? ` <span class="cs-combo">Combo! ${fmt(p.combo_preco)}/un.</span>` : '';
+      ? ` <span class="cs-combo">Combo! ${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</span>` : '';
     return `<div class="cs-item">
       <span class="cs-name">${p.nome}${comboLabel}</span>
       <div class="cs-controls">
@@ -1613,7 +1613,7 @@ function exportarCardapioPDF() {
     const rows = items.map(p => {
       const esgotado = p.estoque === 0;
       const comboTxt = (p.combo_qtd && p.combo_preco)
-        ? `<div class="combo">${p.combo_qtd}+ un. por ${fmt(p.combo_preco)} cada</div>` : '';
+        ? `<div class="combo">${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
       return `<div class="item${esgotado ? ' esgotado' : ''}">
         <div class="item-nome">${p.nome}${esgotado ? ' <span class="tag-esg">Esgotado</span>' : ''}</div>
         <div class="item-preco">${fmt(p.preco)}</div>

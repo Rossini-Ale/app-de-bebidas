@@ -3,7 +3,7 @@ let produtos = [], carrinho = [], editingId = null, cartSheetOpen = false, qtyPi
 let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
 let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHistorico = 'recente';
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
-let dinheiroVendas = 0;
+let dinheiroVendas = 0, wakeLock = null;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -61,6 +61,35 @@ function showToast(msg, tipo = '') {
   t._t = setTimeout(() => { t.className = 'toast'; }, 2800);
 }
 
+/* ── Tema escuro ──────────────────────────── */
+function aplicarTema() {
+  const tema = localStorage.getItem('tema') || 'light';
+  document.documentElement.setAttribute('data-theme', tema);
+  const btn = document.getElementById('btn-dark');
+  if (btn) btn.textContent = tema === 'dark' ? '☀' : '🌙';
+}
+function toggleDarkMode() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('tema', next);
+  const btn = document.getElementById('btn-dark');
+  if (btn) btn.textContent = next === 'dark' ? '☀' : '🌙';
+}
+
+/* ── Wake Lock ────────────────────────────── */
+async function ativarWakeLock() {
+  if (!('wakeLock' in navigator) || wakeLock) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch {}
+}
+async function liberarWakeLock() {
+  if (!wakeLock) return;
+  try { await wakeLock.release(); } catch {}
+  wakeLock = null;
+}
+
 /* ── Navegação ────────────────────────────── */
 function updateTabPill(tab, immediate) {
   const pill = document.getElementById('tab-pill');
@@ -99,6 +128,7 @@ function showTab(tab) {
   document.querySelectorAll(`[data-tab="${tab}"]`).forEach(t => t.classList.add('active'));
   updateTabPill(tab);
   updateBnavPill(tab);
+  if (tab === 'venda') ativarWakeLock(); else liberarWakeLock();
   if (tab === 'estoque')   renderEstoque();
   if (tab === 'historico') carregarHistorico();
   if (tab === 'relatorio') carregarRelatorio();
@@ -184,9 +214,16 @@ function renderVenda() {
     if (sortVenda === 'estoque') return b.estoque - a.estoque;
     return (vendidoMap[b.id] || 0) - (vendidoMap[a.id] || 0);
   });
-  const maxEstoque = Math.max(...sorted.map(p => p.estoque), 1);
+  const termo = (document.getElementById('busca-produto')?.value || '').trim().toLowerCase();
+  const lista = termo ? sorted.filter(p => p.nome.toLowerCase().includes(termo)) : sorted;
+  const maxEstoque = Math.max(...lista.map(p => p.estoque), 1);
 
-  l.innerHTML = '<div class="produto-grid">' + sorted.map(p => {
+  if (lista.length === 0 && termo) {
+    l.innerHTML = '<div class="empty-state">Nenhum produto encontrado</div>';
+    return;
+  }
+
+  l.innerHTML = '<div class="produto-grid">' + lista.map(p => {
     const noStock    = p.estoque === 0;
     const veryLow    = p.estoque > 0 && p.estoque <= 2;
     const lowStock   = p.estoque > 0 && p.estoque <= 5;
@@ -656,8 +693,11 @@ async function carregarRelatorio() {
   const l = document.getElementById('relatorio-lista');
   l.innerHTML = '<div class="loading">Carregando...</div>';
   try {
-    const [itens, resumo] = await Promise.all([apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo')]);
+    const [itens, resumo, vendas] = await Promise.all([
+      apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo'), apiFetch('/vendas')
+    ]);
     relatorioItens = itens;
+    historicoVendas = vendas;
     itens.forEach(i => { vendidoMap[i.id] = Number(i.qtd_vendida); });
 
     countUp(document.getElementById('r-total'), resumo.total_arrecadado, fmtShort);
@@ -675,6 +715,7 @@ async function carregarRelatorio() {
     countUp(document.getElementById('r-cartao'),   pag.cartao   || 0, fmtShort);
 
     renderRelatorioLista();
+    renderVendasPorHora(vendas);
     carregarFundo();
   } catch (e) { l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
 }
@@ -711,6 +752,30 @@ function renderRelatorioLista() {
       <div class="rel-bar-wrap"><div class="rel-bar ${isNeg ? 'negativo' : ''}" style="width:${pct}%"></div></div>
     </div>`;
   }).join('');
+}
+
+function renderVendasPorHora(vendas) {
+  const el = document.getElementById('grafico-hora');
+  if (!el) return;
+  if (!vendas || !vendas.length) { el.innerHTML = '<div class="empty-state" style="padding:.75rem">Nenhuma venda ainda</div>'; return; }
+  const porHora = {};
+  vendas.forEach(v => {
+    const h = parseDataUTC(v.criado_em)
+      .toLocaleString('pt-BR', { hour: '2-digit', hour12: false, timeZone: 'America/Sao_Paulo' })
+      .split(':')[0].replace(/\D/g, '').padStart(2, '0');
+    if (!porHora[h]) porHora[h] = 0;
+    porHora[h]++;
+  });
+  const horas = Object.keys(porHora).sort();
+  const maxQtd = Math.max(...horas.map(h => porHora[h]));
+  el.innerHTML = `<div class="gh-wrap">${horas.map(h => {
+    const pct = Math.max(6, Math.round((porHora[h] / maxQtd) * 100));
+    return `<div class="gh-col">
+      <div class="gh-top">${porHora[h]}</div>
+      <div class="gh-bar-wrap"><div class="gh-bar" style="height:${pct}%"></div></div>
+      <div class="gh-hora">${h}h</div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 async function deletarVenda(id, btn) {
@@ -997,10 +1062,18 @@ document.getElementById('new-price').addEventListener('input', atualizarMargem);
 document.getElementById('new-cost').addEventListener('input', atualizarMargem);
 
 document.addEventListener('DOMContentLoaded', () => {
+  aplicarTema();
   updateTabPill('venda', true);
   updateBnavPill('venda', true);
+  ativarWakeLock();
   carregarTudo();
   setupFormEnter();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' &&
+      document.getElementById('tab-venda').classList.contains('active'))
+    ativarWakeLock();
 });
 
 setInterval(async () => {

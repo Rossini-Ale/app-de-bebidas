@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title>Caixa UNIFSP</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
@@ -15,7 +16,10 @@
           <p id="status-conexao" class="status-ok">● Online</p>
         </div>
       </div>
-      <button class="btn-refresh" onclick="carregarTudo()">↺</button>
+      <div class="header-actions">
+        <button class="btn-refresh" id="btn-dark" onclick="toggleDarkMode()" title="Alternar tema">🌙</button>
+        <button class="btn-refresh" onclick="carregarTudo()">↺</button>
+      </div>
     </header>
 
     <nav class="tabs">
@@ -43,6 +47,11 @@
           <span class="ms-val green" id="m-lucro">—</span>
           <span class="ms-label">lucro</span>
         </div>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input id="busca-produto" class="input search-inp" type="search" placeholder="Buscar produto…"
+          oninput="renderVenda()" autocomplete="off" />
       </div>
       <div id="sort-venda" class="sort-bar">
         <button class="sort-btn active" data-sort="vendido" onclick="setSortVenda('vendido')">🔥 Vendidos</button>
@@ -113,6 +122,9 @@
         <button class="btn-pdf" id="btn-gerar-pdf" onclick="gerarPDF()">📄 PDF</button>
         <button class="btn-whatsapp" onclick="compartilharWhatsApp()">📲 WhatsApp</button>
       </div>
+      <p class="section-label" style="margin-top:1rem">Vendas por hora</p>
+      <div class="grafico-horas" id="grafico-hora"></div>
+
       <div class="fundo-card">
         <span class="fundo-title">Fundo de caixa</span>
         <div class="fundo-input-row">

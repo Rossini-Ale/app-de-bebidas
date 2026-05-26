@@ -768,14 +768,14 @@ function renderVendasPorHora(vendas) {
   });
   const horas = Object.keys(porHora).sort();
   const maxQtd = Math.max(...horas.map(h => porHora[h]));
-  el.innerHTML = `<div class="gh-wrap">${horas.map(h => {
-    const pct = Math.max(6, Math.round((porHora[h] / maxQtd) * 100));
-    return `<div class="gh-col">
-      <div class="gh-top">${porHora[h]}</div>
-      <div class="gh-bar-wrap"><div class="gh-bar" style="height:${pct}%"></div></div>
-      <div class="gh-hora">${h}h</div>
+  el.innerHTML = horas.map(h => {
+    const pct = Math.max(3, Math.round((porHora[h] / maxQtd) * 100));
+    return `<div class="gh-row">
+      <span class="gh-hora">${h}h</span>
+      <div class="gh-bar-h-wrap"><div class="gh-bar-h" style="width:${pct}%"></div></div>
+      <span class="gh-count">${porHora[h]}</span>
     </div>`;
-  }).join('')}</div>`;
+  }).join('');
 }
 
 async function deletarVenda(id, btn) {

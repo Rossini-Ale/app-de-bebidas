@@ -170,40 +170,35 @@ button { touch-action: manipulation; }
 .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
 
 /* ── BUSCA ───────────────────────────────── */
-.search-wrap { position: relative; margin-bottom: 8px; }
-.search-icon {
-  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-  font-size: 14px; pointer-events: none; z-index: 1;
+.search-wrap { margin-bottom: 8px; }
+.search-inp {
+  font-size: 14px;
+  background: var(--bg-sec);
+  border-color: transparent;
+  border-radius: 25px;
+  padding: 10px 16px;
 }
-.search-inp { padding-left: 36px; font-size: 15px; }
+.search-inp:focus { background: var(--bg-card); border-color: var(--amber); }
 
 /* ── GRÁFICO POR HORA ────────────────────── */
 .grafico-horas {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--rl);
-  padding: 12px 14px;
+  padding: 12px 16px;
   margin-bottom: 1rem;
-  overflow-x: auto;
 }
-.gh-wrap {
-  display: flex;
-  align-items: flex-end;
-  gap: 5px;
-  height: 88px;
+.gh-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.gh-hora { font-size: 11px; font-weight: 700; color: var(--muted); min-width: 26px; text-align: right; }
+.gh-bar-h-wrap {
+  flex: 1; height: 18px;
+  background: var(--bg-sec); border-radius: 5px; overflow: hidden;
 }
-.gh-col {
-  flex: 1; min-width: 26px;
-  display: flex; flex-direction: column; align-items: center; height: 100%;
+.gh-bar-h {
+  height: 100%; background: var(--amber); border-radius: 5px;
+  transition: width .45s ease;
 }
-.gh-top { font-size: 10px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-.gh-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
-.gh-bar {
-  width: 100%; background: var(--amber);
-  border-radius: 3px 3px 0 0; min-height: 4px;
-  transition: height .4s ease;
-}
-.gh-hora { font-size: 9px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
+.gh-count { font-size: 12px; font-weight: 700; color: var(--text); min-width: 18px; text-align: right; }
 
 /* ── SORT BAR ────────────────────────────── */
 .sort-bar { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }

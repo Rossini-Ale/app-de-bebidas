@@ -409,7 +409,7 @@ function renderEstoque() {
         </label>
         <div class="combo-row" id="combo-row-${p.id}" style="display:${hasCombo ? 'grid' : 'none'}">
           <input class="input input-sm" id="edit-combo-qtd-${p.id}" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" value="${p.combo_qtd || ''}" />
-          <input class="input input-sm" id="edit-combo-preco-${p.id}" placeholder="Preço combo (ex: 5.00)" type="number" step="0.01" min="0.01" inputmode="decimal" value="${p.combo_preco ? Number(p.combo_preco).toFixed(2) : ''}" />
+          <input class="input input-sm" id="edit-combo-preco-${p.id}" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" value="${p.combo_preco ? (Number(p.combo_preco) * p.combo_qtd).toFixed(2) : ''}" />
         </div>
         <div class="stock-edit-actions">
           <button class="btn-save" onclick="salvarEdicao(${p.id})">✓ Salvar</button>
@@ -538,7 +538,7 @@ async function salvarEdicao(id) {
       body: JSON.stringify({
         nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo: p.estoque_minimo, categoria,
         combo_qtd:   comboAtivo ? comboQtdVal : null,
-        combo_preco: comboAtivo ? comboPrecVal : null
+        combo_preco: comboAtivo ? comboPrecVal / comboQtdVal : null
       })
     });
     const i = produtos.findIndex(x => x.id === id);
@@ -628,7 +628,7 @@ async function addProduto() {
     const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({
       nome, preco, custo, estoque, categoria,
       combo_qtd:   comboAtivo ? comboQtdVal : null,
-      combo_preco: comboAtivo ? comboPrecVal : null
+      combo_preco: comboAtivo ? comboPrecVal / comboQtdVal : null
     }) });
     produtos.push(novo);
     ['new-name', 'new-cat', 'new-price', 'new-cost', 'new-qty', 'new-combo-qtd', 'new-combo-preco'].forEach(id => {

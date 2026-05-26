@@ -4,6 +4,7 @@ let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
 let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHistorico = 'recente';
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
 let dinheiroVendas = 0, wakeLock = null, reposicaoId = null;
+let eventoAtual = null;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -160,10 +161,76 @@ function setSortHistorico(s) {
 
 /* ── API ──────────────────────────────────── */
 async function apiFetch(path, opts = {}) {
-  const r = await fetch(API + '/api' + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const r = await fetch(API + '/api' + path, { headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', ...opts });
   const d = await r.json();
+  if (r.status === 401) { mostrarLogin(); throw new Error('Sessão expirada'); }
   if (!r.ok) throw new Error(d.error || 'Erro');
   return d;
+}
+
+/* ── Auth ─────────────────────────────────── */
+async function checkAuth() {
+  try {
+    const ev = await fetch(API + '/api/auth/me', { credentials: 'same-origin' });
+    if (!ev.ok) { mostrarLogin(); return false; }
+    const data = await ev.json();
+    eventoAtual = data;
+    setEventoBadge(data.nome);
+    return true;
+  } catch { mostrarLogin(); return false; }
+}
+
+function mostrarLogin() {
+  document.getElementById('login-screen').classList.add('visible');
+  document.getElementById('btn-logout').style.display = 'none';
+  document.getElementById('evento-badge').textContent = '';
+  setTimeout(() => document.getElementById('login-evento').focus(), 100);
+}
+
+function ocultarLogin() {
+  document.getElementById('login-screen').classList.remove('visible');
+  document.getElementById('btn-logout').style.display = '';
+}
+
+function setEventoBadge(nome) {
+  document.getElementById('evento-badge').textContent = nome;
+}
+
+async function fazerLogin() {
+  const btn    = document.getElementById('login-btn');
+  const evento = document.getElementById('login-evento').value.trim();
+  const senha  = document.getElementById('login-senha').value;
+  const erro   = document.getElementById('login-erro');
+  if (!evento) { erro.textContent = 'Informe o nome do evento'; return; }
+  if (!senha)  { erro.textContent = 'Informe a senha'; return; }
+  erro.textContent = '';
+  btn.textContent = 'Entrando…'; btn.disabled = true;
+  try {
+    const data = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ evento, senha })
+    });
+    const json = await data.json();
+    if (!data.ok) { erro.textContent = json.error || 'Erro ao entrar'; return; }
+    eventoAtual = json.evento;
+    setEventoBadge(json.evento.nome);
+    ocultarLogin();
+    relatorioItens = null; historicoVendas = null;
+    carregarTudo();
+  } catch (e) { erro.textContent = 'Erro de conexão'; }
+  finally { btn.textContent = 'Entrar'; btn.disabled = false; }
+}
+
+async function fazerLogout() {
+  await fetch(API + '/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  eventoAtual = null;
+  produtos = []; carrinho = [];
+  relatorioItens = null; historicoVendas = null;
+  document.getElementById('login-evento').value = '';
+  document.getElementById('login-senha').value = '';
+  mostrarLogin();
 }
 
 async function carregarTudo() {
@@ -970,26 +1037,88 @@ async function compartilharWhatsApp() {
 }
 
 /* ── CSV ──────────────────────────────────── */
+function csvNum(v) { return Number(v).toFixed(2).replace('.', ','); }
+function csvStr(v) { return `"${String(v || '').replace(/"/g, '""')}"`; }
+function csvRow(...cells) { return cells.join(';'); }
+
 async function exportarCSV() {
   try {
-    const vendas = historicoVendas || await apiFetch('/vendas');
-    const linhas = [
-      ['#', 'Data', 'Hora', 'Descrição', 'Itens', 'Total (R$)', 'Pagamento'],
-      ...vendas.map((v, i) => {
-        const d = parseDataUTC(v.criado_em);
-        const data = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-        const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
-        const desc = (v.descricao || '').replace(/"/g, '""');
-        return [vendas.length - i, data, hora, `"${desc}"`, v.itens_count,
-          Number(v.total).toFixed(2).replace('.', ','), v.forma_pagamento || 'dinheiro'];
-      })
-    ];
-    const csv = '﻿' + linhas.map(r => r.join(';')).join('\r\n');
+    const [vendas, itens, resumo] = await Promise.all([
+      historicoVendas || apiFetch('/vendas'),
+      relatorioItens  || apiFetch('/vendas/relatorio'),
+      apiFetch('/vendas/resumo')
+    ]);
+    const agora      = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+    const nomeEvento = eventoAtual?.nome || 'Caixa UNIFSP';
+    const pag        = resumo.pagamentos || {};
+    const totalCusto = itens.reduce((s, i) => s + Number(i.custo_total), 0);
+    const margem     = resumo.total_arrecadado > 0
+      ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) : 0;
+    const fundo       = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+
+    const linhas = [];
+
+    // ── Cabeçalho ──
+    linhas.push(csvRow(csvStr(nomeEvento), '', '', '', '', '', ''));
+    linhas.push(csvRow(csvStr(`Relatório de vendas · gerado em ${agora}`), '', '', '', '', '', ''));
+    linhas.push('');
+
+    // ── Resumo geral ──
+    linhas.push(csvRow('RESUMO', '', '', '', '', '', ''));
+    linhas.push(csvRow('Vendas', 'Arrecadado (R$)', 'Custo total (R$)', 'Lucro (R$)', 'Margem', '', ''));
+    linhas.push(csvRow(resumo.total_vendas, csvNum(resumo.total_arrecadado), csvNum(totalCusto), csvNum(resumo.total_lucro), `${margem}%`, '', ''));
+    linhas.push('');
+
+    // ── Pagamentos ──
+    linhas.push(csvRow('FORMAS DE PAGAMENTO', '', '', '', '', '', ''));
+    linhas.push(csvRow('Dinheiro (R$)', 'Pix (R$)', 'Cartão (R$)', '', '', '', ''));
+    linhas.push(csvRow(csvNum(pag.dinheiro || 0), csvNum(pag.pix || 0), csvNum(pag.cartao || 0), '', '', '', ''));
+    if (fundo > 0) {
+      linhas.push('');
+      linhas.push(csvRow('FUNDO DE CAIXA', '', '', '', '', '', ''));
+      linhas.push(csvRow('Fundo inicial (R$)', 'Dinheiro em vendas (R$)', 'Esperado no caixa (R$)', '', '', '', ''));
+      linhas.push(csvRow(csvNum(fundo), csvNum(pag.dinheiro || 0), csvNum(fundo + (pag.dinheiro || 0)), '', '', '', ''));
+    }
+    linhas.push('');
+
+    // ── Por produto ──
+    linhas.push(csvRow('DESEMPENHO POR PRODUTO', '', '', '', '', '', ''));
+    linhas.push(csvRow('Produto', 'Qtd vendida', 'Preço unit (R$)', 'Custo unit (R$)', 'Lucro unit (R$)', 'Receita (R$)', 'Custo total (R$)', 'Lucro total (R$)'));
+    const itensFiltrados = itens.filter(i => Number(i.qtd_vendida) > 0);
+    itensFiltrados.forEach(item => {
+      const qtd     = Number(item.qtd_vendida);
+      const receita = Number(item.receita);
+      const custo_t = Number(item.custo_total);
+      const lucro   = Number(item.lucro);
+      linhas.push(csvRow(
+        csvStr(item.nome), qtd,
+        csvNum(qtd > 0 ? receita / qtd : 0),
+        csvNum(qtd > 0 ? custo_t / qtd : 0),
+        csvNum(qtd > 0 ? lucro / qtd : 0),
+        csvNum(receita), csvNum(custo_t), csvNum(lucro)
+      ));
+    });
+    const totalQtd = itensFiltrados.reduce((s, i) => s + Number(i.qtd_vendida), 0);
+    linhas.push(csvRow('TOTAL', totalQtd, '', '', '', csvNum(resumo.total_arrecadado), csvNum(totalCusto), csvNum(resumo.total_lucro)));
+    linhas.push('');
+
+    // ── Histórico de vendas ──
+    linhas.push(csvRow('HISTÓRICO DE VENDAS', '', '', '', '', '', ''));
+    linhas.push(csvRow('#', 'Data', 'Hora', 'Descrição', 'Itens', 'Total (R$)', 'Pagamento'));
+    vendas.forEach((v, i) => {
+      const d    = parseDataUTC(v.criado_em);
+      const data = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+      const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+      linhas.push(csvRow(vendas.length - i, data, hora, csvStr(v.descricao), v.itens_count, csvNum(v.total), v.forma_pagamento || 'dinheiro'));
+    });
+
+    const csv  = '﻿' + linhas.join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
     const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }).replace(/\//g, '-');
-    a.href = url; a.download = `caixa-unifsp-${hoje}.csv`; a.click();
+    const slug = nomeEvento.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 30);
+    a.href = url; a.download = `${slug}-${hoje}.csv`; a.click();
     URL.revokeObjectURL(url);
     showToast('CSV exportado!', 'green-toast');
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
@@ -1001,7 +1130,8 @@ async function gerarPDF() {
   if (btn) { btn.textContent = '⏳ Gerando...'; btn.disabled = true; }
   try {
     const [itens, resumo] = await Promise.all([apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo')]);
-    const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
+    const agora      = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
+    const nomeEvento = eventoAtual?.nome || 'Caixa UNIFSP';
     const totalCusto = itens.reduce((s, i) => s + Number(i.custo_total), 0);
     const margem = resumo.total_arrecadado > 0 ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) : 0;
     const pag = resumo.pagamentos || {};
@@ -1042,7 +1172,7 @@ async function gerarPDF() {
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Relatório – Caixa UNIFSP</title>
+<title>Relatório – ${nomeEvento}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;padding:28px 32px;font-size:14px}
@@ -1071,7 +1201,7 @@ async function gerarPDF() {
 </style>
 </head>
 <body>
-<h1>Caixa UNIFSP</h1>
+<h1>${nomeEvento}</h1>
 <p class="sub">Relatório de vendas · gerado em ${agora}</p>
 <div class="summary">
   <div class="sb"><div class="sl">Vendas</div><div class="sv">${resumo.total_vendas}</div></div>
@@ -1103,7 +1233,7 @@ ${fundoHtml}
   <tbody>${linhas || '<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">Nenhuma venda registrada</td></tr>'}</tbody>
   <tfoot><tr><td>Total</td><td class="num">${totalQtd}</td><td class="sep" colspan="3"></td><td class="num sep">${fmt(resumo.total_arrecadado)}</td><td class="num">${fmt(totalCusto)}</td><td class="num green">${fmt(resumo.total_lucro)}</td></tr></tfoot>
 </table>
-<p class="footer">Caixa UNIFSP · ${agora}</p>
+<p class="footer">${nomeEvento} · ${agora}</p>
 </body>
 </html>`;
 
@@ -1120,13 +1250,13 @@ ${fundoHtml}
 document.getElementById('new-price').addEventListener('input', atualizarMargem);
 document.getElementById('new-cost').addEventListener('input', atualizarMargem);
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   aplicarTema();
   updateTabPill('venda', true);
   updateBnavPill('venda', true);
-  ativarWakeLock();
-  carregarTudo();
   setupFormEnter();
+  const ok = await checkAuth();
+  if (ok) { ativarWakeLock(); carregarTudo(); }
 });
 
 document.addEventListener('visibilitychange', () => {

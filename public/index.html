@@ -15,10 +15,12 @@
           <h1>Caixa UNIFSP</h1>
           <p id="status-conexao" class="status-ok">● Online</p>
         </div>
+        <span id="evento-badge" class="evento-badge"></span>
       </div>
       <div class="header-actions">
         <button class="btn-refresh" id="btn-dark" onclick="toggleDarkMode()" title="Alternar tema">🌙</button>
         <button class="btn-refresh" onclick="carregarTudo()">↺</button>
+        <button class="btn-refresh btn-logout" id="btn-logout" onclick="fazerLogout()" title="Sair">⎋</button>
       </div>
     </header>
 
@@ -262,6 +264,24 @@
   <div id="success-anim"><div class="success-circle">✓</div></div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- TELA DE LOGIN -->
+  <div id="login-screen">
+    <div id="login-card">
+      <div class="login-logo">🤠</div>
+      <h1 class="login-title">Caixa UNIFSP</h1>
+      <p class="login-sub">Faça login para acessar</p>
+      <div class="login-fields">
+        <input id="login-evento" class="input" type="text" placeholder="Nome do evento (ex: Cavalgada 2025)"
+          autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()" />
+        <input id="login-senha" class="input" type="password" placeholder="Senha"
+          onkeydown="if(event.key==='Enter')fazerLogin()" />
+      </div>
+      <div id="login-erro" class="login-erro"></div>
+      <button class="btn-primary" id="login-btn" onclick="fazerLogin()">Entrar</button>
+    </div>
+  </div>
+
   <script src="/js/app.js"></script>
 </body>
 </html>

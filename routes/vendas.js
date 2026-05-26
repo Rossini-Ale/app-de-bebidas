@@ -1,10 +1,13 @@
 const express = require('express');
-const router = express.Router();
-const db = require('../db');
+const router  = express.Router();
+const db      = require('../db');
 
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM vendas ORDER BY criado_em DESC');
+    const [rows] = await db.query(
+      'SELECT * FROM vendas WHERE evento_id = ? ORDER BY criado_em DESC',
+      [req.eventoId]
+    );
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -21,9 +24,11 @@ router.get('/resumo', async (req, res) => {
       FROM vendas v
       LEFT JOIN venda_itens vi ON vi.venda_id = v.id
       LEFT JOIN produtos p ON vi.produto_id = p.id
-    `);
+      WHERE v.evento_id = ?
+    `, [req.eventoId]);
     const [porPag] = await db.query(
-      `SELECT forma_pagamento, COALESCE(SUM(total),0) as total FROM vendas GROUP BY forma_pagamento`
+      `SELECT forma_pagamento, COALESCE(SUM(total),0) as total FROM vendas WHERE evento_id = ? GROUP BY forma_pagamento`,
+      [req.eventoId]
     );
     const pagamentos = { dinheiro: 0, pix: 0, cartao: 0 };
     porPag.forEach(row => { if (row.forma_pagamento in pagamentos) pagamentos[row.forma_pagamento] = Number(row.total); });
@@ -42,9 +47,11 @@ router.get('/relatorio', async (req, res) => {
         COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as lucro
       FROM produtos p
       LEFT JOIN venda_itens vi ON vi.produto_id = p.id
+      LEFT JOIN vendas v ON vi.venda_id = v.id AND v.evento_id = ?
+      WHERE p.evento_id = ?
       GROUP BY p.id
       ORDER BY qtd_vendida DESC, p.nome ASC
-    `);
+    `, [req.eventoId, req.eventoId]);
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -61,7 +68,10 @@ router.post('/', async (req, res) => {
     const descricoes = [], itensFinal = [];
 
     for (const item of itens) {
-      const [rows] = await conn.query('SELECT * FROM produtos WHERE id = ? FOR UPDATE', [item.produto_id]);
+      const [rows] = await conn.query(
+        'SELECT * FROM produtos WHERE id = ? AND evento_id = ? FOR UPDATE',
+        [item.produto_id, req.eventoId]
+      );
       if (!rows.length) throw new Error(`Produto ${item.produto_id} não encontrado`);
       const p = rows[0];
       if (p.estoque < item.quantidade) throw new Error(`Estoque insuficiente para "${p.nome}"`);
@@ -72,8 +82,8 @@ router.post('/', async (req, res) => {
     }
 
     const [vendaResult] = await conn.query(
-      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento) VALUES (?, ?, ?, ?)',
-      [total, totalItens, descricoes.join(', '), forma_pagamento]
+      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id) VALUES (?, ?, ?, ?, ?)',
+      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId]
     );
 
     for (const item of itensFinal) {
@@ -99,6 +109,8 @@ router.delete('/:id', async (req, res) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
+    const [[venda]] = await conn.query('SELECT id FROM vendas WHERE id = ? AND evento_id = ?', [req.params.id, req.eventoId]);
+    if (!venda) return res.status(404).json({ error: 'Venda não encontrada' });
     const [itens] = await conn.query('SELECT * FROM venda_itens WHERE venda_id = ?', [req.params.id]);
     for (const item of itens) {
       await conn.query('UPDATE produtos SET estoque = estoque + ? WHERE id = ?', [item.quantidade, item.produto_id]);

@@ -195,9 +195,8 @@ async function checkAuth() {
     const ev = await fetch(API + '/api/auth/me', { credentials: 'same-origin' });
     if (!ev.ok) { mostrarLogin(); return false; }
     const data = await ev.json();
-    eventoAtual   = data;
     operadorAtual = data.operador || 'Caixa';
-    setEventoBadge(data.nome);
+    setOperadorBadge(operadorAtual);
     return true;
   } catch { mostrarLogin(); return false; }
 }
@@ -206,7 +205,7 @@ function mostrarLogin() {
   document.getElementById('login-screen').classList.add('visible');
   document.getElementById('btn-logout').style.display = 'none';
   document.getElementById('evento-badge').textContent = '';
-  setTimeout(() => document.getElementById('login-evento').focus(), 100);
+  setTimeout(() => document.getElementById('login-operador').focus(), 100);
 }
 
 function ocultarLogin() {
@@ -214,17 +213,15 @@ function ocultarLogin() {
   document.getElementById('btn-logout').style.display = '';
 }
 
-function setEventoBadge(nome) {
+function setOperadorBadge(nome) {
   document.getElementById('evento-badge').textContent = nome;
 }
 
 async function fazerLogin() {
   const btn      = document.getElementById('login-btn');
-  const evento   = document.getElementById('login-evento').value.trim();
   const operador = document.getElementById('login-operador').value.trim();
   const senha    = document.getElementById('login-senha').value;
   const erro     = document.getElementById('login-erro');
-  if (!evento)   { erro.textContent = 'Informe o nome do evento'; return; }
   if (!operador) { erro.textContent = 'Informe seu nome'; return; }
   if (!senha)    { erro.textContent = 'Informe a senha'; return; }
   erro.textContent = '';
@@ -234,13 +231,12 @@ async function fazerLogin() {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ evento, operador, senha })
+      body: JSON.stringify({ operador, senha })
     });
     const json = await data.json();
     if (!data.ok) { erro.textContent = json.error || 'Erro ao entrar'; return; }
-    eventoAtual   = json.evento;
     operadorAtual = json.operador || operador;
-    setEventoBadge(json.evento.nome);
+    setOperadorBadge(operadorAtual);
     ocultarLogin();
     relatorioItens = null; historicoVendas = null;
     carregarTudo();
@@ -250,10 +246,9 @@ async function fazerLogin() {
 
 async function fazerLogout() {
   await fetch(API + '/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-  eventoAtual = null;
+  operadorAtual = 'Caixa';
   produtos = []; carrinho = [];
   relatorioItens = null; historicoVendas = null;
-  document.getElementById('login-evento').value   = '';
   document.getElementById('login-operador').value = '';
   document.getElementById('login-senha').value    = '';
   mostrarLogin();

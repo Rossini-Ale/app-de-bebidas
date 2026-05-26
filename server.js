@@ -26,28 +26,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 /* ── Auth routes (public) ─────────────────── */
 app.post('/api/auth/login', async (req, res) => {
-  const { evento, senha } = req.body;
-  if (!evento || !senha) return res.status(400).json({ error: 'Informe o evento e a senha' });
+  const { operador, senha } = req.body;
+  if (!operador || !senha) return res.status(400).json({ error: 'Informe seu nome e a senha' });
   if (!bcrypt.compareSync(senha, SENHA_HASH)) return res.status(401).json({ error: 'Senha incorreta' });
   try {
-    const [existentes] = await db.query('SELECT id, nome FROM eventos WHERE nome = ?', [evento.trim()]);
-    let ev;
-    if (existentes.length > 0) {
-      ev = existentes[0];
-    } else {
-      const [r] = await db.query('INSERT INTO eventos (nome) VALUES (?)', [evento.trim()]);
-      ev = { id: r.insertId, nome: evento.trim() };
-    }
-    req.session.eventoId   = ev.id;
-    req.session.eventoNome = ev.nome;
-    req.session.operador   = (req.body.operador || '').trim() || 'Caixa';
-    res.json({ ok: true, evento: ev, operador: req.session.operador });
+    req.session.eventoId   = 1;
+    req.session.eventoNome = 'Caixa UNIFSP';
+    req.session.operador   = operador.trim();
+    res.json({ ok: true, operador: req.session.operador });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.session.eventoId) return res.status(401).json({ error: 'Não autenticado' });
-  res.json({ id: req.session.eventoId, nome: req.session.eventoNome, operador: req.session.operador || 'Caixa' });
+  res.json({ operador: req.session.operador || 'Caixa' });
 });
 
 app.post('/api/auth/logout', (req, res) => {

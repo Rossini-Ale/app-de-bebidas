@@ -77,6 +77,14 @@
           <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
         </div>
         <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
+        <label class="combo-toggle-label">
+          <input type="checkbox" id="new-combo-check" onchange="toggleComboRow('new')" />
+          Ativar combo por quantidade
+        </label>
+        <div class="combo-row" id="combo-row-new" style="display:none">
+          <input id="new-combo-qtd" class="input" placeholder="Qtd mínima" type="number" min="2" inputmode="numeric" />
+          <input id="new-combo-preco" class="input" placeholder="Preço combo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
+        </div>
         <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
       </div>
       <div class="metrics" style="grid-template-columns:1fr;margin-top:1rem">
@@ -130,6 +138,7 @@
         <button class="btn-pdf" id="btn-gerar-pdf" onclick="gerarPDF()">📄 PDF</button>
         <button class="btn-whatsapp" onclick="compartilharWhatsApp()">📲 WhatsApp</button>
         <button class="btn-csv" onclick="exportarCSV()">⬇ CSV</button>
+        <a class="btn-cardapio" href="/cardapio" target="_blank">📋 Cardápio</a>
       </div>
       <p class="section-label" style="margin-top:1rem">Vendas por hora</p>
       <div class="grafico-horas" id="grafico-hora"></div>

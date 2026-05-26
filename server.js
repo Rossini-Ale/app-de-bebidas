@@ -60,6 +60,18 @@ function requireAuth(req, res, next) {
 app.use('/api/produtos', requireAuth, produtosRouter);
 app.use('/api/vendas',   requireAuth, vendasRouter);
 
+/* ── Cardápio público (sem autenticação) ── */
+app.get('/api/publico/produtos', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT id, nome, emoji, preco, custo, estoque, categoria, combo_qtd, combo_preco FROM produtos WHERE evento_id = 1 ORDER BY categoria, nome'
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/cardapio', (req, res) => res.sendFile(path.join(__dirname, 'public', 'cardapio.html')));
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -127,4 +139,8 @@ async function runMigrations() {
 
   /* ── Categorias ──────────────────────────── */
   try { await db.query(`ALTER TABLE produtos ADD COLUMN categoria VARCHAR(50) NOT NULL DEFAULT ''`); } catch (_) {}
+
+  /* ── Combos por quantidade ───────────────── */
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN combo_qtd INT DEFAULT NULL`); } catch (_) {}
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN combo_preco DECIMAL(10,2) DEFAULT NULL`); } catch (_) {}
 }

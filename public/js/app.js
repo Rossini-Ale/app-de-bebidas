@@ -94,6 +94,13 @@ function toggleDarkMode() {
   if (btn) btn.textContent = next === 'dark' ? '☀' : '🌙';
 }
 
+/* ── Combo toggle ─────────────────────────── */
+function toggleComboRow(prefix) {
+  const check = document.getElementById(`${prefix}-combo-check`);
+  const row = document.getElementById(`combo-row-${prefix}`);
+  if (row) row.style.display = check?.checked ? 'grid' : 'none';
+}
+
 /* ── Wake Lock ────────────────────────────── */
 async function ativarWakeLock() {
   if (!('wakeLock' in navigator) || wakeLock) return;
@@ -373,6 +380,7 @@ function renderEstoque() {
   });
   l.innerHTML = sortedEstoque.map(p => {
     if (editingId === p.id) {
+      const hasCombo = !!(p.combo_qtd && p.combo_preco);
       return `<div class="stock-item editing">
         <div class="stock-edit-header">
           <span>Editando produto</span>
@@ -382,6 +390,14 @@ function renderEstoque() {
           <input class="input input-sm" id="edit-preco-${p.id}" value="${fmtMoeda(p.preco)}" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
           <input class="input input-sm" id="edit-custo-${p.id}" value="${fmtMoeda(p.custo)}" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
           <input class="input input-sm" id="edit-cat-${p.id}" value="${p.categoria || ''}" placeholder="Categoria (opcional)" type="text" list="cat-list" style="grid-column:1/-1" />
+        </div>
+        <label class="combo-toggle-label">
+          <input type="checkbox" id="${p.id}-combo-check" ${hasCombo ? 'checked' : ''} onchange="toggleComboRow('${p.id}')" />
+          Ativar combo por quantidade
+        </label>
+        <div class="combo-row" id="combo-row-${p.id}" style="display:${hasCombo ? 'grid' : 'none'}">
+          <input class="input input-sm" id="edit-combo-qtd-${p.id}" placeholder="Qtd mínima" type="number" min="2" inputmode="numeric" value="${p.combo_qtd || ''}" />
+          <input class="input input-sm" id="edit-combo-preco-${p.id}" placeholder="Preço combo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" value="${p.combo_preco ? fmtMoeda(p.combo_preco) : ''}" />
         </div>
         <div class="stock-edit-actions">
           <button class="btn-save" onclick="salvarEdicao(${p.id})">✓ Salvar</button>
@@ -393,11 +409,14 @@ function renderEstoque() {
     const isRepondo = reposicaoId === p.id;
     const qtyColor = p.estoque === 0 ? 'color:var(--red)' : p.estoque <= 24 ? 'color:var(--red)' : p.estoque <= 50 ? 'color:var(--amber)' : '';
     const qtyLabel = p.estoque <= 24 && p.estoque > 0 ? `⚠ ${p.estoque}` : `${p.estoque}`;
+    const comboInfo = (p.combo_qtd && p.combo_preco)
+      ? `<div class="stock-combo">Combo: ${p.combo_qtd}+ un. → ${fmt(p.combo_preco)} cada</div>` : '';
     return `<div class="stock-item">
       <div class="stock-info">
         <div class="stock-name">${p.nome}</div>
         <div class="stock-sub">Venda ${fmt(p.preco)} · Custo ${fmt(p.custo)}</div>
         ${margem !== null ? `<div class="stock-margin">Margem: ${margem}%</div>` : ''}
+        ${comboInfo}
         <div class="stock-actions">
           <button class="stock-act-btn repor ${isRepondo && reposicaoModo==='add' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'add')">+ Repor</button>
           <button class="stock-act-btn retirar ${isRepondo && reposicaoModo==='sub' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'sub')">− Retirar</button>
@@ -576,14 +595,25 @@ async function addProduto() {
   const custo    = lerMoeda('new-cost');
   const estoque  = parseInt(document.getElementById('new-qty').value) || 0;
   const categoria = (document.getElementById('new-cat')?.value || '').trim();
+  const comboAtivo = document.getElementById('new-combo-check')?.checked;
+  const comboQtdVal = parseInt(document.getElementById('new-combo-qtd')?.value) || null;
+  const comboPreco  = comboAtivo ? lerMoeda('new-combo-preco') : null;
   if (!nome) { showToast('⚠ Informe o nome do produto', 'error-toast'); return; }
   try {
-    const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, preco, custo, estoque, categoria }) });
+    const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({
+      nome, preco, custo, estoque, categoria,
+      combo_qtd:   comboAtivo ? comboQtdVal || null : null,
+      combo_preco: comboAtivo ? comboPreco  || null : null
+    }) });
     produtos.push(novo);
-    ['new-name', 'new-cat', 'new-price', 'new-cost', 'new-qty'].forEach(id => {
+    ['new-name', 'new-cat', 'new-price', 'new-cost', 'new-qty', 'new-combo-qtd', 'new-combo-preco'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
+    const comboCheck = document.getElementById('new-combo-check');
+    if (comboCheck) comboCheck.checked = false;
+    const comboRow = document.getElementById('combo-row-new');
+    if (comboRow) comboRow.style.display = 'none';
     document.getElementById('margin-hint').textContent = 'Margem: —';
     renderEstoque(); renderVenda();
     showToast('✓ ' + nome + ' adicionado!', 'green-toast');

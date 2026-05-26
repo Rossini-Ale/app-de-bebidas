@@ -11,13 +11,13 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { nome, emoji, preco, custo, estoque, estoque_minimo, categoria } = req.body;
+  const { nome, emoji, preco, custo, estoque, estoque_minimo, categoria, combo_qtd, combo_preco } = req.body;
   if (!nome)
     return res.status(400).json({ error: 'Nome é obrigatório' });
   try {
     const [result] = await db.query(
-      'INSERT INTO produtos (nome, emoji, preco, custo, estoque, estoque_minimo, evento_id, categoria) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [nome, emoji || '🍺', preco || 0, custo || 0, estoque || 0, estoque_minimo || 5, req.eventoId, categoria || '']
+      'INSERT INTO produtos (nome, emoji, preco, custo, estoque, estoque_minimo, evento_id, categoria, combo_qtd, combo_preco) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [nome, emoji || '🍺', preco || 0, custo || 0, estoque || 0, estoque_minimo || 5, req.eventoId, categoria || '', combo_qtd || null, combo_preco || null]
     );
     const [rows] = await db.query('SELECT * FROM produtos WHERE id = ?', [result.insertId]);
     appEvents.emit('broadcast', { type: 'produto_novo', produto: rows[0] });
@@ -51,13 +51,13 @@ router.patch('/:id/estoque', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { nome, emoji, preco, custo, estoque, estoque_minimo, categoria } = req.body;
+  const { nome, emoji, preco, custo, estoque, estoque_minimo, categoria, combo_qtd, combo_preco } = req.body;
   try {
     const [chk] = await db.query('SELECT id FROM produtos WHERE id = ? AND evento_id = ?', [req.params.id, req.eventoId]);
     if (!chk.length) return res.status(404).json({ error: 'Produto não encontrado' });
     await db.query(
-      'UPDATE produtos SET nome=?, emoji=?, preco=?, custo=?, estoque=?, estoque_minimo=?, categoria=? WHERE id=?',
-      [nome, emoji, preco, custo || 0, estoque, estoque_minimo, categoria || '', req.params.id]
+      'UPDATE produtos SET nome=?, emoji=?, preco=?, custo=?, estoque=?, estoque_minimo=?, categoria=?, combo_qtd=?, combo_preco=? WHERE id=?',
+      [nome, emoji, preco, custo || 0, estoque, estoque_minimo, categoria || '', combo_qtd || null, combo_preco || null, req.params.id]
     );
     const [rows] = await db.query('SELECT * FROM produtos WHERE id = ?', [req.params.id]);
     appEvents.emit('broadcast', { type: 'produto_atualizado', produto: rows[0] });

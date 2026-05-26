@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS vendas (
   total DECIMAL(10,2) NOT NULL,
   itens_count INT NOT NULL DEFAULT 0,
   descricao TEXT,
+  forma_pagamento VARCHAR(10) NOT NULL DEFAULT 'dinheiro',
   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

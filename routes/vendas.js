@@ -22,7 +22,12 @@ router.get('/resumo', async (req, res) => {
       LEFT JOIN venda_itens vi ON vi.venda_id = v.id
       LEFT JOIN produtos p ON vi.produto_id = p.id
     `);
-    res.json(r);
+    const [porPag] = await db.query(
+      `SELECT forma_pagamento, COALESCE(SUM(total),0) as total FROM vendas GROUP BY forma_pagamento`
+    );
+    const pagamentos = { dinheiro: 0, pix: 0, cartao: 0 };
+    porPag.forEach(row => { if (row.forma_pagamento in pagamentos) pagamentos[row.forma_pagamento] = Number(row.total); });
+    res.json({ ...r, pagamentos });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -45,7 +50,7 @@ router.get('/relatorio', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { itens } = req.body;
+  const { itens, forma_pagamento = 'dinheiro' } = req.body;
   if (!itens || itens.length === 0)
     return res.status(400).json({ error: 'Nenhum item enviado' });
 
@@ -67,8 +72,8 @@ router.post('/', async (req, res) => {
     }
 
     const [vendaResult] = await conn.query(
-      'INSERT INTO vendas (total, itens_count, descricao) VALUES (?, ?, ?)',
-      [total, totalItens, descricoes.join(', ')]
+      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento) VALUES (?, ?, ?, ?)',
+      [total, totalItens, descricoes.join(', '), forma_pagamento]
     );
 
     for (const item of itensFinal) {

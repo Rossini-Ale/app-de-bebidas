@@ -1,5 +1,6 @@
 const API = '';
 let produtos = [], carrinho = [], editingId = null, cartSheetOpen = false, qtyPickerId = null;
+let metodoPagamento = 'dinheiro', ultimaVendaId = null, undoTimer = null;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -403,20 +404,91 @@ function renderCarrinho() {
   atualizarCartBar();
 }
 
+/* ── Pagamento ────────────────────────────── */
+function totalCarrinho() {
+  return carrinho.reduce((s, c) => { const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty; }, 0);
+}
+
+function abrirPagamento() {
+  if (!carrinho.length) return;
+  document.getElementById('pm-total').textContent = fmt(totalCarrinho());
+  document.getElementById('pm-recebido').value = '';
+  document.getElementById('pm-troco').textContent = '';
+  selecionarPagamento('dinheiro');
+  document.getElementById('pay-overlay').classList.add('open');
+  document.getElementById('pay-modal').classList.add('open');
+}
+
+function fecharPagamento() {
+  document.getElementById('pay-overlay').classList.remove('open');
+  document.getElementById('pay-modal').classList.remove('open');
+}
+
+function selecionarPagamento(metodo) {
+  metodoPagamento = metodo;
+  document.querySelectorAll('.pay-method-btn').forEach(b => b.classList.toggle('active', b.dataset.method === metodo));
+  document.getElementById('pm-troco-row').style.display = metodo === 'dinheiro' ? 'block' : 'none';
+  if (metodo === 'dinheiro') setTimeout(() => document.getElementById('pm-recebido').focus(), 50);
+}
+
+function setRecebido(valor) {
+  document.getElementById('pm-recebido').value = valor;
+  calcularTroco();
+}
+
+function calcularTroco() {
+  const recebido = parseFloat(document.getElementById('pm-recebido').value) || 0;
+  const total    = totalCarrinho();
+  const el       = document.getElementById('pm-troco');
+  if (recebido <= 0) { el.textContent = ''; return; }
+  const troco = recebido - total;
+  el.textContent  = troco >= 0 ? `Troco: ${fmt(troco)}` : `Faltam: ${fmt(-troco)}`;
+  el.style.color  = troco >= 0 ? 'var(--green)' : 'var(--red)';
+}
+
+function confirmarVenda() {
+  fecharPagamento();
+  finalizarVenda();
+}
+
 async function finalizarVenda() {
   if (!carrinho.length) return;
+  const total = totalCarrinho();
   const itens = carrinho.map(c => ({ produto_id: c.id, quantidade: c.qty }));
   try {
-    await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens }) });
-    const total = carrinho.reduce((s, c) => {
-      const p = produtos.find(x => x.id === c.id); return s + p.preco * c.qty;
-    }, 0);
+    const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento }) });
     vibrar([40, 20, 40]);
+    ultimaVendaId = venda.id;
     carrinho = [];
     renderCarrinho();
     await carregarProdutos();
     await carregarResumo();
-    showToast('✓ Venda de ' + fmt(total) + ' registrada!', 'green-toast');
+    showToast('✓ ' + fmt(total) + ' registrado!', 'green-toast');
+    mostrarDesfazer(total);
+  } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
+}
+
+/* ── Desfazer ─────────────────────────────── */
+function mostrarDesfazer(total) {
+  const bar = document.getElementById('undo-bar');
+  if (!bar) return;
+  document.getElementById('undo-msg').textContent = fmt(total) + ' registrado';
+  bar.classList.add('show');
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => { bar.classList.remove('show'); ultimaVendaId = null; }, 8000);
+}
+
+async function desfazerUltimaVenda() {
+  if (!ultimaVendaId) return;
+  clearTimeout(undoTimer);
+  document.getElementById('undo-bar')?.classList.remove('show');
+  const id = ultimaVendaId;
+  ultimaVendaId = null;
+  try {
+    await apiFetch(`/vendas/${id}`, { method: 'DELETE' });
+    await carregarProdutos();
+    await carregarResumo();
+    showToast('Venda desfeita', 'green-toast');
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
@@ -438,11 +510,15 @@ async function carregarRelatorio() {
   l.innerHTML = '<div class="loading">Carregando...</div>';
   try {
     const [itens, resumo] = await Promise.all([apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo')]);
-    document.getElementById('r-total').textContent  = fmtShort(resumo.total_arrecadado);
-    document.getElementById('r-lucro').textContent  = fmtShort(resumo.total_lucro);
+    document.getElementById('r-total').textContent    = fmtShort(resumo.total_arrecadado);
+    document.getElementById('r-lucro').textContent    = fmtShort(resumo.total_lucro);
     const margem = resumo.total_arrecadado > 0
       ? Math.round((resumo.total_lucro / resumo.total_arrecadado) * 100) + '%' : '—';
-    document.getElementById('r-margem').textContent = margem;
+    document.getElementById('r-margem').textContent   = margem;
+    const pag = resumo.pagamentos || {};
+    document.getElementById('r-dinheiro').textContent = fmtShort(pag.dinheiro || 0);
+    document.getElementById('r-pix').textContent      = fmtShort(pag.pix      || 0);
+    document.getElementById('r-cartao').textContent   = fmtShort(pag.cartao   || 0);
 
     if (!itens.length || itens.every(i => i.qtd_vendida == 0)) {
       l.innerHTML = '<div class="empty-state">📊<br/>Nenhuma venda registrada ainda</div>';

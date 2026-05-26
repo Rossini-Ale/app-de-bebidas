@@ -24,8 +24,12 @@ app.get('*', (req, res) => {
 });
 
 db.getConnection()
-  .then(conn => {
+  .then(async conn => {
     conn.release();
+    // Migration: adiciona forma_pagamento se não existir
+    try {
+      await db.query(`ALTER TABLE vendas ADD COLUMN forma_pagamento VARCHAR(10) NOT NULL DEFAULT 'dinheiro'`);
+    } catch (_) { /* coluna já existe */ }
     console.log('✅ MySQL conectado!');
     app.listen(PORT, () => console.log(`🤠 Servidor na porta ${PORT}`));
   })

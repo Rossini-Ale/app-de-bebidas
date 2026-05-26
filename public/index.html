@@ -84,6 +84,20 @@
           <div class="value" id="r-margem">—</div>
         </div>
       </div>
+      <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;margin-top:.5rem">
+        <div class="metric">
+          <div class="label">💵 Dinheiro</div>
+          <div class="value" id="r-dinheiro">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">Pix</div>
+          <div class="value" id="r-pix">—</div>
+        </div>
+        <div class="metric">
+          <div class="label">💳 Cartão</div>
+          <div class="value" id="r-cartao">—</div>
+        </div>
+      </div>
       <button class="btn-pdf" id="btn-gerar-pdf" onclick="gerarPDF()">📄 Gerar PDF</button>
       <p class="section-label" style="margin-top:1rem">Desempenho por produto</p>
       <div id="relatorio-lista"><div class="loading">Carregando...</div></div>
@@ -132,6 +146,12 @@
     </button>
   </nav>
 
+  <!-- BARRA DESFAZER -->
+  <div id="undo-bar">
+    <span id="undo-msg"></span>
+    <button id="undo-btn" onclick="desfazerUltimaVenda()">↩ Desfazer</button>
+  </div>
+
   <!-- BARRA FLUTUANTE DO CARRINHO -->
   <div id="cart-bar">
     <div id="cart-sheet">
@@ -140,8 +160,37 @@
     <div id="cart-bar-row">
       <button id="cart-bar-clear" onclick="limparCarrinho()">Limpar</button>
       <button id="cart-bar-info" onclick="toggleCartSheet()"></button>
-      <button id="cart-bar-btn" onclick="finalizarVenda()">✓ Finalizar</button>
+      <button id="cart-bar-btn" onclick="abrirPagamento()">✓ Finalizar</button>
     </div>
+  </div>
+
+  <!-- MODAL PAGAMENTO -->
+  <div id="pay-overlay" onclick="fecharPagamento()"></div>
+  <div id="pay-modal">
+    <p class="pm-label">Finalizar venda</p>
+    <p id="pm-total" class="pm-total"></p>
+
+    <p class="pm-label" style="margin-top:16px;margin-bottom:8px">Forma de pagamento</p>
+    <div class="pay-methods">
+      <button class="pay-method-btn active" data-method="dinheiro" onclick="selecionarPagamento('dinheiro')">💵 Dinheiro</button>
+      <button class="pay-method-btn" data-method="pix"     onclick="selecionarPagamento('pix')">Pix</button>
+      <button class="pay-method-btn" data-method="cartao"  onclick="selecionarPagamento('cartao')">💳 Cartão</button>
+    </div>
+
+    <div id="pm-troco-row">
+      <p class="pm-label" style="margin-top:16px;margin-bottom:6px">Valor recebido</p>
+      <div class="pm-notas">
+        <button class="pm-nota-btn" onclick="setRecebido(20)">R$20</button>
+        <button class="pm-nota-btn" onclick="setRecebido(50)">R$50</button>
+        <button class="pm-nota-btn" onclick="setRecebido(100)">R$100</button>
+      </div>
+      <input id="pm-recebido" class="pm-recebido-inp" type="number" min="0" step="0.5"
+        placeholder="Ou digite o valor…" oninput="calcularTroco()" />
+      <div id="pm-troco" class="pm-troco"></div>
+    </div>
+
+    <button class="pm-confirm" onclick="confirmarVenda()">✓ Confirmar venda</button>
+    <button class="pm-cancel"  onclick="fecharPagamento()">Cancelar</button>
   </div>
 
   <!-- MODAL QUANTIDADE -->

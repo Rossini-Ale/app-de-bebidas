@@ -1665,7 +1665,7 @@ ${catHtml}
     frame.src  = url;
     if (frame._blobUrl) URL.revokeObjectURL(frame._blobUrl);
     frame._blobUrl = url;
-    overlay.style.display = 'flex';
+    overlay.classList.add('open');
     document.querySelector('.pdf-toolbar-title').textContent = 'Cardápio PDF';
   }
   if (btn) { btn.textContent = '📋 Cardápio PDF'; btn.disabled = false; }

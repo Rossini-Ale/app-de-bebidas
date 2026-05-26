@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
+const appEvents = require('../events');
 
 router.get('/', async (req, res) => {
   try {
@@ -64,6 +65,24 @@ router.get('/relatorio', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/por-operador', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT
+        v.operador,
+        COUNT(DISTINCT v.id) as total_vendas,
+        COALESCE(SUM(v.total), 0) as total_arrecadado,
+        COALESCE(SUM(CASE WHEN v.ao_custo = FALSE OR v.ao_custo IS NULL THEN v.total ELSE 0 END), 0) as total_normal,
+        COALESCE(SUM(CASE WHEN v.ao_custo = TRUE THEN v.total ELSE 0 END), 0) as total_custo
+      FROM vendas v
+      WHERE v.evento_id = ?
+      GROUP BY v.operador
+      ORDER BY total_arrecadado DESC
+    `, [req.eventoId]);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/', async (req, res) => {
   const { itens, forma_pagamento = 'dinheiro', ao_custo = false } = req.body;
   if (!itens || itens.length === 0)
@@ -105,6 +124,7 @@ router.post('/', async (req, res) => {
 
     await conn.commit();
     const [venda] = await conn.query('SELECT * FROM vendas WHERE id = ?', [vendaResult.insertId]);
+    appEvents.emit('broadcast', { type: 'venda_nova', venda: venda[0] });
     res.status(201).json(venda[0]);
   } catch (err) {
     await conn.rollback();
@@ -126,6 +146,7 @@ router.delete('/:id', async (req, res) => {
     }
     await conn.query('DELETE FROM vendas WHERE id = ?', [req.params.id]);
     await conn.commit();
+    appEvents.emit('broadcast', { type: 'venda_deletada', id: Number(req.params.id) });
     res.json({ success: true });
   } catch (err) {
     await conn.rollback();

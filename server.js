@@ -4,7 +4,10 @@ const cors = require('cors');
 const path = require('path');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
+const http = require('http');
+const { WebSocketServer } = require('ws');
 const db = require('./db');
+const appEvents = require('./events');
 
 const produtosRouter = require('./routes/produtos');
 const vendasRouter   = require('./routes/vendas');
@@ -24,7 +27,7 @@ app.use(session({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ── Auth routes (public) ─────────────────── */
+/* ── Auth routes (public) ─────────────────────── */
 app.post('/api/auth/login', async (req, res) => {
   const { operador, senha } = req.body;
   if (!operador || !senha) return res.status(400).json({ error: 'Informe seu nome e a senha' });
@@ -46,7 +49,7 @@ app.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
 
-/* ── Auth middleware ──────────────────────── */
+/* ── Auth middleware ──────────────────────────── */
 function requireAuth(req, res, next) {
   if (!req.session.eventoId) return res.status(401).json({ error: 'Não autenticado' });
   req.eventoId  = req.session.eventoId;
@@ -66,7 +69,26 @@ db.getConnection()
     conn.release();
     await runMigrations();
     console.log('✅ MySQL conectado!');
-    app.listen(PORT, () => console.log(`🤠 Servidor na porta ${PORT}`));
+
+    const server = http.createServer(app);
+
+    /* ── WebSocket Server ──────────────────── */
+    const wss = new WebSocketServer({ server });
+
+    appEvents.on('broadcast', (msg) => {
+      const data = JSON.stringify(msg);
+      wss.clients.forEach(client => {
+        if (client.readyState === client.OPEN) {
+          client.send(data);
+        }
+      });
+    });
+
+    wss.on('connection', (ws) => {
+      ws.on('error', () => {});
+    });
+
+    server.listen(PORT, () => console.log(`🤠 Servidor na porta ${PORT}`));
   })
   .catch(err => { console.error('❌ Erro MySQL:', err.message); process.exit(1); });
 
@@ -89,4 +111,20 @@ async function runMigrations() {
   try { await db.query(`ALTER TABLE vendas ADD COLUMN forma_pagamento VARCHAR(10) NOT NULL DEFAULT 'dinheiro'`); } catch (_) {}
   try { await db.query(`ALTER TABLE vendas ADD COLUMN operador VARCHAR(50) NOT NULL DEFAULT 'Caixa'`); } catch (_) {}
   try { await db.query(`ALTER TABLE vendas ADD COLUMN ao_custo BOOLEAN NOT NULL DEFAULT FALSE`); } catch (_) {}
+
+  /* ── Reposições ──────────────────────────── */
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS reposicoes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      produto_id INT NOT NULL,
+      quantidade INT NOT NULL,
+      operador VARCHAR(50) NOT NULL DEFAULT 'Caixa',
+      evento_id INT NOT NULL DEFAULT 1,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  try { await db.query(`ALTER TABLE reposicoes ADD COLUMN evento_id INT NOT NULL DEFAULT 1`); } catch (_) {}
+
+  /* ── Categorias ──────────────────────────── */
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN categoria VARCHAR(50) NOT NULL DEFAULT ''`); } catch (_) {}
 }

@@ -1,5 +1,5 @@
 const API = '';
-let produtos = [], carrinho = [], editingId = null;
+let produtos = [], carrinho = [], editingId = null, cartSheetOpen = false;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -298,36 +298,72 @@ function removeAllCarrinho(id) {
 function limparCarrinho() { carrinho = []; renderCarrinho(); }
 
 function atualizarCartBar() {
-  const bar   = document.getElementById('cart-bar');
-  const badge = document.getElementById('cart-badge');
+  const bar     = document.getElementById('cart-bar');
+  const badge   = document.getElementById('cart-badge');
+  const infoBtn = document.getElementById('cart-bar-info');
   const isVenda = document.getElementById('tab-venda').classList.contains('active');
-
   const totalItens = carrinho.reduce((s, c) => s + c.qty, 0);
 
-  // Badge no bottom nav (sempre visível independente da aba)
   if (badge) {
-    if (totalItens > 0) {
-      badge.textContent = totalItens > 9 ? '9+' : totalItens;
-      badge.classList.add('show');
-    } else {
-      badge.classList.remove('show');
-    }
+    if (totalItens > 0) { badge.textContent = totalItens > 9 ? '9+' : totalItens; badge.classList.add('show'); }
+    else badge.classList.remove('show');
   }
 
-  // Barra flutuante (só na aba venda)
   if (!bar) return;
-  if (!totalItens || !isVenda) { bar.classList.remove('visible'); return; }
+  if (!totalItens || !isVenda) {
+    bar.classList.remove('visible');
+    cartSheetOpen = false;
+    document.getElementById('cart-sheet')?.classList.remove('open');
+    return;
+  }
 
   const total = carrinho.reduce((s, c) => {
     const p = produtos.find(x => x.id === c.id);
     return s + p.preco * c.qty;
   }, 0);
-  document.getElementById('cart-bar-info').textContent =
-    `🛒 ${totalItens} ${totalItens === 1 ? 'item' : 'itens'} · ${fmt(total)}`;
+
+  if (infoBtn) {
+    const arrow = cartSheetOpen ? '▾' : '▴';
+    infoBtn.innerHTML = `<span style="font-size:11px;opacity:.8">${arrow}</span> ${totalItens} ${totalItens === 1 ? 'item' : 'itens'} · ${fmt(total)}`;
+  }
   bar.classList.add('visible');
 }
 
+function renderCartSheet() {
+  const el = document.getElementById('cart-sheet-items');
+  if (!el) return;
+  el.innerHTML = carrinho.map(c => {
+    const p = produtos.find(x => x.id === c.id);
+    return `<div class="cs-item">
+      <span class="cs-name">${p.nome}</span>
+      <div class="cs-controls">
+        <button class="cs-ctrl" onclick="removeCarrinho(${c.id})">−</button>
+        <span class="cs-qty">${c.qty}</span>
+        <button class="cs-ctrl" onclick="addCarrinho(${c.id})">+</button>
+      </div>
+      <span class="cs-price">${fmt(p.preco * c.qty)}</span>
+    </div>`;
+  }).join('');
+}
+
+function toggleCartSheet() {
+  if (!carrinho.length) return;
+  cartSheetOpen = !cartSheetOpen;
+  const sheet = document.getElementById('cart-sheet');
+  if (cartSheetOpen) { renderCartSheet(); sheet?.classList.add('open'); }
+  else               { sheet?.classList.remove('open'); }
+  atualizarCartBar();
+}
+
 function renderCarrinho() {
+  if (cartSheetOpen) {
+    if (!carrinho.length) {
+      cartSheetOpen = false;
+      document.getElementById('cart-sheet')?.classList.remove('open');
+    } else {
+      renderCartSheet();
+    }
+  }
   renderVenda();
   atualizarCartBar();
 }

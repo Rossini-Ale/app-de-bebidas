@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Caixa UNIFSP 🤠</title>
+  <title>Caixa UNIFSP</title>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
   <div class="app">
     <header class="header">
       <div class="header-left">
-        <div class="header-logo">🤠</div>
         <div>
           <h1>Caixa UNIFSP</h1>
           <p id="status-conexao" class="status-ok">● Online</p>
@@ -133,11 +132,16 @@
     </button>
   </nav>
 
-  <!-- BARRA FLUTUANTE DO CARRINHO (mobile) -->
+  <!-- BARRA FLUTUANTE DO CARRINHO -->
   <div id="cart-bar">
-    <button id="cart-bar-clear" onclick="limparCarrinho()">Limpar</button>
-    <div id="cart-bar-info"></div>
-    <button id="cart-bar-btn" onclick="finalizarVenda()">✓ Finalizar</button>
+    <div id="cart-sheet">
+      <div id="cart-sheet-items"></div>
+    </div>
+    <div id="cart-bar-row">
+      <button id="cart-bar-clear" onclick="limparCarrinho()">Limpar</button>
+      <button id="cart-bar-info" onclick="toggleCartSheet()"></button>
+      <button id="cart-bar-btn" onclick="finalizarVenda()">✓ Finalizar</button>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>

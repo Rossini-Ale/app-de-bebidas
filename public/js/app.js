@@ -1697,21 +1697,32 @@ function exportarCardapioPDF() {
   const catOrder = ['Bebidas', 'Comidas', 'Outros'];
   const catKeys = [...new Set([...catOrder, ...Object.keys(cats)])].filter(k => cats[k]);
 
+  const totalItens = Object.values(cats).reduce((s, arr) => s + arr.length, 0);
+  // 2 colunas para poucos itens (leitura fácil), 3 colunas quando há muitos
+  const numCols  = totalItens > 12 ? 3 : 2;
+  const nameSz   = numCols === 3 ? '14px' : '17px';
+  const precoSz  = numCols === 3 ? '26px' : '32px';
+  const padCard  = numCols === 3 ? '11px 13px' : '14px 16px';
+
   const catHtml = catKeys.map(cat => {
     const items = cats[cat];
     const rows = items.map(p => {
+      const isDose   = !!(p.dose_ml && p.garrafa_ml);
+      const unidade  = isDose ? 'doses' : 'un.';
       const esgotado = p.estoque === 0;
       const comboTxt = (p.combo_qtd && p.combo_preco)
-        ? `<div class="combo">🏷 ${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+        ? `<div class="combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+      const doseTxt  = isDose
+        ? `<div class="dose-tag">${p.dose_ml}ml/dose</div>` : '';
       return `<div class="item${esgotado ? ' esgotado' : ''}">
         ${esgotado ? '<div class="esg-ribbon">Esgotado</div>' : ''}
         <div class="item-nome">${p.nome}</div>
         <div class="item-preco">${fmt(p.preco)}</div>
-        ${comboTxt}
+        ${doseTxt}${comboTxt}
       </div>`;
     }).join('');
     return `<div class="cat-block">
-      <div class="cat-header"><span class="cat-title">${cat}</span></div>
+      <div class="cat-header"><span class="cat-title">${cat}</span><span class="cat-line"></span></div>
       <div class="grid">${rows}</div>
     </div>`;
   }).join('');
@@ -1723,95 +1734,99 @@ function exportarCardapioPDF() {
 <title>Cardápio – Caixa UNIFSP</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  @page{size:A4 portrait;margin:18mm 14mm}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1C0A00;background:#fff;padding:0}
+  @page{size:A4 portrait;margin:16mm 14mm}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1C0A00;background:#fff}
 
   /* Cabeçalho */
   .page-header{
     background:linear-gradient(135deg,#78350F 0%,#D97706 100%);
     color:#FEF3C7;
-    padding:20px 28px 18px;
-    border-radius:12px;
-    margin-bottom:24px;
+    padding:16px 24px 14px;
+    border-radius:10px;
+    margin-bottom:20px;
     display:flex;align-items:flex-end;justify-content:space-between;
   }
-  .page-title{font-size:36px;font-weight:900;letter-spacing:-1px;line-height:1}
-  .page-sub{font-size:13px;opacity:.8;margin-top:4px}
-  .page-date{font-size:11px;opacity:.7;text-align:right}
+  .page-title{font-size:30px;font-weight:900;letter-spacing:-1px;line-height:1}
+  .page-sub{font-size:12px;opacity:.8;margin-top:3px}
+  .page-date{font-size:10px;opacity:.7;text-align:right}
 
-  /* Categoria */
-  .cat-block{margin-bottom:22px;break-inside:avoid}
-  .cat-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  /* Categoria — sem break-inside para permitir fluir entre páginas */
+  .cat-block{margin-bottom:18px}
+  .cat-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
   .cat-title{
-    font-size:11px;font-weight:900;
+    font-size:10px;font-weight:900;
     text-transform:uppercase;letter-spacing:.15em;
     color:#92400E;
     background:#FEF3C7;
-    border-left:5px solid #D97706;
-    padding:5px 14px 5px 10px;
-    border-radius:0 6px 6px 0;
+    border-left:4px solid #D97706;
+    padding:4px 12px 4px 9px;
+    border-radius:0 5px 5px 0;
+    white-space:nowrap;
   }
   .cat-line{flex:1;height:1px;background:#F3E0B0}
 
-  /* Grid de produtos: 2 colunas para texto grande */
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  /* Grid de produtos */
+  .grid{display:grid;grid-template-columns:repeat(${numCols},1fr);gap:8px}
 
-  /* Card de produto */
+  /* Card de produto — break-inside:avoid só no card */
   .item{
     border:1.5px solid #E8D5A0;
-    border-radius:10px;
-    padding:14px 16px;
+    border-radius:8px;
+    padding:${padCard};
     background:#FFFDF7;
     position:relative;
     overflow:hidden;
     break-inside:avoid;
+    page-break-inside:avoid;
   }
-  .item.esgotado{opacity:.45;background:#F9F9F9;border-color:#E0E0E0}
+  .item.esgotado{opacity:.4;background:#F9F9F9;border-color:#E0E0E0}
 
   .item-nome{
-    font-size:17px;font-weight:800;
-    line-height:1.2;margin-bottom:8px;
+    font-size:${nameSz};font-weight:800;
+    line-height:1.25;margin-bottom:6px;
     color:#1C0A00;
   }
   .item-preco{
-    font-size:32px;font-weight:900;
-    color:#D97706;letter-spacing:-1px;
+    font-size:${precoSz};font-weight:900;
+    color:#D97706;letter-spacing:-0.5px;
     line-height:1;
   }
   .combo{
     display:inline-block;
-    font-size:11px;font-weight:700;
-    color:#065F46;
-    background:#D1FAE5;
-    border:1px solid #6EE7B7;
-    border-radius:5px;
-    padding:3px 8px;
-    margin-top:8px;
+    font-size:10px;font-weight:700;
+    color:#065F46;background:#D1FAE5;
+    border:1px solid #6EE7B7;border-radius:4px;
+    padding:2px 7px;margin-top:6px;
+  }
+  .dose-tag{
+    display:inline-block;
+    font-size:10px;font-weight:700;
+    color:#6B7280;background:#F3F4F6;
+    border:1px solid #D1D5DB;border-radius:4px;
+    padding:2px 7px;margin-top:6px;margin-right:4px;
   }
 
   /* Ribbon esgotado */
   .esg-ribbon{
-    position:absolute;top:9px;right:-20px;
+    position:absolute;top:8px;right:-18px;
     background:#DC2626;color:#fff;
-    font-size:9px;font-weight:800;
-    text-transform:uppercase;letter-spacing:.06em;
-    padding:3px 28px;
+    font-size:8px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.05em;
+    padding:3px 24px;
     transform:rotate(35deg);
   }
 
   /* Rodapé */
   .page-footer{
-    margin-top:20px;
+    margin-top:16px;
     text-align:center;
-    font-size:10px;color:#B08050;
+    font-size:9px;color:#B08050;
     border-top:1px solid #E8D5A0;
-    padding-top:12px;
+    padding-top:10px;
   }
 
   @media print{
-    body{padding:0}
-    .cat-block{break-inside:avoid}
-    .item{break-inside:avoid}
+    .item{break-inside:avoid;page-break-inside:avoid}
   }
 </style>
 </head>

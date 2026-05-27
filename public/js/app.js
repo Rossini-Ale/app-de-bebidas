@@ -1328,14 +1328,23 @@ function renderOperadorLista(data) {
   const el = document.getElementById('operador-lista');
   if (!el) return;
   if (!data || data.length <= 1) { el.innerHTML = ''; return; }
-  el.innerHTML = data.map(op => `
-    <div class="operador-card">
-      <span class="op-nome">${op.operador || 'Caixa'}</span>
-      <div class="op-stats">
-        <span class="op-vendas">${op.total_vendas} venda${op.total_vendas !== 1 ? 's' : ''}</span>
+  const totalGeral = data.reduce((s, op) => s + Number(op.total_arrecadado), 0);
+  el.innerHTML = data.map(op => {
+    const pct = totalGeral > 0 ? Math.round((Number(op.total_arrecadado) / totalGeral) * 100) : 0;
+    return `<div class="operador-card">
+      <div class="op-top">
+        <span class="op-nome">${op.operador || 'Caixa'}</span>
         <span class="op-total">${fmt(op.total_arrecadado)}</span>
       </div>
-    </div>`).join('');
+      <div class="op-bar-wrap">
+        <div class="op-bar" style="width:${pct}%"></div>
+      </div>
+      <div class="op-bottom">
+        <span class="op-vendas">${op.total_vendas} venda${op.total_vendas !== 1 ? 's' : ''}</span>
+        <span class="op-pct">${pct}%</span>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderRelatorioLista() {
@@ -1351,7 +1360,7 @@ function renderRelatorioLista() {
     return Number(b.qtd_vendida) - Number(a.qtd_vendida);
   });
   const maxReceita = Math.max(...sorted.map(i => Number(i.receita)), 1);
-  l.innerHTML = sorted.map(item => {
+  l.innerHTML = sorted.map((item, idx) => {
     const receita    = Number(item.receita);
     const lucro      = Number(item.lucro);
     const custoTotal = Number(item.custo_total);
@@ -1364,8 +1373,12 @@ function renderRelatorioLista() {
     const receitaDetalhe = qtdCusto > 0
       ? `<div class="rb-split"><span>${fmt(recNormal)} normal</span><span class="red">${fmt(recCusto)} custo</span></div>`
       : '';
+    const rankNum  = idx + 1;
+    const rankClass = rankNum <= 3 ? `rel-rank-${rankNum}` : 'rel-rank-n';
+    const rankBadge = `<span class="rel-rank ${rankClass}">${rankNum <= 3 ? '#' + rankNum : rankNum}</span>`;
     return `<div class="relatorio-item">
       <div class="rel-header">
+        ${rankBadge}
         <span class="rel-nome">${item.nome}</span>
         <span class="rel-qtd">${item.qtd_vendida} vendidos${badgeCusto}</span>
       </div>
@@ -1393,12 +1406,23 @@ function renderVendasPorHora(vendas) {
   });
   const horas = Object.keys(porHora).sort();
   const maxQtd = Math.max(...horas.map(h => porHora[h]));
-  el.innerHTML = horas.map(h => {
-    const pct = Math.max(3, Math.round((porHora[h] / maxQtd) * 100));
+
+  // Calcula hora de pico
+  const picoHora   = horas.reduce((best, h) => porHora[h] > porHora[best] ? h : best, horas[0]);
+  const picoVendas = porHora[picoHora];
+  const totalVendas = horas.reduce((s, h) => s + porHora[h], 0);
+  const picoHtml = `<div class="gh-pico">
+    <span class="gh-pico-icon">⚡</span>
+    Pico às <strong>${picoHora}h</strong> · ${picoVendas} ${picoVendas === 1 ? 'venda' : 'vendas'} · ${totalVendas} no total
+  </div>`;
+
+  el.innerHTML = picoHtml + horas.map(h => {
+    const pct     = Math.max(3, Math.round((porHora[h] / maxQtd) * 100));
+    const isPico  = h === picoHora;
     return `<div class="gh-row">
       <span class="gh-hora">${h}h</span>
-      <div class="gh-bar-h-wrap"><div class="gh-bar-h" style="width:${pct}%"></div></div>
-      <span class="gh-count">${porHora[h]}</span>
+      <div class="gh-bar-h-wrap"><div class="gh-bar-h" style="width:${pct}%;${isPico ? 'background:var(--amber-d)' : ''}"></div></div>
+      <span class="gh-count" style="${isPico ? 'color:var(--amber-d);font-weight:800' : ''}">${porHora[h]}</span>
     </div>`;
   }).join('');
 }

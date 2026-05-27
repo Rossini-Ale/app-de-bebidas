@@ -30,7 +30,7 @@
     <nav class="tabs">
       <div id="tab-pill"></div>
       <button class="tab active" data-tab="venda" onclick="showTab('venda')">Venda</button>
-      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">Estoque</button>
+      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">Estoque<span id="stock-tab-badge" class="tab-badge"></span></button>
       <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">Relatório</button>
       <button class="tab" data-tab="historico" onclick="showTab('historico')">Histórico</button>
     </nav>
@@ -82,6 +82,7 @@
           <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
           <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
         </div>
+        <input id="new-min-stock" class="input" placeholder="Estoque mínimo para alerta (opcional)" type="number" min="0" inputmode="numeric" style="margin-bottom:8px" />
         <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
         <label class="combo-toggle-label">
           <input type="checkbox" id="new-combo-check" onchange="toggleComboRow('new')" />
@@ -110,6 +111,10 @@
           <div class="label">Produtos cadastrados</div>
           <div class="value" id="m-produtos">—</div>
         </div>
+      </div>
+      <div id="stock-alert-banner" class="stock-alert-banner" style="display:none">
+        <span class="sab-icon">⚠</span>
+        <span class="sab-msg" id="stock-alert-msg"></span>
       </div>
       <div id="sort-estoque" class="sort-bar">
         <button class="sort-btn active" data-sort="az" onclick="setSortEstoque('az')">A-Z</button>
@@ -227,11 +232,14 @@
       <span class="bnav-label">Venda</span>
     </button>
     <button class="bnav-tab" data-tab="estoque" onclick="showTab('estoque')">
-      <span class="bnav-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
-        </svg>
+      <span class="bnav-icon-wrap">
+        <span class="bnav-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </span>
+        <span id="stock-nav-badge" class="cart-badge"></span>
       </span>
       <span class="bnav-label">Estoque</span>
     </button>

@@ -269,6 +269,19 @@ button { touch-action: manipulation; }
 /* ── CARDS DE PRODUTO ────────────────────── */
 .produto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes badgeBounce {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.55); }
+  65%  { transform: scale(.9); }
+  85%  { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+.cart-badge.bounce { animation: badgeBounce .38s cubic-bezier(.22,.68,0,1.2); }
+
 @keyframes flashAdd {
   0%   { transform: scale(1); background: var(--bg-card); }
   35%  { transform: scale(.93); background: #d1fae5; }
@@ -292,8 +305,9 @@ button { touch-action: manipulation; }
   user-select: none;
   -webkit-user-select: none;
   box-shadow: 0 1px 5px rgba(0,0,0,.07);
+  animation: cardIn .18s ease both;
 }
-.produto-card:active:not(.no-stock) { transform: scale(.96); }
+.produto-card:active:not(.no-stock) { transform: scale(.96); box-shadow: 0 0 0 3px rgba(217,119,6,.22); }
 .produto-card:hover:not(.no-stock) { border-color: var(--amber); background: #FFFBF0; box-shadow: 0 3px 12px rgba(217,119,6,.12); }
 .produto-card.no-stock { opacity: .4; cursor: not-allowed; }
 .produto-card.in-cart         { border-color: var(--amber); background: #FFFBF0; }
@@ -343,8 +357,9 @@ button { touch-action: manipulation; }
   align-items: center; justify-content: center;
   pointer-events: none;
 }
-#success-anim.show { display: flex; }
+#success-anim.show { display: flex; background: rgba(5,150,105,.05); }
 .success-circle {
+  position: relative;
   width: 88px; height: 88px;
   background: var(--green);
   border-radius: 50%;
@@ -353,10 +368,24 @@ button { touch-action: manipulation; }
   box-shadow: 0 8px 32px rgba(5,150,105,.4);
   animation: successPop .5s cubic-bezier(.22,.68,0,1.2) forwards;
 }
+.success-circle::before,
+.success-circle::after {
+  content: '';
+  position: absolute;
+  inset: 0; border-radius: 50%;
+  border: 2px solid rgba(5,150,105,.55);
+  opacity: 0;
+}
+.success-circle::before { animation: successRing .52s ease-out .22s both; }
+.success-circle::after  { animation: successRing .52s ease-out .4s  both; }
 @keyframes successPop {
   0%   { transform: scale(0); opacity: 0; }
   70%  { transform: scale(1.15); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
+}
+@keyframes successRing {
+  from { transform: scale(1);   opacity: .7; }
+  to   { transform: scale(1.9); opacity: 0; }
 }
 
 /* ── ESTOQUE ─────────────────────────────── */

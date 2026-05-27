@@ -435,11 +435,11 @@ function renderVenda() {
   const maxEstoque = Math.max(...lista.map(p => p.estoque), 1);
 
   if (lista.length === 0) {
-    l.innerHTML = '<div class="empty-state">Nenhum produto encontrado</div>';
+    l.innerHTML = '<div class="empty-state"><span style="font-size:28px;display:block;margin-bottom:4px;opacity:.55">🔍</span>Nenhum produto encontrado<br><span style="font-size:12px">Tente outro termo ou categoria</span></div>';
     return;
   }
 
-  l.innerHTML = '<div class="produto-grid">' + lista.map(p => {
+  l.innerHTML = '<div class="produto-grid">' + lista.map((p, index) => {
     const isDose     = !!(p.dose_ml && p.garrafa_ml);
     const unidade    = isDose ? 'doses' : 'un.';
     const noStock    = p.estoque === 0;
@@ -463,7 +463,7 @@ function renderVenda() {
       ? `<div class="pc-combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
     const doseBadge  = isDose
       ? `<div class="pc-combo" style="color:var(--muted);background:var(--bg-sec);border-color:var(--border)">${p.dose_ml}ml/dose</div>` : '';
-    return `<div class="${classes}" data-id="${p.id}" ${onclick}>
+    return `<div class="${classes}" data-id="${p.id}" ${onclick} style="animation-delay:${Math.min(index * 28, 140)}ms">
       ${badge}
       <div class="pc-nome">${p.nome}</div>
       <div class="pc-preco">${fmt(p.preco)}</div>
@@ -916,8 +916,14 @@ function atualizarCartBar() {
   const totalItens = carrinho.reduce((s, c) => s + c.qty, 0);
 
   if (badge) {
-    if (totalItens > 0) { badge.textContent = totalItens > 9 ? '9+' : totalItens; badge.classList.add('show'); }
-    else badge.classList.remove('show');
+    if (totalItens > 0) {
+      badge.textContent = totalItens > 9 ? '9+' : totalItens;
+      badge.classList.add('show');
+      badge.classList.remove('bounce');
+      void badge.offsetWidth;
+      badge.classList.add('bounce');
+      badge.addEventListener('animationend', () => badge.classList.remove('bounce'), { once: true });
+    } else badge.classList.remove('show');
   }
 
   if (!bar) return;

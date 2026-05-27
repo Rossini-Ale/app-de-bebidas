@@ -447,6 +447,13 @@ function renderVenda() {
     return;
   }
 
+  // Rank dos top 3 mais vendidos (baseado em todos os produtos, não na lista filtrada)
+  const rankMap = {};
+  const prodsPorVendas = [...produtos]
+    .filter(p => (vendidoMap[p.id] || 0) > 0)
+    .sort((a, b) => (vendidoMap[b.id] || 0) - (vendidoMap[a.id] || 0));
+  prodsPorVendas.slice(0, 3).forEach((p, i) => { rankMap[p.id] = i + 1; });
+
   l.innerHTML = '<div class="produto-grid">' + lista.map((p, index) => {
     const isDose     = !!(p.dose_ml && p.garrafa_ml);
     const unidade    = isDose ? 'doses' : 'un.';
@@ -458,6 +465,16 @@ function renderVenda() {
     const inCart     = !!itemCart;
     const comboActive = inCart && p.combo_qtd && p.combo_preco && itemCart.qty >= p.combo_qtd;
     const badge      = inCart ? `<span class="pc-badge" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${itemCart.qty}</span>` : '';
+
+    // Rank badge (só para produtos com estoque)
+    const rank = !noStock ? (rankMap[p.id] || 0) : 0;
+    const rankBadge = rank === 1 ? `<span class="pc-rank pc-rank-1">🔥 #1</span>`
+                    : rank === 2 ? `<span class="pc-rank pc-rank-2">#2</span>`
+                    : rank === 3 ? `<span class="pc-rank pc-rank-3">#3</span>` : '';
+
+    // Tag esgotado (visível mesmo com card sem opacity)
+    const esgotadoBadge = noStock ? `<span class="pc-esgotado-tag">Esgotado</span>` : '';
+
     const stockLabel = noStock  ? 'Sem estoque' :
                        veryLow  ? `⚠ ${p.estoque} ${unidade}` :
                                   `${p.estoque} ${unidade}`;
@@ -472,7 +489,7 @@ function renderVenda() {
     const doseBadge  = isDose
       ? `<div class="pc-combo" style="color:var(--muted);background:var(--bg-sec);border-color:var(--border)">${p.dose_ml}ml/dose</div>` : '';
     return `<div class="${classes}" data-id="${p.id}" ${onclick} style="animation-delay:${Math.min(index * 28, 140)}ms">
-      ${badge}
+      ${rankBadge}${esgotadoBadge}${badge}
       <div class="pc-nome">${p.nome}</div>
       <div class="pc-preco">${fmt(p.preco)}</div>
       ${doseBadge}${comboBadge}

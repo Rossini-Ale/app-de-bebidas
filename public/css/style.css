@@ -271,10 +271,23 @@ button { touch-action: manipulation; }
 .sort-btn:hover:not(.active) { border-color: var(--amber); color: var(--text); }
 
 /* ── FILTROS DE CATEGORIA ────────────────── */
+.cat-filter-wrap {
+  position: relative;
+  margin-bottom: 6px;
+}
+.cat-filter-wrap::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 40px;
+  background: linear-gradient(to left, var(--bg) 20%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
 #cat-filter-venda {
   display: flex; gap: 7px;
   overflow-x: auto; scrollbar-width: none;
-  padding-bottom: 4px; margin-bottom: 6px;
+  padding-bottom: 4px; margin-bottom: 0;
   -webkit-overflow-scrolling: touch;
 }
 #cat-filter-venda::-webkit-scrollbar { display: none; }
@@ -339,7 +352,12 @@ button { touch-action: manipulation; }
 }
 .produto-card:active:not(.no-stock) { transform: scale(.96); box-shadow: 0 0 0 3px rgba(217,119,6,.22); }
 .produto-card:hover:not(.no-stock) { border-color: var(--amber); background: #FFFBF0; box-shadow: 0 3px 12px rgba(217,119,6,.12); }
-.produto-card.no-stock { opacity: .4; cursor: not-allowed; }
+.produto-card.no-stock { cursor: not-allowed; }
+.produto-card.no-stock .pc-nome,
+.produto-card.no-stock .pc-preco,
+.produto-card.no-stock .pc-stock,
+.produto-card.no-stock .pc-stock-bar-wrap,
+.produto-card.no-stock .pc-combo { opacity: .32; }
 .produto-card.in-cart         { border-color: var(--amber); background: #FFFBF0; }
 .produto-card.low-stock:not(.in-cart)      { border-color: var(--amber); }
 .produto-card.very-low-stock:not(.in-cart) { border-color: var(--red); background: #FFF8F8; }
@@ -347,6 +365,30 @@ button { touch-action: manipulation; }
 .produto-card.very-low-stock .pc-stock     { color: var(--red); font-weight: 700; }
 .produto-card.flash { animation: flashAdd .22s ease; }
 .produto-card.in-cart.flash { animation: flashAddInCart .22s ease; }
+
+/* Rank badge (top 3 mais vendidos) */
+.pc-rank {
+  position: absolute;
+  top: 7px; left: 7px;
+  font-size: 10px; font-weight: 800;
+  border-radius: 8px;
+  padding: 2px 7px; line-height: 1.4;
+  pointer-events: none; z-index: 1;
+}
+.pc-rank-1 { background: var(--amber); color: #fff; box-shadow: 0 1px 6px rgba(217,119,6,.35); }
+.pc-rank-2 { background: var(--bg-sec); color: var(--muted); border: 1px solid var(--border-s); }
+.pc-rank-3 { background: var(--bg-sec); color: var(--muted); border: 1px solid var(--border-s); }
+
+/* Tag esgotado */
+.pc-esgotado-tag {
+  position: absolute;
+  top: 7px; left: 7px;
+  background: var(--red); color: #fff;
+  font-size: 9px; font-weight: 800; letter-spacing: .06em;
+  padding: 2px 8px; border-radius: 8px;
+  text-transform: uppercase;
+  pointer-events: none; z-index: 1;
+}
 
 .pc-badge {
   position: absolute;

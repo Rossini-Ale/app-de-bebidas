@@ -57,7 +57,9 @@
         <input id="busca-produto" class="input search-inp" type="search" placeholder="Buscar produto…"
           oninput="renderVenda()" autocomplete="off" />
       </div>
-      <div id="cat-filter-venda" class="sort-bar" style="margin-bottom:6px"></div>
+      <div class="cat-filter-wrap">
+        <div id="cat-filter-venda" class="sort-bar"></div>
+      </div>
       <div id="sort-venda" class="sort-bar">
         <button class="sort-btn active" data-sort="vendido" onclick="setSortVenda('vendido')">🔥 Vendidos</button>
         <button class="sort-btn" data-sort="az" onclick="setSortVenda('az')">A-Z</button>

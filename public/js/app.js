@@ -912,7 +912,6 @@ function atualizarCartBar() {
   const bar     = document.getElementById('cart-bar');
   const badge   = document.getElementById('cart-badge');
   const infoBtn = document.getElementById('cart-bar-info');
-  const sheet   = document.getElementById('cart-sheet');
   const isVenda = document.getElementById('tab-venda').classList.contains('active');
   const totalItens = carrinho.reduce((s, c) => s + c.qty, 0);
 
@@ -925,15 +924,14 @@ function atualizarCartBar() {
   if (!totalItens || !isVenda) {
     bar.classList.remove('visible');
     cartSheetOpen = false;
-    sheet?.classList.remove('open');
+    document.getElementById('cart-drawer')?.classList.remove('open');
+    document.getElementById('cart-drawer-bg')?.classList.remove('open');
     return;
   }
 
   const total = totalCarrinho();
-
   if (infoBtn) {
-    const arrow = cartSheetOpen ? '▾' : '▴';
-    infoBtn.innerHTML = `<span style="font-size:11px;opacity:.8">${arrow}</span> ${totalItens} ${totalItens === 1 ? 'item' : 'itens'} · ${fmt(total)}`;
+    infoBtn.innerHTML = `${totalItens} ${totalItens === 1 ? 'item' : 'itens'} · ${fmt(total)}`;
   }
   bar.classList.add('visible');
 }
@@ -999,6 +997,12 @@ function renderCartSheet() {
       <span class="cs-price">${fmt(total)}</span>
     </div>`;
   }).join('');
+  // Atualiza header e footer do drawer
+  const totalItens = carrinho.reduce((s, c) => s + c.qty, 0);
+  const cntEl = document.getElementById('cart-drawer-cnt');
+  const totalEl = document.getElementById('cart-drawer-total-val');
+  if (cntEl) cntEl.textContent = `${totalItens} ${totalItens === 1 ? 'item' : 'itens'}`;
+  if (totalEl) totalEl.textContent = fmt(totalCarrinho());
 }
 
 function editQtyInline(id) {
@@ -1022,9 +1026,22 @@ function salvarQtyInline(id, inp) {
 function toggleCartSheet() {
   if (!carrinho.length) return;
   cartSheetOpen = !cartSheetOpen;
-  const sheet = document.getElementById('cart-sheet');
-  if (cartSheetOpen) { renderCartSheet(); sheet?.classList.add('open'); }
-  else               { sheet?.classList.remove('open'); }
+  if (cartSheetOpen) {
+    renderCartSheet();
+    document.getElementById('cart-drawer')?.classList.add('open');
+    document.getElementById('cart-drawer-bg')?.classList.add('open');
+  } else {
+    document.getElementById('cart-drawer')?.classList.remove('open');
+    document.getElementById('cart-drawer-bg')?.classList.remove('open');
+  }
+  atualizarCartBar();
+}
+
+function fecharCartDrawer() {
+  if (!cartSheetOpen) return;
+  cartSheetOpen = false;
+  document.getElementById('cart-drawer')?.classList.remove('open');
+  document.getElementById('cart-drawer-bg')?.classList.remove('open');
   atualizarCartBar();
 }
 
@@ -1037,8 +1054,7 @@ function renderCarrinho() {
   }
   if (cartSheetOpen) {
     if (!carrinho.length) {
-      cartSheetOpen = false;
-      document.getElementById('cart-sheet')?.classList.remove('open');
+      fecharCartDrawer();
     } else {
       renderCartSheet();
     }

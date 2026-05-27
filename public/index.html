@@ -272,11 +272,27 @@
     <button id="undo-btn" onclick="desfazerUltimaVenda()">↩ Desfazer</button>
   </div>
 
+  <!-- BACKDROP CARRINHO -->
+  <div id="cart-drawer-bg" onclick="fecharCartDrawer()"></div>
+  <!-- DRAWER CARRINHO -->
+  <div id="cart-drawer">
+    <div class="cart-drawer-handle"></div>
+    <div class="cart-drawer-header">
+      <span class="cart-drawer-title">Carrinho</span>
+      <span id="cart-drawer-cnt" class="cart-drawer-cnt"></span>
+      <button class="cart-drawer-close" onclick="fecharCartDrawer()">✕</button>
+    </div>
+    <div id="cart-sheet-items"></div>
+    <div class="cart-drawer-footer">
+      <div class="cart-drawer-total">
+        <span class="cart-drawer-total-label">Total</span>
+        <span id="cart-drawer-total-val">—</span>
+      </div>
+      <button class="cart-drawer-btn" onclick="fecharCartDrawer();abrirPagamento()">✓ Finalizar</button>
+    </div>
+  </div>
   <!-- BARRA FLUTUANTE DO CARRINHO -->
   <div id="cart-bar">
-    <div id="cart-sheet">
-      <div id="cart-sheet-items"></div>
-    </div>
     <div id="cart-bar-row">
       <button id="cart-bar-clear" onclick="limparCarrinhoConfirm()">Limpar</button>
       <button id="cart-bar-info" onclick="toggleCartSheet()"></button>

@@ -9,6 +9,7 @@ let dinheiroVendas = 0, wakeLock = null, reposicaoId = null, reposicaoModo = 'ad
 let eventoAtual = null, operadorAtual = 'Caixa', venderAoCusto = false;
 let categoriaFiltro = '';
 let wsConn = null, wsConectado = false;
+let qmCurrentVal = '';
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -56,6 +57,27 @@ function fmtDataHora(str) {
   return `${data} às ${hora}`;
 }
 
+/* ── Skeleton Loading ─────────────────────── */
+function renderSkeleton(containerId, count = 6, tipo = 'card') {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (tipo === 'card') {
+    el.innerHTML = '<div class="produto-grid">' + Array.from({length: count}, () =>
+      `<div class="skeleton-card">
+        <div class="skel skel-name"></div>
+        <div class="skel skel-preco"></div>
+        <div class="skel skel-stock"></div>
+        <div class="skel skel-bar"></div>
+      </div>`).join('') + '</div>';
+  } else {
+    el.innerHTML = Array.from({length: count}, () =>
+      `<div class="skel-list-item">
+        <div class="skel-line w-70"></div>
+        <div class="skel-line w-40"></div>
+      </div>`).join('');
+  }
+}
+
 /* ── Feedback ─────────────────────────────── */
 function vibrar(pattern) {
   if ('vibrate' in navigator) navigator.vibrate(pattern);
@@ -72,9 +94,12 @@ function flashCard(id) {
 
 /* ── Toast ────────────────────────────────── */
 function showToast(msg, tipo = '') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
+  const t    = document.getElementById('toast');
+  const msgEl = document.getElementById('toast-msg');
+  const prog  = document.getElementById('toast-progress');
+  if (msgEl) msgEl.textContent = msg; else t.textContent = msg;
   t.className = 'toast show' + (tipo ? ' ' + tipo : '');
+  if (prog) { prog.style.animation = 'none'; void prog.offsetWidth; prog.style.animation = ''; }
   clearTimeout(t._t);
   t._t = setTimeout(() => { t.className = 'toast'; }, 2800);
 }
@@ -295,7 +320,17 @@ function ocultarLogin() {
 }
 
 function setOperadorBadge(nome) {
-  document.getElementById('evento-badge').textContent = nome;
+  const avatar = document.getElementById('op-avatar');
+  if (avatar) {
+    const parts = nome.trim().split(/\s+/);
+    const initials = parts.map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+    avatar.textContent = initials;
+    avatar.title = nome;
+  }
+  const badge = document.getElementById('evento-badge');
+  if (badge) badge.textContent = nome;
+  const csOp = document.getElementById('cs-operador-nome');
+  if (csOp) csOp.textContent = nome;
 }
 
 async function fazerLogin() {
@@ -353,6 +388,10 @@ async function carregarTudo() {
 
 /* ── Produtos ─────────────────────────────── */
 async function carregarProdutos() {
+  if (!produtos.length) {
+    renderSkeleton('venda-lista', 6, 'card');
+    renderSkeleton('stock-list', 4, 'list');
+  }
   try {
     const anteriores = [...produtos];
     produtos = await apiFetch('/produtos');
@@ -863,6 +902,24 @@ function limparCarrinhoConfirm() {
   limparCarrinho();
 }
 
+function limparCarrinhoConfirmSidebar() {
+  const btn = document.getElementById('cs-btn-clear');
+  if (!btn) return;
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    btn.textContent = '⚠ Confirmar?';
+    btn._timer = setTimeout(() => {
+      btn.classList.remove('confirming');
+      btn.textContent = '🗑 Limpar carrinho';
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn._timer);
+  btn.classList.remove('confirming');
+  btn.textContent = '🗑 Limpar carrinho';
+  limparCarrinho();
+}
+
 function atualizarCartBar() {
   const bar     = document.getElementById('cart-bar');
   const badge   = document.getElementById('cart-badge');
@@ -898,6 +955,48 @@ function atualizarCartBar() {
     infoBtn.innerHTML = `<span style="font-size:11px;opacity:.8">${arrow}</span> ${totalItens} ${totalItens === 1 ? 'item' : 'itens'} · ${fmt(total)}`;
   }
   bar.classList.add('visible');
+  atualizarCartSidebar();
+}
+
+function atualizarCartSidebar() {
+  if (window.innerWidth <= 620) return;
+  const itemsEl  = document.getElementById('cs-items');
+  const emptyEl  = document.getElementById('cs-empty');
+  const footerEl = document.getElementById('cs-footer');
+  const totalEl  = document.getElementById('cs-total');
+  if (!itemsEl || !emptyEl || !footerEl) return;
+
+  const totalItens = carrinho.reduce((s, c) => s + c.qty, 0);
+
+  if (!totalItens) {
+    itemsEl.innerHTML = '';
+    emptyEl.style.display = '';
+    footerEl.style.display = 'none';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  footerEl.style.display = '';
+  if (totalEl) totalEl.textContent = fmt(totalCarrinho());
+
+  itemsEl.innerHTML = carrinho.map(c => {
+    const p = produtos.find(x => x.id === c.id);
+    if (!p) return '';
+    const comboActive = !venderAoCusto && p.combo_qtd && p.combo_preco && c.qty >= p.combo_qtd;
+    const precoUnit   = comboActive ? Number(p.combo_preco) : (venderAoCusto ? (p.custo || 0) : p.preco);
+    const subtotal    = precoUnit * c.qty;
+    return `<div class="cs-sidebar-item">
+      <div class="css-info">
+        <span class="css-name">${p.nome}</span>
+        <span class="css-price">${fmt(subtotal)}</span>
+      </div>
+      <div class="css-controls">
+        <button class="css-ctrl" onclick="removeCarrinho(${c.id})">−</button>
+        <span class="css-qty">${c.qty}</span>
+        <button class="css-ctrl" onclick="addCarrinho(${c.id})">+</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderCartSheet() {
@@ -966,6 +1065,7 @@ function renderCarrinho() {
   }
   renderVenda();
   atualizarCartBar();
+  atualizarCartSidebar();
 }
 
 /* ── Pagamento ────────────────────────────── */
@@ -1102,18 +1202,21 @@ async function desfazerUltimaVenda() {
 async function carregarResumo() {
   try {
     const r = await apiFetch('/vendas/resumo');
-    countUp(document.getElementById('m-vendas'), r.total_vendas,        v => String(Math.round(v)));
-    countUp(document.getElementById('m-total'),  r.total_arrecadado,    fmtShort);
-    countUp(document.getElementById('m-lucro'),  r.total_lucro,         fmtShort);
-    countUp(document.getElementById('h-vendas'), r.total_vendas,        v => String(Math.round(v)));
-    countUp(document.getElementById('h-total'),  r.total_arrecadado,    fmtShort);
-    countUp(document.getElementById('h-ticket'), r.ticket_medio,        fmtShort);
+    countUp(document.getElementById('m-vendas'),    r.total_vendas,      v => String(Math.round(v)));
+    countUp(document.getElementById('m-total'),     r.total_arrecadado,  fmtShort);
+    countUp(document.getElementById('m-lucro'),     r.total_lucro,       fmtShort);
+    countUp(document.getElementById('h-vendas'),    r.total_vendas,      v => String(Math.round(v)));
+    countUp(document.getElementById('h-total'),     r.total_arrecadado,  fmtShort);
+    countUp(document.getElementById('h-ticket'),    r.ticket_medio,      fmtShort);
+    countUp(document.getElementById('cs-m-vendas'), r.total_vendas,      v => String(Math.round(v)));
+    countUp(document.getElementById('cs-m-total'),  r.total_arrecadado,  fmtShort);
+    countUp(document.getElementById('cs-m-lucro'),  r.total_lucro,       fmtShort);
   } catch {}
 }
 
 async function carregarRelatorio() {
   const l = document.getElementById('relatorio-lista');
-  l.innerHTML = '<div class="loading">Carregando...</div>';
+  renderSkeleton('relatorio-lista', 5, 'list');
   try {
     const [itens, resumo, vendas, porOperador] = await Promise.all([
       apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo'), apiFetch('/vendas'),
@@ -1263,7 +1366,7 @@ async function deletarVenda(id, btn) {
 
 async function carregarHistorico() {
   const l = document.getElementById('historico-lista');
-  l.innerHTML = '<div class="loading">Carregando...</div>';
+  renderSkeleton('historico-lista', 5, 'list');
   try {
     const v = await apiFetch('/vendas');
     await carregarResumo();
@@ -1339,16 +1442,32 @@ function abrirQtyPicker(id) {
   const p = produtos.find(x => x.id === id);
   if (!p || p.estoque === 0) return;
   qtyPickerId = id;
-  const curQty = carrinho.find(c => c.id === id)?.qty || 0;
   document.getElementById('qm-nome').textContent    = p.nome;
   document.getElementById('qm-estoque').textContent = `${p.estoque} em estoque · R$${(p.preco).toFixed(2).replace('.',',')} cada`;
-  document.getElementById('qty-custom-inp').value   = '';
-  document.querySelectorAll('.qty-preset-btn').forEach(btn => {
-    btn.classList.toggle('active', Number(btn.dataset.qty) === curQty);
-  });
+  qmCurrentVal = '';
+  const display = document.getElementById('qm-display');
+  if (display) display.textContent = '0';
   document.getElementById('qty-overlay').classList.add('open');
   document.getElementById('qty-modal').classList.add('open');
-  setTimeout(() => document.getElementById('qty-custom-inp').focus(), 50);
+}
+
+function qmNumpad(key) {
+  if (key === 'clear') {
+    qmCurrentVal = '';
+  } else if (key === 'del') {
+    qmCurrentVal = qmCurrentVal.slice(0, -1);
+  } else {
+    if (qmCurrentVal.length >= 4) return;
+    qmCurrentVal += key;
+  }
+  const display = document.getElementById('qm-display');
+  if (display) display.textContent = qmCurrentVal || '0';
+}
+
+function confirmarQtyNumpad() {
+  const val = parseInt(qmCurrentVal) || 0;
+  if (val > 0) confirmarQtyPicker(val);
+  else fecharQtyPicker();
 }
 
 function fecharQtyPicker() {

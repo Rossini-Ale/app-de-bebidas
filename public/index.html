@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
+  <div class="pos-container">
   <div class="app">
     <header class="header">
       <div class="header-left">
@@ -20,6 +21,7 @@
         </div>
       </div>
       <div class="header-actions">
+        <div class="op-avatar" id="op-avatar" title="Operador">?</div>
         <button class="btn-refresh" id="btn-dark" onclick="toggleDarkMode()" title="Alternar tema">🌙</button>
         <button class="btn-refresh" id="btn-qr-cardapio" onclick="abrirQrCardapio()" title="QR Code do Cardápio">⬛</button>
         <button class="btn-refresh" onclick="location.reload()">↺</button>
@@ -30,10 +32,23 @@
 
     <nav class="tabs">
       <div id="tab-pill"></div>
-      <button class="tab active" data-tab="venda" onclick="showTab('venda')">Venda</button>
-      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">Estoque<span id="stock-tab-badge" class="tab-badge"></span></button>
-      <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">Relatório</button>
-      <button class="tab" data-tab="historico" onclick="showTab('historico')">Histórico</button>
+      <button class="tab active" data-tab="venda" onclick="showTab('venda')">
+        <span class="tab-icon">🛒</span>
+        <span class="tab-label">Venda</span>
+      </button>
+      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">
+        <span class="tab-icon">📦</span>
+        <span class="tab-label">Estoque</span>
+        <span id="stock-tab-badge" class="tab-badge"></span>
+      </button>
+      <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">
+        <span class="tab-icon">📊</span>
+        <span class="tab-label">Relatório</span>
+      </button>
+      <button class="tab" data-tab="historico" onclick="showTab('historico')">
+        <span class="tab-icon">📋</span>
+        <span class="tab-label">Histórico</span>
+      </button>
     </nav>
 
     <!-- ABA VENDA -->
@@ -218,7 +233,47 @@
       </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>
-  </div>
+  </div><!-- /app -->
+
+  <aside id="cart-sidebar">
+    <div class="cs-header">
+      <div class="cs-header-top">
+        <h2 class="cs-title">🛒 Carrinho</h2>
+        <span class="cs-operador" id="cs-operador-nome"></span>
+      </div>
+      <div class="cs-metrics-row">
+        <div class="cs-metric-item">
+          <span class="cs-metric-val" id="cs-m-vendas">—</span>
+          <span class="cs-metric-label">vendas</span>
+        </div>
+        <div class="cs-metric-sep"></div>
+        <div class="cs-metric-item">
+          <span class="cs-metric-val" id="cs-m-total">—</span>
+          <span class="cs-metric-label">arrecadado</span>
+        </div>
+        <div class="cs-metric-sep"></div>
+        <div class="cs-metric-item">
+          <span class="cs-metric-val cs-green" id="cs-m-lucro">—</span>
+          <span class="cs-metric-label">lucro</span>
+        </div>
+      </div>
+    </div>
+    <div class="cs-empty" id="cs-empty">
+      <div class="cs-empty-icon">🛒</div>
+      <p>Toque nos produtos para adicionar ao carrinho</p>
+    </div>
+    <div class="cs-items" id="cs-items"></div>
+    <div class="cs-footer" id="cs-footer" style="display:none">
+      <div class="cs-total-row">
+        <span class="cs-total-label">Total</span>
+        <span class="cs-total-val" id="cs-total">—</span>
+      </div>
+      <button class="cs-btn-clear" id="cs-btn-clear" onclick="limparCarrinhoConfirmSidebar()">🗑 Limpar carrinho</button>
+      <button class="cs-btn-confirm" onclick="abrirPagamento()">✓ Finalizar venda</button>
+    </div>
+  </aside>
+
+  </div><!-- /pos-container -->
 
   <!-- NAVEGAÇÃO INFERIOR (mobile) -->
   <nav id="bottom-nav">
@@ -322,24 +377,29 @@
     <p class="qm-label">Quantidade</p>
     <p id="qm-nome" class="qm-nome"></p>
     <p id="qm-estoque" class="qm-estoque"></p>
-    <div class="qty-presets">
-      <button class="qty-preset-btn" data-qty="1"  onclick="confirmarQtyPicker(1)">1</button>
-      <button class="qty-preset-btn" data-qty="2"  onclick="confirmarQtyPicker(2)">2</button>
-      <button class="qty-preset-btn" data-qty="3"  onclick="confirmarQtyPicker(3)">3</button>
-      <button class="qty-preset-btn" data-qty="5"  onclick="confirmarQtyPicker(5)">5</button>
-      <button class="qty-preset-btn" data-qty="10" onclick="confirmarQtyPicker(10)">10</button>
+    <div class="qm-numpad-display"><span id="qm-display">0</span></div>
+    <div class="qm-numpad">
+      <button class="qm-num-btn" onclick="qmNumpad('1')">1</button>
+      <button class="qm-num-btn" onclick="qmNumpad('2')">2</button>
+      <button class="qm-num-btn" onclick="qmNumpad('3')">3</button>
+      <button class="qm-num-btn" onclick="qmNumpad('4')">4</button>
+      <button class="qm-num-btn" onclick="qmNumpad('5')">5</button>
+      <button class="qm-num-btn" onclick="qmNumpad('6')">6</button>
+      <button class="qm-num-btn" onclick="qmNumpad('7')">7</button>
+      <button class="qm-num-btn" onclick="qmNumpad('8')">8</button>
+      <button class="qm-num-btn" onclick="qmNumpad('9')">9</button>
+      <button class="qm-num-btn qm-clear-btn" onclick="qmNumpad('clear')">C</button>
+      <button class="qm-num-btn" onclick="qmNumpad('0')">0</button>
+      <button class="qm-num-btn qm-del-btn" onclick="qmNumpad('del')">⌫</button>
     </div>
-    <div class="qm-custom">
-      <input id="qty-custom-inp" class="qm-custom-input" type="number" min="1" placeholder="Outro…"
-        onkeydown="if(event.key==='Enter')confirmarQtyCustom()" />
-      <button class="qm-confirm" onclick="confirmarQtyCustom()">✓ Adicionar</button>
-    </div>
+    <button class="qm-confirm" onclick="confirmarQtyNumpad()">✓ Adicionar</button>
+    <button class="pm-cancel" style="margin-top:8px" onclick="fecharQtyPicker()">Cancelar</button>
   </div>
 
   <!-- ANIMAÇÃO DE SUCESSO -->
   <div id="success-anim"><div class="success-circle">✓</div></div>
 
-  <div class="toast" id="toast"></div>
+  <div class="toast" id="toast"><span id="toast-msg"></span><div class="toast-progress" id="toast-progress"></div></div>
 
   <!-- TELA DE LOGIN -->
   <div id="login-screen">

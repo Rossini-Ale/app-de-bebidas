@@ -320,17 +320,8 @@ function ocultarLogin() {
 }
 
 function setOperadorBadge(nome) {
-  const avatar = document.getElementById('op-avatar');
-  if (avatar) {
-    const parts = nome.trim().split(/\s+/);
-    const initials = parts.map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
-    avatar.textContent = initials;
-    avatar.title = nome;
-  }
   const badge = document.getElementById('evento-badge');
   if (badge) badge.textContent = nome;
-  const csOp = document.getElementById('cs-operador-nome');
-  if (csOp) csOp.textContent = nome;
 }
 
 async function fazerLogin() {
@@ -1294,7 +1285,6 @@ function renderRelatorioLista() {
     const lucro      = Number(item.lucro);
     const custoTotal = Number(item.custo_total);
     const qtdCusto   = Number(item.qtd_custo  || 0);
-    const qtdNormal  = Number(item.qtd_normal || 0);
     const recNormal  = Number(item.receita_normal || 0);
     const recCusto   = Number(item.receita_custo  || 0);
     const pct        = Math.max(0, Math.min(100, Math.round((receita / maxReceita) * 100)));
@@ -1678,7 +1668,6 @@ async function gerarPDF() {
 
     const linhas = itens.filter(i => Number(i.qtd_vendida) > 0).map(item => {
       const qtd        = Number(item.qtd_vendida);
-      const qtdN       = Number(item.qtd_normal || 0);
       const qtdC       = Number(item.qtd_custo  || 0);
       const receita    = Number(item.receita);
       const custoTotal = Number(item.custo_total);

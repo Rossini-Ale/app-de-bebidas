@@ -21,7 +21,6 @@
         </div>
       </div>
       <div class="header-actions">
-        <div class="op-avatar" id="op-avatar" title="Operador">?</div>
         <button class="btn-refresh" id="btn-dark" onclick="toggleDarkMode()" title="Alternar tema">🌙</button>
         <button class="btn-refresh" id="btn-qr-cardapio" onclick="abrirQrCardapio()" title="QR Code do Cardápio">⬛</button>
         <button class="btn-refresh" onclick="location.reload()">↺</button>
@@ -32,23 +31,10 @@
 
     <nav class="tabs">
       <div id="tab-pill"></div>
-      <button class="tab active" data-tab="venda" onclick="showTab('venda')">
-        <span class="tab-icon">🛒</span>
-        <span class="tab-label">Venda</span>
-      </button>
-      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">
-        <span class="tab-icon">📦</span>
-        <span class="tab-label">Estoque</span>
-        <span id="stock-tab-badge" class="tab-badge"></span>
-      </button>
-      <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">
-        <span class="tab-icon">📊</span>
-        <span class="tab-label">Relatório</span>
-      </button>
-      <button class="tab" data-tab="historico" onclick="showTab('historico')">
-        <span class="tab-icon">📋</span>
-        <span class="tab-label">Histórico</span>
-      </button>
+      <button class="tab active" data-tab="venda" onclick="showTab('venda')">Venda</button>
+      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">Estoque<span id="stock-tab-badge" class="tab-badge"></span></button>
+      <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">Relatório</button>
+      <button class="tab" data-tab="historico" onclick="showTab('historico')">Histórico</button>
     </nav>
 
     <!-- ABA VENDA -->
@@ -237,27 +223,13 @@
 
   <aside id="cart-sidebar">
     <div class="cs-header">
-      <div class="cs-header-top">
-        <h2 class="cs-title">🛒 Carrinho</h2>
-        <span class="cs-operador" id="cs-operador-nome"></span>
-      </div>
-      <div class="cs-metrics-row">
-        <div class="cs-metric-item">
-          <span class="cs-metric-val" id="cs-m-vendas">—</span>
-          <span class="cs-metric-label">vendas</span>
-        </div>
-        <div class="cs-metric-sep"></div>
-        <div class="cs-metric-item">
-          <span class="cs-metric-val" id="cs-m-total">—</span>
-          <span class="cs-metric-label">arrecadado</span>
-        </div>
-        <div class="cs-metric-sep"></div>
-        <div class="cs-metric-item">
-          <span class="cs-metric-val cs-green" id="cs-m-lucro">—</span>
-          <span class="cs-metric-label">lucro</span>
-        </div>
-      </div>
+      <h2 class="cs-title">Carrinho</h2>
     </div>
+    <!-- métricas ocultas para countUp continuar funcionando -->
+    <span id="cs-m-vendas" style="display:none"></span>
+    <span id="cs-m-total"  style="display:none"></span>
+    <span id="cs-m-lucro"  style="display:none"></span>
+    <span id="cs-operador-nome" style="display:none"></span>
     <div class="cs-empty" id="cs-empty">
       <div class="cs-empty-icon">🛒</div>
       <p>Toque nos produtos para adicionar ao carrinho</p>

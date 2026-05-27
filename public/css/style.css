@@ -1311,43 +1311,10 @@ button { touch-action: manipulation; }
 .cs-header {
   background: linear-gradient(135deg, #92400E 0%, #D97706 100%);
   color: #FEF3C7;
-  padding: 14px 16px 12px;
+  padding: 14px 16px;
   flex-shrink: 0;
 }
-.cs-header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-.cs-title { font-size: 15px; font-weight: 800; color: #FEF3C7; }
-.cs-operador {
-  font-size: 11px; font-weight: 600;
-  color: rgba(255,255,255,.8);
-  background: rgba(255,255,255,.15);
-  border-radius: 20px;
-  padding: 3px 10px;
-  max-width: 120px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.cs-metrics-row {
-  display: flex; align-items: center;
-  background: rgba(0,0,0,.14);
-  border-radius: 8px;
-  padding: 8px 4px;
-}
-.cs-metric-item { flex: 1; text-align: center; }
-.cs-metric-val {
-  display: block; font-size: 15px; font-weight: 800;
-  color: #FEF3C7; line-height: 1.2;
-}
-.cs-metric-val.cs-green { color: #6EE7B7; }
-.cs-metric-label {
-  display: block; font-size: 9px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: .04em;
-  color: rgba(255,255,255,.6); margin-top: 2px;
-}
-.cs-metric-sep { width: 1px; height: 28px; background: rgba(255,255,255,.2); flex-shrink: 0; }
+.cs-title { font-size: 14px; font-weight: 700; color: #FEF3C7; letter-spacing: .04em; text-transform: uppercase; }
 
 /* Empty state */
 .cs-empty {
@@ -1413,19 +1380,9 @@ button { touch-action: manipulation; }
 .cs-btn-confirm:hover, .cs-btn-confirm:active { background: var(--green-d); }
 
 /* ═══════════════════════════════════════════
-   TABS COM ÍCONES
+   TABS (sem ícones — reverter ao padrão)
 ════════════════════════════════════════════ */
-.tab {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-height: 56px;
-  padding: 6px 4px;
-}
-.tab-icon { font-size: 16px; line-height: 1.2; }
-.tab-label { font-size: 11px; font-weight: 600; }
-.tab.active .tab-label { font-weight: 800; }
+.tab-icon, .tab-label { display: inline; }
 
 /* ═══════════════════════════════════════════
    OPERADOR AVATAR

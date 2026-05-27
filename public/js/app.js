@@ -929,13 +929,6 @@ function atualizarCartBar() {
     return;
   }
 
-  // Abre o sheet automaticamente sempre que há itens
-  if (!cartSheetOpen) {
-    cartSheetOpen = true;
-    renderCartSheet();
-    sheet?.classList.add('open');
-  }
-
   const total = totalCarrinho();
 
   if (infoBtn) {

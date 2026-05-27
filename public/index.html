@@ -21,6 +21,7 @@
       </div>
       <div class="header-actions">
         <button class="btn-refresh" id="btn-dark" onclick="toggleDarkMode()" title="Alternar tema">🌙</button>
+        <button class="btn-refresh" id="btn-qr-cardapio" onclick="abrirQrCardapio()" title="QR Code do Cardápio">⬛</button>
         <button class="btn-refresh" onclick="location.reload()">↺</button>
         <button class="btn-refresh btn-logout" id="btn-logout" onclick="fazerLogout()" title="Sair">⎋</button>
       </div>
@@ -28,10 +29,10 @@
 
     <nav class="tabs">
       <div id="tab-pill"></div>
-      <button class="tab active" data-tab="venda" onclick="showTab('venda')">🛒 Venda</button>
-      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">📦 Estoque</button>
-      <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">📊 Relatório</button>
-      <button class="tab" data-tab="historico" onclick="showTab('historico')">📋 Histórico</button>
+      <button class="tab active" data-tab="venda" onclick="showTab('venda')">Venda</button>
+      <button class="tab" data-tab="estoque" onclick="showTab('estoque')">Estoque<span id="stock-tab-badge" class="tab-badge"></span></button>
+      <button class="tab" data-tab="relatorio" onclick="showTab('relatorio')">Relatório</button>
+      <button class="tab" data-tab="historico" onclick="showTab('historico')">Histórico</button>
     </nav>
 
     <!-- ABA VENDA -->
@@ -56,6 +57,7 @@
         <input id="busca-produto" class="input search-inp" type="search" placeholder="Buscar produto…"
           oninput="renderVenda()" autocomplete="off" />
       </div>
+      <div id="cat-filter-venda" class="sort-bar" style="margin-bottom:6px"></div>
       <div id="sort-venda" class="sort-bar">
         <button class="sort-btn active" data-sort="vendido" onclick="setSortVenda('vendido')">🔥 Vendidos</button>
         <button class="sort-btn" data-sort="az" onclick="setSortVenda('az')">A-Z</button>
@@ -69,12 +71,42 @@
       <div class="card-form">
         <h3>+ Adicionar produto</h3>
         <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
+        <input id="new-cat" class="input" placeholder="Categoria (ex: Bebidas, Comidas…)" type="text" list="cat-list" autocomplete="off" style="margin-bottom:8px" />
+        <datalist id="cat-list">
+          <option value="Bebidas">
+          <option value="Comidas">
+          <option value="Outros">
+        </datalist>
         <div class="form-row three">
           <input id="new-price" class="input" placeholder="Preço de venda R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
           <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
           <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <input id="new-min-stock"  class="input" placeholder="Estoque mínimo (alerta)" type="number" min="0" inputmode="numeric" />
+          <input id="new-fardo-qtd" class="input" placeholder="Un. por fardo (ex: 24)" type="number" min="2" inputmode="numeric" oninput="atualizarPlaceholderQty()" />
+        </div>
         <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
+        <label class="combo-toggle-label">
+          <input type="checkbox" id="new-combo-check" onchange="toggleComboRow('new')" />
+          Ativar combo por quantidade
+        </label>
+        <div class="combo-row" id="combo-row-new" style="display:none">
+          <input id="new-combo-qtd" class="input" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" />
+          <input id="new-combo-preco" class="input" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" />
+        </div>
+        <label class="combo-toggle-label" style="margin-top:4px">
+          <input type="checkbox" id="new-dose-check" onchange="toggleDoseRow('new')" />
+          Vender por dose (garrafa/ml)
+        </label>
+        <div class="dose-row" id="dose-row-new" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+            <input id="new-garrafa-ml" class="input" placeholder="ml da garrafa (ex: 700)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
+            <input id="new-dose-ml" class="input" placeholder="ml por dose (ex: 50)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
+          </div>
+          <input id="new-garrafa-preco" class="input" placeholder="Preço da garrafa inteira (ex: 45.00)" type="number" step="0.01" inputmode="decimal" oninput="calcularDose('new')" />
+          <div id="dose-hint-new" class="dose-hint">Preencha os ml da garrafa e da dose</div>
+        </div>
         <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
       </div>
       <div class="metrics" style="grid-template-columns:1fr;margin-top:1rem">
@@ -83,12 +115,18 @@
           <div class="value" id="m-produtos">—</div>
         </div>
       </div>
+      <div id="stock-alert-banner" class="stock-alert-banner" style="display:none">
+        <span class="sab-icon">⚠</span>
+        <span class="sab-msg" id="stock-alert-msg"></span>
+      </div>
       <div id="sort-estoque" class="sort-bar">
         <button class="sort-btn active" data-sort="az" onclick="setSortEstoque('az')">A-Z</button>
         <button class="sort-btn" data-sort="estoque" onclick="setSortEstoque('estoque')">Estoque</button>
         <button class="sort-btn" data-sort="vendido" onclick="setSortEstoque('vendido')">Vendidos</button>
       </div>
       <div id="stock-list"><div class="loading">Carregando...</div></div>
+      <p class="section-label" style="margin-top:1rem">Histórico de reposição</p>
+      <div id="reposicao-lista"></div>
     </div>
 
     <!-- ABA RELATÓRIO -->
@@ -127,6 +165,10 @@
         <button class="btn-whatsapp" onclick="compartilharWhatsApp()">📲 WhatsApp</button>
         <button class="btn-csv" onclick="exportarCSV()">⬇ CSV</button>
       </div>
+      <div class="rel-actions" style="margin-top:8px">
+        <button class="btn-cardapio" id="btn-exportar-cardapio" onclick="exportarCardapioPDF()">📋 Cardápio PDF</button>
+        <button class="btn-cardapio" onclick="abrirQrCardapio()">⬛ QR Cardápio</button>
+      </div>
       <p class="section-label" style="margin-top:1rem">Vendas por hora</p>
       <div class="grafico-horas" id="grafico-hora"></div>
 
@@ -138,6 +180,8 @@
         </div>
         <div id="fundo-resultado"></div>
       </div>
+      <p class="section-label" style="margin-top:1rem">Vendas por operador</p>
+      <div id="operador-lista"></div>
       <p class="section-label" style="margin-top:1rem">Desempenho por produto</p>
       <div id="sort-relatorio" class="sort-bar" style="margin-top:8px">
         <button class="sort-btn active" data-sort="vendido" onclick="setSortRelatorio('vendido')">Vendidos</button>
@@ -180,21 +224,44 @@
     <div id="bnav-pill"></div>
     <button class="bnav-tab active" data-tab="venda" onclick="showTab('venda')">
       <span class="bnav-icon-wrap">
-        <span class="bnav-icon">🛒</span>
+        <span class="bnav-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+        </span>
         <span id="cart-badge" class="cart-badge"></span>
       </span>
       <span class="bnav-label">Venda</span>
     </button>
     <button class="bnav-tab" data-tab="estoque" onclick="showTab('estoque')">
-      <span class="bnav-icon">📦</span>
+      <span class="bnav-icon-wrap">
+        <span class="bnav-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </span>
+        <span id="stock-nav-badge" class="cart-badge"></span>
+      </span>
       <span class="bnav-label">Estoque</span>
     </button>
     <button class="bnav-tab" data-tab="relatorio" onclick="showTab('relatorio')">
-      <span class="bnav-icon">📊</span>
+      <span class="bnav-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+      </span>
       <span class="bnav-label">Relatório</span>
     </button>
     <button class="bnav-tab" data-tab="historico" onclick="showTab('historico')">
-      <span class="bnav-icon">📋</span>
+      <span class="bnav-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </span>
       <span class="bnav-label">Histórico</span>
     </button>
   </nav>
@@ -279,8 +346,6 @@
       <h1 class="login-title">Caixa UNIFSP</h1>
       <p class="login-sub">Faça login para acessar</p>
       <div class="login-fields">
-        <input id="login-evento" class="input" type="text" placeholder="Nome do evento"
-          autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-operador').focus()" />
         <input id="login-operador" class="input" type="text" placeholder="Seu nome"
           autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()" />
         <input id="login-senha" class="input" type="password" placeholder="Senha"
@@ -288,6 +353,36 @@
       </div>
       <div id="login-erro" class="login-erro"></div>
       <button class="btn-primary" id="login-btn" onclick="fazerLogin()">Entrar</button>
+    </div>
+  </div>
+
+  <!-- PDF OVERLAY -->
+  <div id="pdf-overlay">
+    <div class="pdf-toolbar">
+      <button class="pdf-tb-btn" onclick="fecharPdfOverlay()">← Voltar</button>
+      <span class="pdf-toolbar-title">Relatório PDF</span>
+      <button class="pdf-tb-btn" onclick="imprimirPdf()">🖨 Imprimir</button>
+    </div>
+    <iframe id="pdf-frame" title="Relatório PDF"></iframe>
+  </div>
+
+  <datalist id="cat-list">
+    <option value="Bebidas">
+    <option value="Comidas">
+    <option value="Outros">
+  </datalist>
+
+  <!-- QR CODE MODAL -->
+  <div id="qr-overlay" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)fecharQr()">
+    <div style="background:var(--bg-card);border-radius:16px;padding:1.5rem;max-width:320px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <h3 style="margin-bottom:.5rem;font-size:16px">QR Code – Cardápio</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Escaneie para ver o cardápio</p>
+      <div id="qr-img-wrap" style="margin-bottom:1rem"></div>
+      <p id="qr-url" style="font-size:11px;color:var(--muted);word-break:break-all;margin-bottom:1rem"></p>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button class="btn-primary" style="flex:1" onclick="baixarQr()">⬇ Salvar imagem</button>
+        <button class="btn-secondary" style="flex:1" onclick="fecharQr()">Fechar</button>
+      </div>
     </div>
   </div>
 

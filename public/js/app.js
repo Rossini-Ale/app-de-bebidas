@@ -5,8 +5,10 @@ let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHi
 let histPagina = 1;
 const HIST_POR_PAG = 20;
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
-let dinheiroVendas = 0, wakeLock = null, reposicaoId = null;
+let dinheiroVendas = 0, wakeLock = null, reposicaoId = null, reposicaoModo = 'add';
 let eventoAtual = null, operadorAtual = 'Caixa', venderAoCusto = false;
+let categoriaFiltro = '';
+let wsConn = null, wsConectado = false;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -92,6 +94,85 @@ function toggleDarkMode() {
   if (btn) btn.textContent = next === 'dark' ? '☀' : '🌙';
 }
 
+/* ── Combo toggle ─────────────────────────── */
+function toggleComboRow(prefix) {
+  // new product uses 'new-combo-check'; edit products use 'combo-check-{id}'
+  const checkId = prefix === 'new' ? 'new-combo-check' : `combo-check-${prefix}`;
+  const check = document.getElementById(checkId);
+  const row = document.getElementById(`combo-row-${prefix}`);
+  if (row) row.style.display = check?.checked ? 'grid' : 'none';
+}
+
+/* Atualiza placeholder do campo Estoque conforme dose/fardo */
+function atualizarPlaceholderQty() {
+  const doseCheck = document.getElementById('new-dose-check');
+  const fardoQtd  = parseInt(document.getElementById('new-fardo-qtd')?.value) || 0;
+  const qtyEl     = document.getElementById('new-qty');
+  if (!qtyEl) return;
+  if (doseCheck?.checked) return; // dose já gerencia o placeholder
+  qtyEl.placeholder = fardoQtd >= 2 ? `Fardos (1 = ${fardoQtd} un.)` : 'Estoque';
+}
+
+function atualizarBadgeEstoque() {
+  const baixos = produtos.filter(p => Number(p.estoque_minimo) > 0 && p.estoque <= Number(p.estoque_minimo));
+  const n = baixos.length;
+
+  // Badge no bottom nav (mobile)
+  const navBadge = document.getElementById('stock-nav-badge');
+  if (navBadge) { navBadge.textContent = n; navBadge.classList.toggle('show', n > 0); }
+
+  // Badge no tab desktop
+  const tabBadge = document.getElementById('stock-tab-badge');
+  if (tabBadge) { tabBadge.textContent = n; tabBadge.classList.toggle('show', n > 0); }
+
+  // Banner dentro da aba Estoque
+  const banner = document.getElementById('stock-alert-banner');
+  const msg    = document.getElementById('stock-alert-msg');
+  if (banner && msg) {
+    if (n > 0) {
+      const nomes = baixos.map(p => `${p.nome} (${p.estoque}${Number(p.estoque_minimo) > 0 ? '/' + p.estoque_minimo : ''})`).join(', ');
+      msg.innerHTML = `<strong>${n} produto${n > 1 ? 's' : ''} abaixo do estoque mínimo:</strong> ${nomes}`;
+      banner.classList.add('show');
+    } else {
+      banner.classList.remove('show');
+    }
+  }
+}
+
+function toggleDoseRow(prefix) {
+  const checkId = prefix === 'new' ? 'new-dose-check' : `dose-check-${prefix}`;
+  const check = document.getElementById(checkId);
+  const row = document.getElementById(`dose-row-${prefix}`);
+  if (row) row.style.display = check?.checked ? 'block' : 'none';
+  // Atualiza placeholder do campo de estoque no formulário de novo produto
+  if (prefix === 'new') {
+    const qtyEl = document.getElementById('new-qty');
+    if (qtyEl) {
+      if (check?.checked) {
+        qtyEl.placeholder = 'Qtd de garrafas';
+      } else {
+        atualizarPlaceholderQty(); // usa fardo se houver
+      }
+    }
+  }
+}
+
+function calcularDose(prefix) {
+  const isNew = prefix === 'new';
+  const garMlEl  = document.getElementById(isNew ? 'new-garrafa-ml'    : `edit-garrafa-ml-${prefix}`);
+  const dMlEl    = document.getElementById(isNew ? 'new-dose-ml'        : `edit-dose-ml-${prefix}`);
+  const gPrecoEl = document.getElementById(isNew ? 'new-garrafa-preco'  : `edit-garrafa-preco-${prefix}`);
+  const hint     = document.getElementById(`dose-hint-${prefix}`);
+  if (!hint) return;
+  const garMl  = parseInt(garMlEl?.value)  || 0;
+  const dMl    = parseInt(dMlEl?.value)    || 0;
+  const gPreco = parseFloat(gPrecoEl?.value) || 0;
+  if (!garMl || !dMl) { hint.textContent = 'Preencha os ml da garrafa e da dose'; return; }
+  const doses = Math.floor(garMl / dMl);
+  const custo = gPreco > 0 ? gPreco / doses : null;
+  hint.textContent = `${doses} doses/garrafa${custo ? ` · Custo/dose: ${fmt(custo)}` : ''}`;
+}
+
 /* ── Wake Lock ────────────────────────────── */
 async function ativarWakeLock() {
   if (!('wakeLock' in navigator) || wakeLock) return;
@@ -145,7 +226,7 @@ function showTab(tab) {
   updateTabPill(tab);
   updateBnavPill(tab);
   if (tab === 'venda') ativarWakeLock(); else liberarWakeLock();
-  if (tab === 'estoque')   renderEstoque();
+  if (tab === 'estoque')   { renderEstoque(); carregarReposicoes(); }
   if (tab === 'historico') carregarHistorico();
   if (tab === 'relatorio') carregarRelatorio();
   if (tab === 'venda')     { carregarProdutos(); carregarResumo(); }
@@ -195,9 +276,8 @@ async function checkAuth() {
     const ev = await fetch(API + '/api/auth/me', { credentials: 'same-origin' });
     if (!ev.ok) { mostrarLogin(); return false; }
     const data = await ev.json();
-    eventoAtual   = data;
     operadorAtual = data.operador || 'Caixa';
-    setEventoBadge(data.nome);
+    setOperadorBadge(operadorAtual);
     return true;
   } catch { mostrarLogin(); return false; }
 }
@@ -206,7 +286,7 @@ function mostrarLogin() {
   document.getElementById('login-screen').classList.add('visible');
   document.getElementById('btn-logout').style.display = 'none';
   document.getElementById('evento-badge').textContent = '';
-  setTimeout(() => document.getElementById('login-evento').focus(), 100);
+  setTimeout(() => document.getElementById('login-operador').focus(), 100);
 }
 
 function ocultarLogin() {
@@ -214,17 +294,15 @@ function ocultarLogin() {
   document.getElementById('btn-logout').style.display = '';
 }
 
-function setEventoBadge(nome) {
+function setOperadorBadge(nome) {
   document.getElementById('evento-badge').textContent = nome;
 }
 
 async function fazerLogin() {
   const btn      = document.getElementById('login-btn');
-  const evento   = document.getElementById('login-evento').value.trim();
   const operador = document.getElementById('login-operador').value.trim();
   const senha    = document.getElementById('login-senha').value;
   const erro     = document.getElementById('login-erro');
-  if (!evento)   { erro.textContent = 'Informe o nome do evento'; return; }
   if (!operador) { erro.textContent = 'Informe seu nome'; return; }
   if (!senha)    { erro.textContent = 'Informe a senha'; return; }
   erro.textContent = '';
@@ -234,13 +312,12 @@ async function fazerLogin() {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ evento, operador, senha })
+      body: JSON.stringify({ operador, senha })
     });
     const json = await data.json();
     if (!data.ok) { erro.textContent = json.error || 'Erro ao entrar'; return; }
-    eventoAtual   = json.evento;
     operadorAtual = json.operador || operador;
-    setEventoBadge(json.evento.nome);
+    setOperadorBadge(operadorAtual);
     ocultarLogin();
     relatorioItens = null; historicoVendas = null;
     carregarTudo();
@@ -250,10 +327,9 @@ async function fazerLogin() {
 
 async function fazerLogout() {
   await fetch(API + '/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
-  eventoAtual = null;
+  operadorAtual = 'Caixa';
   produtos = []; carrinho = [];
   relatorioItens = null; historicoVendas = null;
-  document.getElementById('login-evento').value   = '';
   document.getElementById('login-operador').value = '';
   document.getElementById('login-senha').value    = '';
   mostrarLogin();
@@ -297,7 +373,23 @@ async function carregarProdutos() {
   }
 }
 
+function renderCatFiltros() {
+  const el = document.getElementById('cat-filter-venda');
+  if (!el) return;
+  const cats = [...new Set(produtos.map(p => p.categoria || '').filter(Boolean))].sort();
+  if (!cats.length) { el.innerHTML = ''; return; }
+  el.innerHTML = [{ label: 'Todos', val: '' }, ...cats.map(c => ({ label: c, val: c }))]
+    .map(item => `<button class="sort-btn${categoriaFiltro === item.val ? ' active' : ''}" onclick="setCatFiltro('${item.val}')">${item.label}</button>`)
+    .join('');
+}
+
+function setCatFiltro(cat) {
+  categoriaFiltro = cat;
+  renderVenda();
+}
+
 function renderVenda() {
+  renderCatFiltros();
   const l = document.getElementById('venda-lista');
   if (!produtos.length) {
     l.innerHTML = '<div class="empty-state">Nenhum produto cadastrado</div>';
@@ -311,35 +403,45 @@ function renderVenda() {
     return (vendidoMap[b.id] || 0) - (vendidoMap[a.id] || 0);
   });
   const termo = (document.getElementById('busca-produto')?.value || '').trim().toLowerCase();
-  const lista = termo ? sorted.filter(p => p.nome.toLowerCase().includes(termo)) : sorted;
+  let lista = termo ? sorted.filter(p => p.nome.toLowerCase().includes(termo)) : sorted;
+  if (categoriaFiltro) lista = lista.filter(p => (p.categoria || '') === categoriaFiltro);
   const maxEstoque = Math.max(...lista.map(p => p.estoque), 1);
 
-  if (lista.length === 0 && termo) {
+  if (lista.length === 0) {
     l.innerHTML = '<div class="empty-state">Nenhum produto encontrado</div>';
     return;
   }
 
   l.innerHTML = '<div class="produto-grid">' + lista.map(p => {
+    const isDose     = !!(p.dose_ml && p.garrafa_ml);
+    const unidade    = isDose ? 'doses' : 'un.';
     const noStock    = p.estoque === 0;
-    const veryLow    = p.estoque > 0 && p.estoque <= 24;
-    const lowStock   = p.estoque > 0 && p.estoque <= 50;
+    const minimo     = Number(p.estoque_minimo) || 0;
+    const veryLow    = p.estoque > 0 && minimo > 0 && p.estoque <= minimo;
+    const lowStock   = p.estoque > 0 && minimo > 0 && p.estoque > minimo && p.estoque <= minimo * 2;
     const itemCart   = carrinho.find(c => c.id === p.id);
     const inCart     = !!itemCart;
+    const comboActive = inCart && p.combo_qtd && p.combo_preco && itemCart.qty >= p.combo_qtd;
     const badge      = inCart ? `<span class="pc-badge" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${itemCart.qty}</span>` : '';
     const stockLabel = noStock  ? 'Sem estoque' :
-                       veryLow  ? `⚠ ${p.estoque} un.` :
-                                  `${p.estoque} un.`;
+                       veryLow  ? `⚠ ${p.estoque} ${unidade}` :
+                                  `${p.estoque} ${unidade}`;
     const classes    = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : '',
-                        veryLow ? 'very-low-stock' : lowStock ? 'low-stock' : ''].filter(Boolean).join(' ');
+                        veryLow ? 'very-low-stock' : lowStock ? 'low-stock' : '',
+                        comboActive ? 'combo-active' : ''].filter(Boolean).join(' ');
     const onclick    = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
     const barPct     = noStock ? 0 : Math.round((p.estoque / maxEstoque) * 100);
-    const barColor   = p.estoque <= 24 ? 'var(--red)' : p.estoque <= 50 ? 'var(--amber)' : 'var(--green)';
+    const barColor   = veryLow ? 'var(--red)' : lowStock ? 'var(--amber)' : 'var(--green)';
+    const comboBadge = (p.combo_qtd && p.combo_preco)
+      ? `<div class="pc-combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+    const doseBadge  = isDose
+      ? `<div class="pc-combo" style="color:var(--muted);background:var(--bg-sec);border-color:var(--border)">${p.dose_ml}ml/dose</div>` : '';
     return `<div class="${classes}" data-id="${p.id}" ${onclick}>
       ${badge}
       <div class="pc-nome">${p.nome}</div>
       <div class="pc-preco">${fmt(p.preco)}</div>
+      ${doseBadge}${comboBadge}
       <div class="pc-stock">${stockLabel}</div>
-      <button class="pc-btn" ${noStock ? 'disabled' : ''}>+</button>
       <div class="pc-stock-bar-wrap"><div class="pc-stock-bar" style="width:${barPct}%;background:${barColor}"></div></div>
     </div>`;
   }).join('') + '</div>';
@@ -357,8 +459,15 @@ function renderEstoque() {
     if (sortEstoque === 'estoque') return b.estoque - a.estoque;
     return (vendidoMap[b.id] || 0) - (vendidoMap[a.id] || 0);
   });
+  atualizarBadgeEstoque();
   l.innerHTML = sortedEstoque.map(p => {
     if (editingId === p.id) {
+      const hasCombo = !!(p.combo_qtd && p.combo_preco);
+      const hasDose  = !!(p.dose_ml && p.garrafa_ml);
+      const dPorG    = hasDose ? Math.floor(Number(p.garrafa_ml) / Number(p.dose_ml)) : 0;
+      const dHint    = hasDose
+        ? `${dPorG} doses/garrafa${p.garrafa_preco ? ` · Custo/dose: ${fmt(Number(p.garrafa_preco)/dPorG)}` : ''}`
+        : 'Preencha os ml da garrafa e da dose';
       return `<div class="stock-item editing">
         <div class="stock-edit-header">
           <span>Editando produto</span>
@@ -367,6 +476,29 @@ function renderEstoque() {
           <input class="input input-sm" id="edit-nome-${p.id}" value="${p.nome}" placeholder="Nome" type="text" style="grid-column:1/-1" />
           <input class="input input-sm" id="edit-preco-${p.id}" value="${fmtMoeda(p.preco)}" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
           <input class="input input-sm" id="edit-custo-${p.id}" value="${fmtMoeda(p.custo)}" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
+          <input class="input input-sm" id="edit-cat-${p.id}" value="${p.categoria || ''}" placeholder="Categoria" type="text" list="cat-list" autocomplete="off" style="grid-column:1/-1" />
+          <input class="input input-sm" id="edit-min-stock-${p.id}"  value="${p.estoque_minimo       || ''}" placeholder="Estoque mínimo (alerta)" type="number" min="0" style="grid-column:1/-1" />
+          <input class="input input-sm" id="edit-fardo-qtd-${p.id}" value="${p.unidades_por_fardo || ''}" placeholder="Un. por fardo (ex: 24)"  type="number" min="2" style="grid-column:1/-1" />
+        </div>
+        <label class="combo-toggle-label">
+          <input type="checkbox" id="combo-check-${p.id}" ${hasCombo ? 'checked' : ''} onchange="toggleComboRow('${p.id}')" />
+          Ativar combo por quantidade
+        </label>
+        <div class="combo-row" id="combo-row-${p.id}" style="display:${hasCombo ? 'grid' : 'none'}">
+          <input class="input input-sm" id="edit-combo-qtd-${p.id}" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" value="${p.combo_qtd || ''}" />
+          <input class="input input-sm" id="edit-combo-preco-${p.id}" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" value="${p.combo_preco ? (Number(p.combo_preco) * p.combo_qtd).toFixed(2) : ''}" />
+        </div>
+        <label class="combo-toggle-label" style="margin-top:2px">
+          <input type="checkbox" id="dose-check-${p.id}" ${hasDose ? 'checked' : ''} onchange="toggleDoseRow('${p.id}')" />
+          Vender por dose (garrafa/ml)
+        </label>
+        <div class="dose-row" id="dose-row-${p.id}" style="display:${hasDose ? 'block' : 'none'}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+            <input class="input input-sm" id="edit-garrafa-ml-${p.id}" placeholder="ml garrafa (ex: 700)" type="number" min="1" value="${p.garrafa_ml || ''}" oninput="calcularDose('${p.id}')" />
+            <input class="input input-sm" id="edit-dose-ml-${p.id}" placeholder="ml/dose (ex: 50)" type="number" min="1" value="${p.dose_ml || ''}" oninput="calcularDose('${p.id}')" />
+          </div>
+          <input class="input input-sm" id="edit-garrafa-preco-${p.id}" placeholder="Preço da garrafa inteira" type="number" step="0.01" value="${p.garrafa_preco || ''}" oninput="calcularDose('${p.id}')" style="margin-bottom:0" />
+          <div id="dose-hint-${p.id}" class="dose-hint">${dHint}</div>
         </div>
         <div class="stock-edit-actions">
           <button class="btn-save" onclick="salvarEdicao(${p.id})">✓ Salvar</button>
@@ -374,52 +506,128 @@ function renderEstoque() {
         </div>
       </div>`;
     }
-    const margem = p.custo > 0 ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null;
-    const isRepondo = reposicaoId === p.id;
-    const qtyColor = p.estoque === 0 ? 'color:var(--red)' : p.estoque <= 24 ? 'color:var(--red)' : p.estoque <= 50 ? 'color:var(--amber)' : '';
-    const qtyLabel = p.estoque <= 24 && p.estoque > 0 ? `⚠ ${p.estoque}` : `${p.estoque}`;
+    const hasDose       = !!(p.dose_ml && p.garrafa_ml);
+    const dosesPorGar   = hasDose ? Math.floor(Number(p.garrafa_ml) / Number(p.dose_ml)) : 1;
+    const unidade       = hasDose ? 'doses' : 'un.';
+    const margem        = p.custo > 0 ? Math.round(((p.preco - p.custo) / p.preco) * 100) : null;
+    const isRepondo     = reposicaoId === p.id;
+    const minimo        = Number(p.estoque_minimo) || 0;
+    const atMin         = minimo > 0 && p.estoque <= minimo;
+    const nearMin       = minimo > 0 && p.estoque > minimo && p.estoque <= minimo * 2;
+    const qtyColor      = p.estoque === 0 ? 'color:var(--red)' : atMin ? 'color:var(--red)' : nearMin ? 'color:var(--amber)' : '';
+    const qtyLabel      = (atMin || p.estoque === 0) ? `⚠ ${p.estoque}` : `${p.estoque}`;
+    const comboInfo     = (p.combo_qtd && p.combo_preco)
+      ? `<div class="stock-combo">Combo: ${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+    const hasFardo      = Number(p.unidades_por_fardo) >= 2;
+    const fardoQtd      = hasFardo ? Number(p.unidades_por_fardo) : 1;
+    const doseInfo      = hasDose
+      ? `<div class="stock-combo">🥃 ${p.dose_ml}ml/dose · ${dosesPorGar} doses/garrafa · ${p.estoque} doses em estoque</div>` : '';
+    const fardoInfo     = hasFardo
+      ? `<div class="stock-combo">📦 ${fardoQtd} un./fardo${p.estoque > 0 ? ` · ${(p.estoque / fardoQtd).toFixed(1)} fardo${p.estoque / fardoQtd !== 1 ? 's' : ''} em estoque` : ''}</div>` : '';
+    const reporLabel    = hasDose && reposicaoModo === 'add' ? '+ Repor garrafas'
+                        : hasFardo && reposicaoModo === 'add' ? '+ Repor fardos'
+                        : '+ Repor';
+    const reporPlaceholder = (hasDose && reposicaoModo === 'add')
+      ? `Garrafas (1 garrafa = ${dosesPorGar} doses)`
+      : (hasFardo && reposicaoModo === 'add')
+      ? `Fardos (1 fardo = ${fardoQtd} un.)`
+      : reposicaoModo === 'add' ? 'Qtd a adicionar…' : 'Qtd a retirar…';
     return `<div class="stock-item">
       <div class="stock-info">
         <div class="stock-name">${p.nome}</div>
-        <div class="stock-sub">Venda ${fmt(p.preco)} · Custo ${fmt(p.custo)}</div>
+        <div class="stock-sub">Venda ${fmt(p.preco)}${hasDose ? '/dose' : ''} · Custo ${fmt(p.custo)}${hasDose ? '/dose' : ''}</div>
         ${margem !== null ? `<div class="stock-margin">Margem: ${margem}%</div>` : ''}
+        ${doseInfo}${fardoInfo}${comboInfo}
         <div class="stock-actions">
+          <button class="stock-act-btn repor ${isRepondo && reposicaoModo==='add' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'add')">${reporLabel}</button>
+          <button class="stock-act-btn retirar ${isRepondo && reposicaoModo==='sub' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'sub')">− Retirar</button>
           <button class="stock-act-btn edit" onclick="editarProduto(${p.id})">✏ Editar</button>
-          <button class="stock-act-btn repor ${isRepondo ? 'active' : ''}" onclick="abrirReposicao(${p.id})">+ Repor</button>
           <button class="stock-act-btn del"  onclick="excluirProduto(${p.id}, this)">Excluir</button>
         </div>
         ${isRepondo ? `<div class="repor-row">
-          <input id="repor-inp-${p.id}" class="input repor-inp" type="number" min="1" placeholder="Qtd a adicionar…"
+          <input id="repor-inp-${p.id}" class="input repor-inp" type="number" min="1" placeholder="${reporPlaceholder}"
             onkeydown="if(event.key==='Enter')confirmarReposicao(${p.id})" />
-          <button class="btn-repor-ok" onclick="confirmarReposicao(${p.id})">✓ Adicionar</button>
+          <button class="btn-repor-ok ${reposicaoModo==='sub' ? 'retirar' : ''}" onclick="confirmarReposicao(${p.id})">${reposicaoModo==='add' ? '✓ Adicionar' : '✓ Retirar'}</button>
         </div>` : ''}
       </div>
       <div class="stock-qty">
-        <button class="qty-btn" onclick="ajustarEstoque(${p.id}, -1)">−</button>
         <span class="qty-num" style="${qtyColor}">${qtyLabel}</span>
-        <button class="qty-btn" onclick="ajustarEstoque(${p.id}, +1)">+</button>
       </div>
     </div>`;
   }).join('');
 }
 
-function abrirReposicao(id) {
+async function carregarReposicoes() {
+  const el = document.getElementById('reposicao-lista');
+  if (!el) return;
+  try {
+    const rows = await apiFetch('/produtos/reposicoes');
+    renderReposicoes(rows);
+  } catch (e) { el.innerHTML = ''; }
+}
+
+function renderReposicoes(rows) {
+  const el = document.getElementById('reposicao-lista');
+  if (!el) return;
+  if (!rows || !rows.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:1rem 0">Nenhuma reposição registrada</div>';
+    return;
+  }
+  el.innerHTML = rows.map(r => {
+    const qty = Number(r.quantidade);
+    const isNeg = qty < 0;
+    return `<div class="reposicao-item">
+      <div class="rep-info">
+        <span class="rep-nome">${r.produto_nome}</span>
+        <span class="rep-hora">${fmtDataHora(r.criado_em)}</span>
+      </div>
+      <div class="rep-right">
+        <span class="rep-qty" style="${isNeg ? 'color:var(--red)' : ''}">${isNeg ? qty : '+' + qty}</span>
+        <span class="rep-op">${r.operador}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function abrirReposicao(id, modo = 'add') {
   editingId = null;
-  reposicaoId = reposicaoId === id ? null : id;
+  if (reposicaoId === id && reposicaoModo === modo) {
+    reposicaoId = null;
+  } else {
+    reposicaoId = id;
+    reposicaoModo = modo;
+  }
   renderEstoque();
   if (reposicaoId) setTimeout(() => document.getElementById(`repor-inp-${id}`)?.focus(), 50);
 }
 
 async function confirmarReposicao(id) {
-  const delta = parseInt(document.getElementById(`repor-inp-${id}`)?.value || '0');
-  if (!delta || delta <= 0) return;
+  const val = parseInt(document.getElementById(`repor-inp-${id}`)?.value || '0');
+  if (!val || val <= 0) return;
+  const p = produtos.find(x => x.id === id);
+  const hasDose     = !!(p?.dose_ml && p?.garrafa_ml);
+  const dosesPorGar = hasDose ? Math.floor(Number(p.garrafa_ml) / Number(p.dose_ml)) : 1;
+  const hasFardo    = Number(p?.unidades_por_fardo) >= 2;
+  const fardoQtd    = hasFardo ? Number(p.unidades_por_fardo) : 1;
+  let quantidade;
+  if      (hasDose  && reposicaoModo === 'add') quantidade = val * dosesPorGar;
+  else if (hasFardo && reposicaoModo === 'add') quantidade = val * fardoQtd;
+  else                                          quantidade = val;
+  const delta = reposicaoModo === 'sub' ? -quantidade : quantidade;
   try {
-    const updated = await apiFetch(`/produtos/${id}/estoque`, { method: 'PATCH', body: JSON.stringify({ delta }) });
-    const i = produtos.findIndex(p => p.id === id);
+    const updated = await apiFetch(`/produtos/${id}/estoque`, { method: 'PATCH', body: JSON.stringify({ delta, registrar: true }) });
+    const i = produtos.findIndex(x => x.id === id);
     if (i >= 0) produtos[i] = updated;
     reposicaoId = null;
     renderEstoque(); renderVenda();
-    showToast(`+${delta} unidades adicionadas`, 'green-toast');
+    carregarReposicoes();
+    const msg = hasDose && reposicaoModo === 'add'
+      ? `+${val} garrafa${val > 1 ? 's' : ''} (${quantidade} doses) adicionadas`
+      : hasFardo && reposicaoModo === 'add'
+      ? `+${val} fardo${val > 1 ? 's' : ''} (${quantidade} un.) adicionados`
+      : delta > 0 ? `+${quantidade} ${hasDose ? 'doses' : 'unidades'} adicionadas`
+                  : `−${Math.abs(quantidade)} ${hasDose ? 'doses' : 'unidades'} retiradas`;
+    showToast(msg, delta > 0 ? 'green-toast' : '');
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
@@ -436,15 +644,38 @@ function cancelarEdicao() {
 }
 
 async function salvarEdicao(id) {
-  const nome  = document.getElementById(`edit-nome-${id}`).value.trim();
-  const preco = lerMoeda(`edit-preco-${id}`);
-  const custo = lerMoeda(`edit-custo-${id}`);
+  const nome     = document.getElementById(`edit-nome-${id}`).value.trim();
+  const preco    = lerMoeda(`edit-preco-${id}`);
+  const custo    = lerMoeda(`edit-custo-${id}`);
+  const categoria = (document.getElementById(`edit-cat-${id}`)?.value || '').trim();
+  const comboAtivo  = document.getElementById(`combo-check-${id}`)?.checked;
+  const comboQtdVal = parseInt(document.getElementById(`edit-combo-qtd-${id}`)?.value);
+  const comboPrecVal = parseFloat(document.getElementById(`edit-combo-preco-${id}`)?.value);
+  const estoqueMinimo    = parseInt(document.getElementById(`edit-min-stock-${id}`)?.value)  || 0;
+  const unidadesPorFardo = parseInt(document.getElementById(`edit-fardo-qtd-${id}`)?.value)  || null;
+  const doseAtivo        = document.getElementById(`dose-check-${id}`)?.checked;
+  const doseMlVal    = parseInt(document.getElementById(`edit-dose-ml-${id}`)?.value)    || null;
+  const garrafaMlVal = parseInt(document.getElementById(`edit-garrafa-ml-${id}`)?.value) || null;
+  const garrafaPreco = parseFloat(document.getElementById(`edit-garrafa-preco-${id}`)?.value) || null;
   if (!nome || isNaN(preco)) { showToast('⚠ Preencha nome e preço', 'error-toast'); return; }
+  if (comboAtivo && (isNaN(comboQtdVal) || comboQtdVal < 2 || isNaN(comboPrecVal) || comboPrecVal <= 0)) {
+    showToast('⚠ Preencha quantidade mínima (≥2) e preço do combo', 'error-toast'); return;
+  }
+  if (doseAtivo && (!doseMlVal || !garrafaMlVal)) {
+    showToast('⚠ Preencha ml da garrafa e ml por dose', 'error-toast'); return;
+  }
   const p = produtos.find(x => x.id === id);
   try {
     const updated = await apiFetch(`/produtos/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo: p.estoque_minimo })
+      body: JSON.stringify({
+        nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo: estoqueMinimo, categoria, unidades_por_fardo: unidadesPorFardo,
+        combo_qtd:    comboAtivo ? comboQtdVal    : null,
+        combo_preco:  comboAtivo ? comboPrecVal / comboQtdVal : null,
+        dose_ml:      doseAtivo  ? doseMlVal      : null,
+        garrafa_ml:   doseAtivo  ? garrafaMlVal   : null,
+        garrafa_preco: doseAtivo ? garrafaPreco   : null
+      })
     });
     const i = produtos.findIndex(x => x.id === id);
     if (i >= 0) produtos[i] = updated;
@@ -517,21 +748,62 @@ function setupFormEnter() {
 }
 
 async function addProduto() {
-  const nome    = document.getElementById('new-name').value.trim();
-  const preco   = lerMoeda('new-price');
-  const custo   = lerMoeda('new-cost');
-  const estoque = parseInt(document.getElementById('new-qty').value) || 0;
+  const nome       = document.getElementById('new-name').value.trim();
+  const preco      = lerMoeda('new-price');
+  const custo      = lerMoeda('new-cost');
+  const categoria  = (document.getElementById('new-cat')?.value || '').trim();
+  const comboAtivo   = document.getElementById('new-combo-check')?.checked;
+  const comboQtdVal  = parseInt(document.getElementById('new-combo-qtd')?.value);
+  const comboPrecVal = parseFloat(document.getElementById('new-combo-preco')?.value);
+  const estoqueMinimo    = parseInt(document.getElementById('new-min-stock')?.value)  || 0;
+  const unidadesPorFardo = parseInt(document.getElementById('new-fardo-qtd')?.value)   || null;
+  const doseAtivo        = document.getElementById('new-dose-check')?.checked;
+  const doseMlVal    = parseInt(document.getElementById('new-dose-ml')?.value)    || null;
+  const garrafaMlVal = parseInt(document.getElementById('new-garrafa-ml')?.value) || null;
+  const garrafaPreco = parseFloat(document.getElementById('new-garrafa-preco')?.value) || null;
   if (!nome) { showToast('⚠ Informe o nome do produto', 'error-toast'); return; }
+  if (comboAtivo && (isNaN(comboQtdVal) || comboQtdVal < 2 || isNaN(comboPrecVal) || comboPrecVal <= 0)) {
+    showToast('⚠ Preencha quantidade mínima (≥2) e preço do combo', 'error-toast'); return;
+  }
+  if (doseAtivo && (!doseMlVal || !garrafaMlVal)) {
+    showToast('⚠ Preencha ml da garrafa e ml por dose', 'error-toast'); return;
+  }
+  // Converte garrafas/fardos → unidades ao cadastrar
+  let estoqueRaw = parseInt(document.getElementById('new-qty').value) || 0;
+  let estoque = estoqueRaw;
+  if (doseAtivo && garrafaMlVal && doseMlVal) {
+    estoque = estoqueRaw * Math.floor(garrafaMlVal / doseMlVal);
+  } else if (unidadesPorFardo >= 2) {
+    estoque = estoqueRaw * unidadesPorFardo;
+  }
   try {
-    const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({ nome, preco, custo, estoque }) });
+    const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({
+      nome, preco, custo, estoque, estoque_minimo: estoqueMinimo, categoria, unidades_por_fardo: unidadesPorFardo,
+      combo_qtd:    comboAtivo ? comboQtdVal    : null,
+      combo_preco:  comboAtivo ? comboPrecVal / comboQtdVal : null,
+      dose_ml:      doseAtivo  ? doseMlVal      : null,
+      garrafa_ml:   doseAtivo  ? garrafaMlVal   : null,
+      garrafa_preco: doseAtivo ? garrafaPreco   : null
+    }) });
     produtos.push(novo);
-    ['new-name', 'new-price', 'new-cost', 'new-qty'].forEach(id => {
-      document.getElementById(id).value = '';
+    ['new-name', 'new-cat', 'new-price', 'new-cost', 'new-qty', 'new-min-stock', 'new-fardo-qtd',
+     'new-combo-qtd', 'new-combo-preco', 'new-garrafa-ml', 'new-dose-ml', 'new-garrafa-preco'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
     });
+    const comboCheck = document.getElementById('new-combo-check');
+    if (comboCheck) comboCheck.checked = false;
+    const comboRow = document.getElementById('combo-row-new');
+    if (comboRow) comboRow.style.display = 'none';
+    const doseCheck = document.getElementById('new-dose-check');
+    if (doseCheck) doseCheck.checked = false;
+    toggleDoseRow('new'); // reseta row + placeholder do qty
+    atualizarPlaceholderQty(); // garante reset do placeholder de fardo
     document.getElementById('margin-hint').textContent = 'Margem: —';
+    document.getElementById('dose-hint-new').textContent = 'Preencha os ml da garrafa e da dose';
     renderEstoque(); renderVenda();
     showToast('✓ ' + nome + ' adicionado!', 'green-toast');
-    document.getElementById('new-name').focus(); // volta o foco pro nome
+    document.getElementById('new-name').focus();
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
@@ -619,10 +891,7 @@ function atualizarCartBar() {
     sheet?.classList.add('open');
   }
 
-  const total = carrinho.reduce((s, c) => {
-    const p = produtos.find(x => x.id === c.id);
-    return s + p.preco * c.qty;
-  }, 0);
+  const total = totalCarrinho();
 
   if (infoBtn) {
     const arrow = cartSheetOpen ? '▾' : '▴';
@@ -636,14 +905,19 @@ function renderCartSheet() {
   if (!el) return;
   el.innerHTML = carrinho.map(c => {
     const p = produtos.find(x => x.id === c.id);
+    const comboActive = !venderAoCusto && p.combo_qtd && p.combo_preco && c.qty >= p.combo_qtd;
+    const precoUnit   = comboActive ? Number(p.combo_preco) : (venderAoCusto ? (p.custo || 0) : p.preco);
+    const total       = precoUnit * c.qty;
+    const comboLabel  = comboActive
+      ? ` <span class="cs-combo">Combo! ${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</span>` : '';
     return `<div class="cs-item">
-      <span class="cs-name">${p.nome}</span>
+      <span class="cs-name">${p.nome}${comboLabel}</span>
       <div class="cs-controls">
         <button class="cs-ctrl" onclick="removeCarrinho(${c.id})">−</button>
         <span class="cs-qty" id="csq-${c.id}" onclick="editQtyInline(${c.id})" title="Toque para editar">${c.qty}</span>
         <button class="cs-ctrl" onclick="addCarrinho(${c.id})">+</button>
       </div>
-      <span class="cs-price">${fmt(p.preco * c.qty)}</span>
+      <span class="cs-price">${fmt(total)}</span>
     </div>`;
   }).join('');
 }
@@ -698,6 +972,9 @@ function renderCarrinho() {
 function totalCarrinho() {
   return carrinho.reduce((s, c) => {
     const p = produtos.find(x => x.id === c.id);
+    if (!venderAoCusto && p.combo_qtd && p.combo_preco && c.qty >= p.combo_qtd) {
+      return s + Number(p.combo_preco) * c.qty;
+    }
     return s + (venderAoCusto ? (p.custo || 0) : p.preco) * c.qty;
   }, 0);
 }
@@ -838,8 +1115,9 @@ async function carregarRelatorio() {
   const l = document.getElementById('relatorio-lista');
   l.innerHTML = '<div class="loading">Carregando...</div>';
   try {
-    const [itens, resumo, vendas] = await Promise.all([
-      apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo'), apiFetch('/vendas')
+    const [itens, resumo, vendas, porOperador] = await Promise.all([
+      apiFetch('/vendas/relatorio'), apiFetch('/vendas/resumo'), apiFetch('/vendas'),
+      apiFetch('/vendas/por-operador')
     ]);
     relatorioItens = itens;
     historicoVendas = vendas;
@@ -876,8 +1154,23 @@ async function carregarRelatorio() {
 
     renderRelatorioLista();
     renderVendasPorHora(vendas);
+    renderOperadorLista(porOperador);
     carregarFundo();
   } catch (e) { l.innerHTML = `<div class="error-msg">Erro: ${e.message}</div>`; }
+}
+
+function renderOperadorLista(data) {
+  const el = document.getElementById('operador-lista');
+  if (!el) return;
+  if (!data || data.length <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = data.map(op => `
+    <div class="operador-card">
+      <span class="op-nome">${op.operador || 'Caixa'}</span>
+      <div class="op-stats">
+        <span class="op-vendas">${op.total_vendas} venda${op.total_vendas !== 1 ? 's' : ''}</span>
+        <span class="op-total">${fmt(op.total_arrecadado)}</span>
+      </div>
+    </div>`).join('');
 }
 
 function renderRelatorioLista() {
@@ -1359,13 +1652,321 @@ ${custoSplitHtml}
 </body>
 </html>`;
 
-    const w = window.open('', '_blank');
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => w.print(), 400);
+    const overlay = document.getElementById('pdf-overlay');
+    const frame   = document.getElementById('pdf-frame');
+    if (overlay && frame) {
+      const blob = new Blob([html], { type: 'text/html' });
+      const url  = URL.createObjectURL(blob);
+      frame.src  = url;
+      overlay.classList.add('open');
+      frame._blobUrl = url;
+    }
   } catch (e) { showToast('Erro ao gerar PDF: ' + e.message, 'error-toast'); }
-  finally { if (btn) { btn.textContent = '📄 Gerar PDF'; btn.disabled = false; } }
+  finally { if (btn) { btn.textContent = '📄 PDF'; btn.disabled = false; } }
+}
+
+function fecharPdfOverlay() {
+  const overlay = document.getElementById('pdf-overlay');
+  const frame   = document.getElementById('pdf-frame');
+  if (overlay) overlay.classList.remove('open');
+  if (frame) {
+    if (frame._blobUrl) { URL.revokeObjectURL(frame._blobUrl); frame._blobUrl = null; }
+    frame.src = '';
+  }
+}
+
+function imprimirPdf() {
+  const frame = document.getElementById('pdf-frame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+  }
+}
+
+/* ── WebSocket ────────────────────────────── */
+function conectarWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const url   = `${proto}://${location.host}`;
+  try {
+    wsConn = new WebSocket(url);
+  } catch (e) { return; }
+
+  wsConn.addEventListener('open', () => {
+    wsConectado = true;
+    document.getElementById('status-conexao').textContent = '● Online';
+    document.getElementById('status-conexao').className = 'status-ok';
+  });
+
+  wsConn.addEventListener('message', evt => {
+    try { handleWsMsg(JSON.parse(evt.data)); } catch (_) {}
+  });
+
+  wsConn.addEventListener('close', () => {
+    wsConectado = false;
+    wsConn = null;
+    setTimeout(conectarWS, 4000);
+  });
+
+  wsConn.addEventListener('error', () => {
+    wsConectado = false;
+  });
+}
+
+function handleWsMsg(data) {
+  if (!data || !data.type) return;
+  const activeTab = document.querySelector('.section.active')?.id;
+
+  switch (data.type) {
+    case 'produto_atualizado': {
+      const idx = produtos.findIndex(p => p.id === data.produto.id);
+      if (idx >= 0) produtos[idx] = data.produto;
+      else produtos.push(data.produto);
+      if (activeTab === 'tab-venda')   renderVenda();
+      if (activeTab === 'tab-estoque') renderEstoque();
+      break;
+    }
+    case 'produto_novo': {
+      if (!produtos.find(p => p.id === data.produto.id)) produtos.push(data.produto);
+      if (activeTab === 'tab-venda')   renderVenda();
+      if (activeTab === 'tab-estoque') renderEstoque();
+      break;
+    }
+    case 'produto_deletado': {
+      produtos = produtos.filter(p => p.id !== data.id);
+      if (activeTab === 'tab-venda')   renderVenda();
+      if (activeTab === 'tab-estoque') renderEstoque();
+      break;
+    }
+    case 'venda_nova':
+    case 'venda_deletada': {
+      carregarResumo();
+      if (activeTab === 'tab-historico') carregarHistorico();
+      if (activeTab === 'tab-relatorio') carregarRelatorio();
+      if (data.type === 'venda_nova') carregarProdutos();
+      break;
+    }
+    case 'reposicao_nova': {
+      if (activeTab === 'tab-estoque') carregarReposicoes();
+      break;
+    }
+  }
+}
+
+/* ── Exportar Cardápio PDF ───────────────── */
+function exportarCardapioPDF() {
+  const btn = document.getElementById('btn-exportar-cardapio');
+  if (btn) { btn.textContent = '⏳ Gerando...'; btn.disabled = true; }
+
+  const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
+
+  const cats = {};
+  [...produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).forEach(p => {
+    const cat = (p.categoria || '').trim() || 'Outros';
+    if (!cats[cat]) cats[cat] = [];
+    cats[cat].push(p);
+  });
+  const catOrder = ['Bebidas', 'Comidas', 'Outros'];
+  const catKeys = [...new Set([...catOrder, ...Object.keys(cats)])].filter(k => cats[k]);
+
+  const totalItens = Object.values(cats).reduce((s, arr) => s + arr.length, 0);
+  // Paisagem A4: escala colunas e fontes para caber tudo numa página
+  const numCols = totalItens <= 8  ? 4
+                : totalItens <= 16 ? 5
+                : totalItens <= 24 ? 6
+                : totalItens <= 35 ? 7
+                :                    8;
+  const nameSz  = numCols <= 4 ? '14px' : numCols <= 5 ? '13px' : numCols <= 6 ? '12px' : '11px';
+  const precoSz = numCols <= 4 ? '24px' : numCols <= 5 ? '21px' : numCols <= 6 ? '18px' : '16px';
+  const padCard = numCols <= 5 ? '10px 12px' : '7px 10px';
+
+  const catHtml = catKeys.map(cat => {
+    const items = cats[cat];
+    const rows = items.map(p => {
+      const isDose   = !!(p.dose_ml && p.garrafa_ml);
+      const unidade  = isDose ? 'doses' : 'un.';
+      const esgotado = p.estoque === 0;
+      const comboTxt = (p.combo_qtd && p.combo_preco)
+        ? `<div class="combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+      const doseTxt  = isDose
+        ? `<div class="dose-tag">${p.dose_ml}ml/dose</div>` : '';
+      return `<div class="item${esgotado ? ' esgotado' : ''}">
+        ${esgotado ? '<div class="esg-ribbon">Esgotado</div>' : ''}
+        <div class="item-nome">${p.nome}</div>
+        <div class="item-preco">${fmt(p.preco)}</div>
+        ${doseTxt}${comboTxt}
+      </div>`;
+    }).join('');
+    return `<div class="cat-block">
+      <div class="cat-header"><span class="cat-title">${cat}</span><span class="cat-line"></span></div>
+      <div class="grid">${rows}</div>
+    </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cardápio – Caixa UNIFSP</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  @page{size:A4 landscape;margin:8mm 10mm}
+  html,body{width:100%;height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    color:#1C0A00;background:#fff;
+    display:flex;flex-direction:column;
+  }
+
+  /* Cabeçalho compacto */
+  .page-header{
+    background:linear-gradient(135deg,#78350F 0%,#D97706 100%);
+    color:#FEF3C7;
+    padding:9px 18px 8px;
+    border-radius:8px;
+    margin-bottom:10px;
+    display:flex;align-items:center;justify-content:space-between;
+    flex-shrink:0;
+  }
+  .page-title{font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:1}
+  .page-sub{font-size:11px;opacity:.8;margin-top:2px}
+  .page-date{font-size:9px;opacity:.7;text-align:right}
+
+  /* Área de conteúdo cresce para preencher a página */
+  .content{flex:1;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+
+  /* Categoria */
+  .cat-block{display:flex;flex-direction:column;gap:6px}
+  .cat-header{display:flex;align-items:center;gap:8px}
+  .cat-title{
+    font-size:9px;font-weight:900;
+    text-transform:uppercase;letter-spacing:.15em;
+    color:#92400E;background:#FEF3C7;
+    border-left:3px solid #D97706;
+    padding:3px 10px 3px 7px;
+    border-radius:0 4px 4px 0;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .cat-line{flex:1;height:1px;background:#F3E0B0}
+
+  /* Grid de produtos */
+  .grid{display:grid;grid-template-columns:repeat(${numCols},1fr);gap:5px}
+
+  /* Card de produto */
+  .item{
+    border:1.5px solid #E8D5A0;
+    border-radius:7px;
+    padding:${padCard};
+    background:#FFFDF7;
+    position:relative;overflow:hidden;
+  }
+  .item.esgotado{opacity:.38;background:#F9F9F9;border-color:#E0E0E0}
+
+  .item-nome{
+    font-size:${nameSz};font-weight:800;
+    line-height:1.2;margin-bottom:4px;color:#1C0A00;
+  }
+  .item-preco{
+    font-size:${precoSz};font-weight:900;
+    color:#D97706;letter-spacing:-.3px;line-height:1;
+  }
+  .combo{
+    display:inline-block;font-size:9px;font-weight:700;
+    color:#065F46;background:#D1FAE5;
+    border:1px solid #6EE7B7;border-radius:3px;
+    padding:1px 5px;margin-top:4px;
+  }
+  .dose-tag{
+    display:inline-block;font-size:9px;font-weight:700;
+    color:#6B7280;background:#F3F4F6;
+    border:1px solid #D1D5DB;border-radius:3px;
+    padding:1px 5px;margin-top:4px;margin-right:3px;
+  }
+
+  /* Ribbon esgotado */
+  .esg-ribbon{
+    position:absolute;top:6px;right:-18px;
+    background:#DC2626;color:#fff;
+    font-size:7px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.05em;
+    padding:2px 22px;transform:rotate(35deg);
+  }
+
+  /* Rodapé */
+  .page-footer{
+    margin-top:6px;text-align:center;
+    font-size:8px;color:#B08050;
+    border-top:1px solid #E8D5A0;padding-top:5px;
+    flex-shrink:0;
+  }
+
+  @media print{
+    html,body{height:100%}
+    body{display:flex;flex-direction:column}
+    .content{flex:1}
+  }
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div>
+    <div class="page-title">Cardápio</div>
+    <div class="page-sub">Caixa UNIFSP</div>
+  </div>
+  <div class="page-date">Gerado em ${agora}</div>
+</div>
+<div class="content">${catHtml}</div>
+<div class="page-footer">Caixa UNIFSP · ${agora} · preços sujeitos a alteração</div>
+</body>
+</html>`;
+
+  const overlay = document.getElementById('pdf-overlay');
+  const frame   = document.getElementById('pdf-frame');
+  if (overlay && frame) {
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    frame.src  = url;
+    if (frame._blobUrl) URL.revokeObjectURL(frame._blobUrl);
+    frame._blobUrl = url;
+    overlay.classList.add('open');
+    document.querySelector('.pdf-toolbar-title').textContent = 'Cardápio PDF';
+  }
+  if (btn) { btn.textContent = '📋 Cardápio PDF'; btn.disabled = false; }
+}
+
+/* ── QR Code Cardápio ────────────────────── */
+async function abrirQrCardapio() {
+  const overlay = document.getElementById('qr-overlay');
+  const wrap    = document.getElementById('qr-img-wrap');
+  const urlEl   = document.getElementById('qr-url');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  wrap.innerHTML = '<div style="color:var(--muted);padding:2rem">Gerando QR…</div>';
+  try {
+    const res  = await fetch('/api/publico/cardapio-qr');
+    const svg  = await res.text();
+    wrap.innerHTML = svg;
+    const svgEl = wrap.querySelector('svg');
+    if (svgEl) { svgEl.style.width = '220px'; svgEl.style.height = '220px'; svgEl.style.display = 'block'; svgEl.style.margin = '0 auto'; }
+    const cardapioUrl = `${location.protocol}//${location.host}/cardapio`;
+    urlEl.textContent = cardapioUrl;
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:var(--red);font-size:13px">Erro ao gerar QR: ${e.message}</div>`;
+  }
+}
+function fecharQr() {
+  const overlay = document.getElementById('qr-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+function baixarQr() {
+  const svg = document.querySelector('#qr-img-wrap svg');
+  if (!svg) return;
+  const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'cardapio-qr.svg';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 /* ── Init ─────────────────────────────────── */
@@ -1376,7 +1977,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateBnavPill('venda', true);
   setupFormEnter();
   const ok = await checkAuth();
-  if (ok) { ativarWakeLock(); carregarTudo(); }
+  if (ok) { ativarWakeLock(); carregarTudo(); conectarWS(); }
 });
 
 document.addEventListener('visibilitychange', () => {
@@ -1386,6 +1987,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 setInterval(async () => {
+  if (wsConectado) return; // WS está ativo, não precisa de polling
   const a = document.querySelector('.section.active').id;
   if (a === 'tab-venda') { await carregarProdutos(); await carregarResumo(); }
-}, 10000);
+}, 60000);

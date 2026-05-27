@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cardápio – Caixa UNIFSP</title>
+  <style>
+    *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #FBF4E8;
+      --bg-card: #FFFFFF;
+      --bg-sec: #F2E9D0;
+      --text: #2C1A00;
+      --muted: #8B6530;
+      --border: rgba(160,100,20,.15);
+      --amber: #D97706;
+      --amber-d: #B45309;
+      --green: #059669;
+      --green-d: #047857;
+      --red: #DC2626;
+      --r: 12px;
+    }
+    [data-theme="dark"] {
+      --bg: #1A1108;
+      --bg-card: #241809;
+      --bg-sec: #2E200D;
+      --text: #FEF3C7;
+      --muted: #9B7A45;
+      --border: rgba(255,180,60,.12);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, #78350F 0%, #D97706 60%, #F59E0B 100%);
+      color: #FEF3C7;
+      padding: 1.25rem 1.25rem 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 3px 16px rgba(0,0,0,.22);
+    }
+    .header-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .header-title { font-size: 24px; font-weight: 900; letter-spacing: -.4px; line-height: 1.1; }
+    .header-sub   { font-size: 12px; opacity: .75; margin-top: 3px; letter-spacing: .02em; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .ts-badge {
+      font-size: 11px; font-weight: 600;
+      background: rgba(255,255,255,.2);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 20px; padding: 4px 10px;
+      white-space: nowrap;
+    }
+    .btn-theme {
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.3);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 16px;
+      cursor: pointer;
+      color: #FEF3C7;
+      min-width: 38px; min-height: 38px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .12s;
+    }
+    .btn-theme:hover { background: rgba(255,255,255,.3); }
+
+    /* ── STATUS BAR ── */
+    .status-bar {
+      max-width: 860px; margin: 0 auto;
+      padding: .4rem 1rem;
+      font-size: 11px; color: var(--muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .ws-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted); display: inline-block; flex-shrink: 0;
+    }
+    .ws-dot.connected { background: var(--green); }
+
+    /* ── MAIN ── */
+    main { max-width: 860px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+
+    /* ── CATEGORY SECTION ── */
+    .cat-section { margin-bottom: 2.5rem; }
+    .cat-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 16px; padding-bottom: 10px;
+      border-bottom: 2px solid var(--amber);
+    }
+    .cat-title {
+      font-size: 15px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: .12em;
+      color: var(--amber-d);
+    }
+    .cat-count {
+      font-size: 11px; color: var(--muted); font-weight: 700;
+      background: var(--bg-sec); border-radius: 20px;
+      padding: 2px 9px; margin-left: auto;
+    }
+
+    /* ── PRODUCT GRID ── */
+    .produto-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    @media (min-width: 480px) {
+      .produto-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (min-width: 700px) {
+      .produto-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    /* ── PRODUCT CARD ── */
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .produto-card {
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: var(--r);
+      padding: 18px 14px 16px;
+      text-align: center;
+      position: relative;
+      transition: border-color .15s, box-shadow .15s, transform .12s;
+      animation: cardIn .3s ease both;
+      overflow: hidden;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .produto-card:hover {
+      border-color: var(--amber);
+      box-shadow: 0 4px 18px rgba(217,119,6,.15);
+      transform: translateY(-2px);
+    }
+    .produto-card.esgotado { opacity: .45; }
+    .produto-card.esgotado:hover { transform: none; border-color: var(--border); box-shadow: none; }
+
+    /* Esgotado ribbon */
+    .ribbon-esgotado {
+      position: absolute;
+      top: 12px; right: -20px;
+      background: var(--red);
+      color: #fff;
+      font-size: 9px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: .07em;
+      padding: 4px 28px;
+      transform: rotate(35deg);
+      box-shadow: 0 2px 6px rgba(220,38,38,.35);
+    }
+
+    .pc-nome {
+      font-size: 15px; font-weight: 800;
+      line-height: 1.25; margin-bottom: 8px;
+      letter-spacing: -.1px;
+    }
+    .pc-preco {
+      font-size: 26px; font-weight: 900;
+      color: var(--amber);
+      letter-spacing: -.5px;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .pc-combo {
+      font-size: 11px; font-weight: 700;
+      color: var(--green-d);
+      background: #F0FDF4; border: 1px solid #A7F3D0;
+      border-radius: 6px; padding: 3px 8px;
+      display: inline-block; margin-top: 2px;
+    }
+    [data-theme="dark"] .pc-combo { background: rgba(5,150,105,.15); border-color: rgba(5,150,105,.3); }
+    .pc-stock.sem-estoque {
+      font-size: 11px; color: var(--red); font-weight: 700;
+      margin-top: 6px; letter-spacing: .03em;
+    }
+
+    /* ── LOADING / EMPTY ── */
+    .loading { text-align: center; padding: 4rem; color: var(--muted); font-size: 15px; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .loading .spinner {
+      font-size: 32px; display: block; margin-bottom: 12px;
+      animation: pulse 1.4s ease infinite;
+    }
+    .empty-state {
+      text-align: center; padding: 4rem;
+      color: var(--muted); font-size: 14px; line-height: 2.2;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center; padding: 1.5rem;
+      font-size: 12px; color: var(--muted);
+      border-top: 1px solid var(--border);
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <div class="header-title">Cardápio</div>
+        <div class="header-sub">Caixa UNIFSP</div>
+      </div>
+      <div class="header-right">
+        <span class="ts-badge" id="ts-badge">—</span>
+        <button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Alternar tema">🌙</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="status-bar">
+    <span class="ws-dot" id="ws-dot"></span>
+    <span id="ws-label">Conectando…</span>
+  </div>
+
+  <main id="cardapio-content">
+    <div class="loading">
+      <span class="spinner">🍺</span>
+      Carregando cardápio…
+    </div>
+  </main>
+
+  <footer>Cardápio atualizado em tempo real · Caixa UNIFSP</footer>
+
+  <script>
+    /* ── Tema ── */
+    function aplicarTema() {
+      const tema = localStorage.getItem('tema') || 'light';
+      document.documentElement.setAttribute('data-theme', tema);
+      document.getElementById('btn-theme').textContent = tema === 'dark' ? '☀' : '🌙';
+    }
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('tema', next);
+      document.getElementById('btn-theme').textContent = next === 'dark' ? '☀' : '🌙';
+    }
+    aplicarTema();
+
+    /* ── Formatação ── */
+    function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
+
+    /* ── Renderização ── */
+    function renderCardapio(produtos) {
+      const main = document.getElementById('cardapio-content');
+      if (!produtos || !produtos.length) {
+        main.innerHTML = '<div class="empty-state">Nenhum produto disponível no momento.</div>';
+        return;
+      }
+
+      const cats = {};
+      produtos.forEach(p => {
+        const cat = (p.categoria || '').trim() || '__sem_categoria__';
+        if (!cats[cat]) cats[cat] = [];
+        cats[cat].push(p);
+      });
+
+      Object.keys(cats).forEach(cat => {
+        cats[cat].sort((a, b) => {
+          if (a.estoque === 0 && b.estoque > 0) return 1;
+          if (b.estoque === 0 && a.estoque > 0) return -1;
+          return a.nome.localeCompare(b.nome, 'pt-BR');
+        });
+      });
+
+      const catOrder = ['Bebidas', 'Comidas', 'Outros'];
+      const extraCats = Object.keys(cats).filter(k => !catOrder.includes(k) && k !== '__sem_categoria__').sort();
+      const catKeys = [...catOrder, ...extraCats, '__sem_categoria__'].filter(k => cats[k]);
+
+      const hasMultipleCats = catKeys.filter(k => k !== '__sem_categoria__').length > 0;
+
+      let html = '';
+      catKeys.forEach((cat, catIdx) => {
+        const items = cats[cat];
+        html += '<div class="cat-section">';
+
+        if (hasMultipleCats && cat !== '__sem_categoria__') {
+          html += `<div class="cat-header">
+            <span class="cat-title">${cat}</span>
+            <span class="cat-count">${items.length} ${items.length === 1 ? 'item' : 'itens'}</span>
+          </div>`;
+        }
+
+        html += '<div class="produto-grid">';
+        items.forEach((p, i) => {
+          const isDose    = !!(p.dose_ml && p.garrafa_ml);
+          const unidade   = isDose ? 'doses' : 'un.';
+          const esgotado  = p.estoque === 0;
+          const delay     = (catIdx * 0.04 + i * 0.05).toFixed(2);
+          const cardClass = esgotado ? 'produto-card esgotado' : 'produto-card';
+          const stockHtml = esgotado ? '<div class="pc-stock sem-estoque">Esgotado</div>' : '';
+          const comboHtml = (p.combo_qtd && p.combo_preco)
+            ? `<div class="pc-combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+          const doseHtml  = isDose
+            ? `<div class="pc-combo" style="color:#6B7280;background:#F3F4F6;border-color:#D1D5DB">${p.dose_ml}ml por dose</div>` : '';
+          const ribbonHtml = esgotado ? '<div class="ribbon-esgotado">Esgotado</div>' : '';
+
+          html += `<div class="${cardClass}" style="animation-delay:${delay}s">
+            ${ribbonHtml}
+            <div class="pc-nome">${p.nome}</div>
+            <div class="pc-preco">${fmt(p.preco)}</div>
+            ${doseHtml}${comboHtml}
+            ${stockHtml}
+          </div>`;
+        });
+        html += '</div></div>';
+      });
+
+      main.innerHTML = html;
+    }
+
+    /* ── Timestamp ── */
+    function atualizarTimestamp() {
+      const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('ts-badge').textContent = 'Atualizado às ' + agora;
+    }
+
+    /* ── Carregar cardápio ── */
+    async function carregarCardapio() {
+      try {
+        const res = await fetch('/api/publico/produtos');
+        if (!res.ok) throw new Error('Erro ' + res.status);
+        const produtos = await res.json();
+        renderCardapio(produtos);
+        atualizarTimestamp();
+      } catch (e) {
+        document.getElementById('cardapio-content').innerHTML =
+          `<div class="empty-state">Não foi possível carregar o cardápio.<br/><small>${e.message}</small></div>`;
+      }
+    }
+
+    /* ── WebSocket ── */
+    let ws = null;
+    const REFRESH_EVENTS = new Set(['produto_atualizado', 'produto_novo', 'produto_deletado', 'estoque_atualizado']);
+
+    function conectarWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      try { ws = new WebSocket(`${proto}://${location.host}`); } catch (e) { setTimeout(conectarWS, 4000); return; }
+
+      ws.addEventListener('open', () => {
+        document.getElementById('ws-dot').classList.add('connected');
+        document.getElementById('ws-label').textContent = 'Ao vivo';
+      });
+      ws.addEventListener('message', evt => {
+        try { const d = JSON.parse(evt.data); if (d && REFRESH_EVENTS.has(d.type)) carregarCardapio(); } catch (_) {}
+      });
+      ws.addEventListener('close', () => {
+        document.getElementById('ws-dot').classList.remove('connected');
+        document.getElementById('ws-label').textContent = 'Reconectando…';
+        ws = null; setTimeout(conectarWS, 4000);
+      });
+      ws.addEventListener('error', () => document.getElementById('ws-dot').classList.remove('connected'));
+    }
+
+    carregarCardapio();
+    conectarWS();
+    setInterval(carregarCardapio, 30000);
+  </script>
+</body>
+</html>

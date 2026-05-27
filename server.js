@@ -4,7 +4,11 @@ const cors = require('cors');
 const path = require('path');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
+const http = require('http');
+const { WebSocketServer } = require('ws');
+const QRCode = require('qrcode');
 const db = require('./db');
+const appEvents = require('./events');
 
 const produtosRouter = require('./routes/produtos');
 const vendasRouter   = require('./routes/vendas');
@@ -24,37 +28,29 @@ app.use(session({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ── Auth routes (public) ─────────────────── */
+/* ── Auth routes (public) ─────────────────────── */
 app.post('/api/auth/login', async (req, res) => {
-  const { evento, senha } = req.body;
-  if (!evento || !senha) return res.status(400).json({ error: 'Informe o evento e a senha' });
+  const { operador, senha } = req.body;
+  if (!operador || !senha) return res.status(400).json({ error: 'Informe seu nome e a senha' });
   if (!bcrypt.compareSync(senha, SENHA_HASH)) return res.status(401).json({ error: 'Senha incorreta' });
   try {
-    const [existentes] = await db.query('SELECT id, nome FROM eventos WHERE nome = ?', [evento.trim()]);
-    let ev;
-    if (existentes.length > 0) {
-      ev = existentes[0];
-    } else {
-      const [r] = await db.query('INSERT INTO eventos (nome) VALUES (?)', [evento.trim()]);
-      ev = { id: r.insertId, nome: evento.trim() };
-    }
-    req.session.eventoId   = ev.id;
-    req.session.eventoNome = ev.nome;
-    req.session.operador   = (req.body.operador || '').trim() || 'Caixa';
-    res.json({ ok: true, evento: ev, operador: req.session.operador });
+    req.session.eventoId   = 1;
+    req.session.eventoNome = 'Caixa UNIFSP';
+    req.session.operador   = operador.trim();
+    res.json({ ok: true, operador: req.session.operador });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/auth/me', (req, res) => {
   if (!req.session.eventoId) return res.status(401).json({ error: 'Não autenticado' });
-  res.json({ id: req.session.eventoId, nome: req.session.eventoNome, operador: req.session.operador || 'Caixa' });
+  res.json({ operador: req.session.operador || 'Caixa' });
 });
 
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
 
-/* ── Auth middleware ──────────────────────── */
+/* ── Auth middleware ──────────────────────────── */
 function requireAuth(req, res, next) {
   if (!req.session.eventoId) return res.status(401).json({ error: 'Não autenticado' });
   req.eventoId  = req.session.eventoId;
@@ -65,6 +61,29 @@ function requireAuth(req, res, next) {
 app.use('/api/produtos', requireAuth, produtosRouter);
 app.use('/api/vendas',   requireAuth, vendasRouter);
 
+/* ── Cardápio público (sem autenticação) ── */
+app.get('/api/publico/produtos', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT id, nome, emoji, preco, custo, estoque, categoria, combo_qtd, combo_preco, dose_ml, garrafa_ml, garrafa_preco FROM produtos WHERE evento_id = 1 ORDER BY categoria, nome'
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/cardapio', (req, res) => res.sendFile(path.join(__dirname, 'public', 'cardapio.html')));
+
+app.get('/api/publico/cardapio-qr', async (req, res) => {
+  try {
+    const host = req.get('host');
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const url = `${proto}://${host}/cardapio`;
+    const svg = await QRCode.toString(url, { type: 'svg', margin: 2, width: 300 });
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.send(svg);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
@@ -74,7 +93,26 @@ db.getConnection()
     conn.release();
     await runMigrations();
     console.log('✅ MySQL conectado!');
-    app.listen(PORT, () => console.log(`🤠 Servidor na porta ${PORT}`));
+
+    const server = http.createServer(app);
+
+    /* ── WebSocket Server ──────────────────── */
+    const wss = new WebSocketServer({ server });
+
+    appEvents.on('broadcast', (msg) => {
+      const data = JSON.stringify(msg);
+      wss.clients.forEach(client => {
+        if (client.readyState === client.OPEN) {
+          client.send(data);
+        }
+      });
+    });
+
+    wss.on('connection', (ws) => {
+      ws.on('error', () => {});
+    });
+
+    server.listen(PORT, () => console.log(`🤠 Servidor na porta ${PORT}`));
   })
   .catch(err => { console.error('❌ Erro MySQL:', err.message); process.exit(1); });
 
@@ -92,9 +130,37 @@ async function runMigrations() {
   }
   for (const tbl of ['produtos', 'vendas']) {
     try { await db.query(`ALTER TABLE ${tbl} ADD COLUMN evento_id INT NOT NULL DEFAULT 1`); } catch (_) {}
-    await db.query(`UPDATE ${tbl} SET evento_id = 1 WHERE evento_id IS NULL OR evento_id = 0`);
+    await db.query(`UPDATE ${tbl} SET evento_id = 1`);
   }
   try { await db.query(`ALTER TABLE vendas ADD COLUMN forma_pagamento VARCHAR(10) NOT NULL DEFAULT 'dinheiro'`); } catch (_) {}
   try { await db.query(`ALTER TABLE vendas ADD COLUMN operador VARCHAR(50) NOT NULL DEFAULT 'Caixa'`); } catch (_) {}
   try { await db.query(`ALTER TABLE vendas ADD COLUMN ao_custo BOOLEAN NOT NULL DEFAULT FALSE`); } catch (_) {}
+
+  /* ── Reposições ──────────────────────────── */
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS reposicoes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      produto_id INT NOT NULL,
+      quantidade INT NOT NULL,
+      operador VARCHAR(50) NOT NULL DEFAULT 'Caixa',
+      evento_id INT NOT NULL DEFAULT 1,
+      criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  try { await db.query(`ALTER TABLE reposicoes ADD COLUMN evento_id INT NOT NULL DEFAULT 1`); } catch (_) {}
+
+  /* ── Categorias ──────────────────────────── */
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN categoria VARCHAR(50) NOT NULL DEFAULT ''`); } catch (_) {}
+
+  /* ── Combos por quantidade ───────────────── */
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN combo_qtd INT DEFAULT NULL`); } catch (_) {}
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN combo_preco DECIMAL(10,2) DEFAULT NULL`); } catch (_) {}
+
+  /* ── Venda por dose ──────────────────────── */
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN dose_ml INT DEFAULT NULL`); } catch (_) {}
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN garrafa_ml INT DEFAULT NULL`); } catch (_) {}
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN garrafa_preco DECIMAL(10,2) DEFAULT NULL`); } catch (_) {}
+
+  /* ── Fardo ───────────────────────────────── */
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN unidades_por_fardo INT DEFAULT NULL`); } catch (_) {}
 }

@@ -395,7 +395,25 @@
       <button class="admin-modal-close" onclick="fecharAdmin()">✕</button>
     </div>
 
-    <p class="admin-section-label">Evento</p>
+    <!-- Seção Sync Railway (só aparece quando RAILWAY_URL está configurada) -->
+    <div id="admin-sync-section" style="display:none">
+      <p class="admin-section-label" style="margin-top:16px">Backup do Railway</p>
+      <div class="admin-sync-card">
+        <div class="admin-sync-info">
+          <span class="admin-sync-icon">📡</span>
+          <div>
+            <span class="admin-sync-title">Sincronizar estoque com Railway</span>
+            <span class="admin-sync-sub" id="admin-sync-ultimo">Nunca sincronizado</span>
+          </div>
+        </div>
+        <button class="admin-btn-sync" id="btn-sync" onclick="sincronizarRailway()">
+          Sync
+        </button>
+      </div>
+      <p class="admin-hint" style="margin-top:6px">Use se a internet estiver falhando. Atualiza o estoque local com o estado atual do Railway.</p>
+    </div>
+
+    <p class="admin-section-label" style="margin-top:16px">Evento</p>
     <div class="admin-status-card" id="admin-status-card">
       <div class="admin-status-row">
         <span>Vendas registradas</span>

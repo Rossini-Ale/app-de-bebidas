@@ -1240,3 +1240,28 @@ button { touch-action: manipulation; }
   font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 .admin-btn-danger-confirm:active { opacity: .8; }
+
+/* Card de sync Railway */
+.admin-sync-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--bg-sec); border-radius: var(--r); padding: 14px 16px;
+}
+.admin-sync-info {
+  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
+}
+.admin-sync-icon { font-size: 22px; flex-shrink: 0; }
+.admin-sync-title {
+  font-size: 14px; font-weight: 700; color: var(--text); display: block;
+}
+.admin-sync-sub {
+  font-size: 12px; color: var(--muted); display: block; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.admin-btn-sync {
+  padding: 10px 18px; background: var(--amber); color: #fff;
+  border: none; border-radius: var(--r);
+  font-size: 14px; font-weight: 800; cursor: pointer; font-family: inherit;
+  flex-shrink: 0; transition: opacity .12s;
+}
+.admin-btn-sync:active  { opacity: .8; }
+.admin-btn-sync:disabled { opacity: .5; cursor: not-allowed; }

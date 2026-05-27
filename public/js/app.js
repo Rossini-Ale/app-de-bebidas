@@ -1757,6 +1757,12 @@ function handleWsMsg(data) {
       if (activeTab === 'tab-estoque')   carregarReposicoes();
       break;
     }
+    case 'sync_railway_concluido': {
+      // Outro dispositivo fez sync — recarrega produtos para refletir estoque atualizado
+      carregarProdutos();
+      showToast('🔄 Estoque sincronizado com Railway', '');
+      break;
+    }
   }
 }
 
@@ -2012,9 +2018,31 @@ async function abrirAdmin() {
     const s = await apiFetch('/admin/status');
     document.getElementById('admin-cnt-vendas').textContent = s.vendas;
     document.getElementById('admin-cnt-repos').textContent = s.reposicoes;
+    // Mostra seção de sync só quando RAILWAY_URL está configurada no servidor
+    document.getElementById('admin-sync-section').style.display = s.syncDisponivel ? 'block' : 'none';
   } catch (e) {
     document.getElementById('admin-cnt-vendas').textContent = 'erro';
     document.getElementById('admin-cnt-repos').textContent = 'erro';
+  }
+}
+
+async function sincronizarRailway() {
+  const btn = document.getElementById('btn-sync');
+  btn.disabled    = true;
+  btn.textContent = '⏳';
+  try {
+    const r = await apiFetch('/admin/sync-railway', { method: 'POST' });
+    // Registra horário do último sync
+    const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('admin-sync-ultimo').textContent = `Último sync: ${agora} — ${r.atualizados} atualizados, ${r.inseridos} novos`;
+    // Recarrega produtos na tela
+    await carregarProdutos();
+    showToast(`✅ Sync OK! ${r.total} produto${r.total !== 1 ? 's' : ''} sincronizado${r.total !== 1 ? 's' : ''}.`, 'green-toast');
+  } catch (e) {
+    showToast('❌ Sync falhou: ' + e.message, 'error-toast');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Sync';
   }
 }
 

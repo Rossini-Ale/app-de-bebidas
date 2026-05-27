@@ -1698,11 +1698,15 @@ function exportarCardapioPDF() {
   const catKeys = [...new Set([...catOrder, ...Object.keys(cats)])].filter(k => cats[k]);
 
   const totalItens = Object.values(cats).reduce((s, arr) => s + arr.length, 0);
-  // 2 colunas para poucos itens (leitura fácil), 3 colunas quando há muitos
-  const numCols  = totalItens > 12 ? 3 : 2;
-  const nameSz   = numCols === 3 ? '14px' : '17px';
-  const precoSz  = numCols === 3 ? '26px' : '32px';
-  const padCard  = numCols === 3 ? '11px 13px' : '14px 16px';
+  // Paisagem A4: escala colunas e fontes para caber tudo numa página
+  const numCols = totalItens <= 8  ? 4
+                : totalItens <= 16 ? 5
+                : totalItens <= 24 ? 6
+                : totalItens <= 35 ? 7
+                :                    8;
+  const nameSz  = numCols <= 4 ? '14px' : numCols <= 5 ? '13px' : numCols <= 6 ? '12px' : '11px';
+  const precoSz = numCols <= 4 ? '24px' : numCols <= 5 ? '21px' : numCols <= 6 ? '18px' : '16px';
+  const padCard = numCols <= 5 ? '10px 12px' : '7px 10px';
 
   const catHtml = catKeys.map(cat => {
     const items = cats[cat];
@@ -1734,99 +1738,101 @@ function exportarCardapioPDF() {
 <title>Cardápio – Caixa UNIFSP</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  @page{size:A4 portrait;margin:16mm 14mm}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1C0A00;background:#fff}
+  @page{size:A4 landscape;margin:8mm 10mm}
+  html,body{width:100%;height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    color:#1C0A00;background:#fff;
+    display:flex;flex-direction:column;
+  }
 
-  /* Cabeçalho */
+  /* Cabeçalho compacto */
   .page-header{
     background:linear-gradient(135deg,#78350F 0%,#D97706 100%);
     color:#FEF3C7;
-    padding:16px 24px 14px;
-    border-radius:10px;
-    margin-bottom:20px;
-    display:flex;align-items:flex-end;justify-content:space-between;
+    padding:9px 18px 8px;
+    border-radius:8px;
+    margin-bottom:10px;
+    display:flex;align-items:center;justify-content:space-between;
+    flex-shrink:0;
   }
-  .page-title{font-size:30px;font-weight:900;letter-spacing:-1px;line-height:1}
-  .page-sub{font-size:12px;opacity:.8;margin-top:3px}
-  .page-date{font-size:10px;opacity:.7;text-align:right}
+  .page-title{font-size:22px;font-weight:900;letter-spacing:-.5px;line-height:1}
+  .page-sub{font-size:11px;opacity:.8;margin-top:2px}
+  .page-date{font-size:9px;opacity:.7;text-align:right}
 
-  /* Categoria — sem break-inside para permitir fluir entre páginas */
-  .cat-block{margin-bottom:18px}
-  .cat-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  /* Área de conteúdo cresce para preencher a página */
+  .content{flex:1;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+
+  /* Categoria */
+  .cat-block{display:flex;flex-direction:column;gap:6px}
+  .cat-header{display:flex;align-items:center;gap:8px}
   .cat-title{
-    font-size:10px;font-weight:900;
+    font-size:9px;font-weight:900;
     text-transform:uppercase;letter-spacing:.15em;
-    color:#92400E;
-    background:#FEF3C7;
-    border-left:4px solid #D97706;
-    padding:4px 12px 4px 9px;
-    border-radius:0 5px 5px 0;
+    color:#92400E;background:#FEF3C7;
+    border-left:3px solid #D97706;
+    padding:3px 10px 3px 7px;
+    border-radius:0 4px 4px 0;
     white-space:nowrap;
+    flex-shrink:0;
   }
   .cat-line{flex:1;height:1px;background:#F3E0B0}
 
   /* Grid de produtos */
-  .grid{display:grid;grid-template-columns:repeat(${numCols},1fr);gap:8px}
+  .grid{display:grid;grid-template-columns:repeat(${numCols},1fr);gap:5px}
 
-  /* Card de produto — break-inside:avoid só no card */
+  /* Card de produto */
   .item{
     border:1.5px solid #E8D5A0;
-    border-radius:8px;
+    border-radius:7px;
     padding:${padCard};
     background:#FFFDF7;
-    position:relative;
-    overflow:hidden;
-    break-inside:avoid;
-    page-break-inside:avoid;
+    position:relative;overflow:hidden;
   }
-  .item.esgotado{opacity:.4;background:#F9F9F9;border-color:#E0E0E0}
+  .item.esgotado{opacity:.38;background:#F9F9F9;border-color:#E0E0E0}
 
   .item-nome{
     font-size:${nameSz};font-weight:800;
-    line-height:1.25;margin-bottom:6px;
-    color:#1C0A00;
+    line-height:1.2;margin-bottom:4px;color:#1C0A00;
   }
   .item-preco{
     font-size:${precoSz};font-weight:900;
-    color:#D97706;letter-spacing:-0.5px;
-    line-height:1;
+    color:#D97706;letter-spacing:-.3px;line-height:1;
   }
   .combo{
-    display:inline-block;
-    font-size:10px;font-weight:700;
+    display:inline-block;font-size:9px;font-weight:700;
     color:#065F46;background:#D1FAE5;
-    border:1px solid #6EE7B7;border-radius:4px;
-    padding:2px 7px;margin-top:6px;
+    border:1px solid #6EE7B7;border-radius:3px;
+    padding:1px 5px;margin-top:4px;
   }
   .dose-tag{
-    display:inline-block;
-    font-size:10px;font-weight:700;
+    display:inline-block;font-size:9px;font-weight:700;
     color:#6B7280;background:#F3F4F6;
-    border:1px solid #D1D5DB;border-radius:4px;
-    padding:2px 7px;margin-top:6px;margin-right:4px;
+    border:1px solid #D1D5DB;border-radius:3px;
+    padding:1px 5px;margin-top:4px;margin-right:3px;
   }
 
   /* Ribbon esgotado */
   .esg-ribbon{
-    position:absolute;top:8px;right:-18px;
+    position:absolute;top:6px;right:-18px;
     background:#DC2626;color:#fff;
-    font-size:8px;font-weight:800;
+    font-size:7px;font-weight:800;
     text-transform:uppercase;letter-spacing:.05em;
-    padding:3px 24px;
-    transform:rotate(35deg);
+    padding:2px 22px;transform:rotate(35deg);
   }
 
   /* Rodapé */
   .page-footer{
-    margin-top:16px;
-    text-align:center;
-    font-size:9px;color:#B08050;
-    border-top:1px solid #E8D5A0;
-    padding-top:10px;
+    margin-top:6px;text-align:center;
+    font-size:8px;color:#B08050;
+    border-top:1px solid #E8D5A0;padding-top:5px;
+    flex-shrink:0;
   }
 
   @media print{
-    .item{break-inside:avoid;page-break-inside:avoid}
+    html,body{height:100%}
+    body{display:flex;flex-direction:column}
+    .content{flex:1}
   }
 </style>
 </head>
@@ -1836,9 +1842,9 @@ function exportarCardapioPDF() {
     <div class="page-title">Cardápio</div>
     <div class="page-sub">Caixa UNIFSP</div>
   </div>
-  <div class="page-date">Gerado em<br>${agora}</div>
+  <div class="page-date">Gerado em ${agora}</div>
 </div>
-${catHtml}
+<div class="content">${catHtml}</div>
 <div class="page-footer">Caixa UNIFSP · ${agora} · preços sujeitos a alteração</div>
 </body>
 </html>`;

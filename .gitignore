@@ -1,3 +1,9 @@
 node_modules/
 .env
 *.log
+
+# Scripts locais para desenvolvimento
+iniciar.sh
+parar.sh
+COMO-USAR-LOCAL.md
+CONFIGURAR-RAILWAY.md

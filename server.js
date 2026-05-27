@@ -65,7 +65,7 @@ app.use('/api/vendas',   requireAuth, vendasRouter);
 app.get('/api/publico/produtos', async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, nome, emoji, preco, custo, estoque, categoria, combo_qtd, combo_preco FROM produtos WHERE evento_id = 1 ORDER BY categoria, nome'
+      'SELECT id, nome, emoji, preco, custo, estoque, categoria, combo_qtd, combo_preco, dose_ml, garrafa_ml, garrafa_preco FROM produtos WHERE evento_id = 1 ORDER BY categoria, nome'
     );
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -155,4 +155,9 @@ async function runMigrations() {
   /* ── Combos por quantidade ───────────────── */
   try { await db.query(`ALTER TABLE produtos ADD COLUMN combo_qtd INT DEFAULT NULL`); } catch (_) {}
   try { await db.query(`ALTER TABLE produtos ADD COLUMN combo_preco DECIMAL(10,2) DEFAULT NULL`); } catch (_) {}
+
+  /* ── Venda por dose ──────────────────────── */
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN dose_ml INT DEFAULT NULL`); } catch (_) {}
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN garrafa_ml INT DEFAULT NULL`); } catch (_) {}
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN garrafa_preco DECIMAL(10,2) DEFAULT NULL`); } catch (_) {}
 }

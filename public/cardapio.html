@@ -299,19 +299,23 @@
 
         html += '<div class="produto-grid">';
         items.forEach((p, i) => {
+          const isDose    = !!(p.dose_ml && p.garrafa_ml);
+          const unidade   = isDose ? 'doses' : 'un.';
           const esgotado  = p.estoque === 0;
           const delay     = (catIdx * 0.04 + i * 0.05).toFixed(2);
           const cardClass = esgotado ? 'produto-card esgotado' : 'produto-card';
           const stockHtml = esgotado ? '<div class="pc-stock sem-estoque">Esgotado</div>' : '';
           const comboHtml = (p.combo_qtd && p.combo_preco)
-            ? `<div class="pc-combo">${p.combo_qtd} un. por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+            ? `<div class="pc-combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+          const doseHtml  = isDose
+            ? `<div class="pc-combo" style="color:#6B7280;background:#F3F4F6;border-color:#D1D5DB">${p.dose_ml}ml por dose</div>` : '';
           const ribbonHtml = esgotado ? '<div class="ribbon-esgotado">Esgotado</div>' : '';
 
           html += `<div class="${cardClass}" style="animation-delay:${delay}s">
             ${ribbonHtml}
             <div class="pc-nome">${p.nome}</div>
             <div class="pc-preco">${fmt(p.preco)}</div>
-            ${comboHtml}
+            ${doseHtml}${comboHtml}
             ${stockHtml}
           </div>`;
         });

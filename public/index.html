@@ -91,6 +91,18 @@
           <input id="new-combo-qtd" class="input" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" />
           <input id="new-combo-preco" class="input" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" />
         </div>
+        <label class="combo-toggle-label" style="margin-top:4px">
+          <input type="checkbox" id="new-dose-check" onchange="toggleDoseRow('new')" />
+          Vender por dose (garrafa/ml)
+        </label>
+        <div class="dose-row" id="dose-row-new" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+            <input id="new-garrafa-ml" class="input" placeholder="ml da garrafa (ex: 700)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
+            <input id="new-dose-ml" class="input" placeholder="ml por dose (ex: 50)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
+          </div>
+          <input id="new-garrafa-preco" class="input" placeholder="Preço da garrafa inteira (ex: 45.00)" type="number" step="0.01" inputmode="decimal" oninput="calcularDose('new')" />
+          <div id="dose-hint-new" class="dose-hint">Preencha os ml da garrafa e da dose</div>
+        </div>
         <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
       </div>
       <div class="metrics" style="grid-template-columns:1fr;margin-top:1rem">

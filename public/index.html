@@ -80,6 +80,10 @@
           <div class="value" id="m-produtos">—</div>
         </div>
       </div>
+      <div class="search-wrap">
+        <input id="busca-estoque" class="input search-inp" type="search" placeholder="Buscar produto no estoque…"
+          oninput="renderEstoque()" autocomplete="off" />
+      </div>
       <div id="stock-alert-banner" class="stock-alert-banner" style="display:none">
         <span class="sab-icon">⚠</span>
         <span class="sab-msg" id="stock-alert-msg"></span>
@@ -90,8 +94,11 @@
         <button class="sort-btn" data-sort="vendido" onclick="setSortEstoque('vendido')">Vendidos</button>
       </div>
       <div id="stock-list"><div class="loading">Carregando...</div></div>
-      <p class="section-label" style="margin-top:1rem">Histórico de reposição</p>
-      <div id="reposicao-lista"></div>
+      <button class="repor-hist-toggle" onclick="toggleReposicaoHistorico()" id="btn-repor-hist">
+        <span>Histórico de reposição</span>
+        <span id="repor-hist-arrow" class="repor-hist-arrow">▾</span>
+      </button>
+      <div id="reposicao-lista" style="display:none"></div>
     </div>
 
     <!-- ABA RELATÓRIO -->

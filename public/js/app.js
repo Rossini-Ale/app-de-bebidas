@@ -10,6 +10,7 @@ let eventoAtual = null, operadorAtual = 'Caixa', venderAoCusto = false;
 let categoriaFiltro = '';
 let wsConn = null, wsConectado = false;
 let qmCurrentVal = '';
+let reposicaoHistoricoAberto = false;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -511,8 +512,21 @@ function renderEstoque() {
     if (sortEstoque === 'estoque') return b.estoque - a.estoque;
     return (vendidoMap[b.id] || 0) - (vendidoMap[a.id] || 0);
   });
+
+  // Filtro de busca
+  const termoEstoque = (document.getElementById('busca-estoque')?.value || '').trim().toLowerCase();
+  const listaEstoque = termoEstoque
+    ? sortedEstoque.filter(p => p.nome.toLowerCase().includes(termoEstoque) || (p.categoria || '').toLowerCase().includes(termoEstoque))
+    : sortedEstoque;
+
   atualizarBadgeEstoque();
-  l.innerHTML = sortedEstoque.map(p => {
+
+  if (!listaEstoque.length) {
+    l.innerHTML = '<div class="empty-state"><span style="font-size:28px;display:block;margin-bottom:4px;opacity:.55">🔍</span>Nenhum produto encontrado</div>';
+    return;
+  }
+
+  l.innerHTML = listaEstoque.map(p => {
     if (editingId === p.id) {
       const hasCombo = !!(p.combo_qtd && p.combo_preco);
       const hasDose  = !!(p.dose_ml && p.garrafa_ml);
@@ -566,8 +580,8 @@ function renderEstoque() {
     const minimo        = Number(p.estoque_minimo) || 0;
     const atMin         = minimo > 0 && p.estoque <= minimo;
     const nearMin       = minimo > 0 && p.estoque > minimo && p.estoque <= minimo * 2;
+    const dotClass      = p.estoque === 0 ? 'red' : atMin ? 'red' : nearMin ? 'amber' : 'green';
     const qtyColor      = p.estoque === 0 ? 'color:var(--red)' : atMin ? 'color:var(--red)' : nearMin ? 'color:var(--amber)' : '';
-    const qtyLabel      = (atMin || p.estoque === 0) ? `⚠ ${p.estoque}` : `${p.estoque}`;
     const comboInfo     = (p.combo_qtd && p.combo_preco)
       ? `<div class="stock-combo">Combo: ${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
     const hasFardo      = Number(p.unidades_por_fardo) >= 2;
@@ -603,10 +617,20 @@ function renderEstoque() {
         </div>` : ''}
       </div>
       <div class="stock-qty">
-        <span class="qty-num" style="${qtyColor}">${qtyLabel}</span>
+        <span class="stock-status-dot stock-dot-${dotClass}"></span>
+        <span class="qty-num" style="${qtyColor}">${p.estoque}</span>
       </div>
     </div>`;
   }).join('');
+}
+
+function toggleReposicaoHistorico() {
+  reposicaoHistoricoAberto = !reposicaoHistoricoAberto;
+  const lista = document.getElementById('reposicao-lista');
+  const btn   = document.getElementById('btn-repor-hist');
+  if (lista) lista.style.display = reposicaoHistoricoAberto ? 'block' : 'none';
+  if (btn)   btn.classList.toggle('open', reposicaoHistoricoAberto);
+  if (reposicaoHistoricoAberto) carregarReposicoes();
 }
 
 async function carregarReposicoes() {

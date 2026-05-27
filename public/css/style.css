@@ -546,6 +546,33 @@ button { touch-action: manipulation; }
 .btn-pdf-main:disabled { opacity: .65; cursor: not-allowed; }
 
 /* ── ESTOQUE ─────────────────────────────── */
+
+/* Bolinhas de status de estoque */
+.stock-status-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0; display: block;
+  margin-bottom: 3px;
+}
+.stock-dot-red   { background: var(--red);   box-shadow: 0 0 0 3px rgba(220,38,38,.15); }
+.stock-dot-amber { background: var(--amber); box-shadow: 0 0 0 3px rgba(217,119,6,.15); }
+.stock-dot-green { background: var(--green); box-shadow: 0 0 0 3px rgba(5,150,105,.12); }
+
+/* Toggle histórico de reposição */
+.repor-hist-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 12px 2px;
+  background: none; border: none;
+  border-top: 1px solid var(--border);
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); cursor: pointer; font-family: inherit;
+  margin-top: 1rem; transition: color .12s;
+}
+.repor-hist-toggle:hover { color: var(--text); }
+.repor-hist-arrow { font-size: 14px; transition: transform .2s; }
+.repor-hist-toggle.open .repor-hist-arrow { transform: rotate(180deg); }
+
 .stock-item {
   display: flex;
   align-items: center;
@@ -625,7 +652,7 @@ button { touch-action: manipulation; }
   border: 1px solid var(--border-s); border-radius: 8px;
   font-size: 13px; cursor: pointer; font-family: inherit; min-height: 44px;
 }
-.stock-qty { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.stock-qty { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; min-width: 36px; }
 .qty-btn {
   width: 36px; height: 36px;
   border-radius: 8px;

@@ -838,7 +838,7 @@ async function addProduto() {
     document.getElementById('dose-hint-new').textContent = 'Preencha os ml da garrafa e da dose';
     renderEstoque(); renderVenda();
     showToast('✓ ' + nome + ' adicionado!', 'green-toast');
-    document.getElementById('new-name').focus();
+    fecharAddDrawer();
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
@@ -1057,6 +1057,18 @@ function fecharCartDrawer() {
   document.getElementById('cart-drawer')?.classList.remove('open');
   document.getElementById('cart-drawer-bg')?.classList.remove('open');
   atualizarCartBar();
+}
+
+/* ── Drawer Adicionar Produto ─────────────── */
+function abrirAddDrawer() {
+  document.getElementById('add-drawer')?.classList.add('open');
+  document.getElementById('add-drawer-bg')?.classList.add('open');
+  setTimeout(() => document.getElementById('new-name')?.focus(), 180);
+}
+
+function fecharAddDrawer() {
+  document.getElementById('add-drawer')?.classList.remove('open');
+  document.getElementById('add-drawer-bg')?.classList.remove('open');
 }
 
 function renderCarrinho() {
@@ -1354,7 +1366,7 @@ async function deletarVenda(id, btn) {
   if (!btn.classList.contains('confirming')) {
     btn.classList.add('confirming');
     btn.textContent = 'Confirmar?';
-    btn._timer = setTimeout(() => { btn.classList.remove('confirming'); btn.textContent = '🗑 Excluir'; }, 3000);
+    btn._timer = setTimeout(() => { btn.classList.remove('confirming'); btn.textContent = '🗑'; btn.style.fontSize = ''; }, 3000);
     return;
   }
   clearTimeout(btn._timer);
@@ -1368,7 +1380,7 @@ async function deletarVenda(id, btn) {
     showToast('Venda removida', 'green-toast');
   } catch (e) {
     showToast('Erro: ' + e.message, 'error-toast');
-    btn.classList.remove('confirming'); btn.textContent = '🗑 Excluir'; btn.disabled = false;
+    btn.classList.remove('confirming'); btn.textContent = '🗑'; btn.disabled = false;
   }
 }
 
@@ -1424,7 +1436,7 @@ function renderHistoricoLista() {
         <span class="hist-total">${fmt(venda.total)}</span>
         <span class="hist-pag">${labelPag[venda.forma_pagamento] || venda.forma_pagamento || 'Dinheiro'}</span>
         ${venda.operador ? `<span class="hist-operador">${venda.operador}</span>` : ''}
-        <button class="hist-del" onclick="deletarVenda(${venda.id}, this)">🗑 Excluir</button>
+        <button class="hist-del" onclick="deletarVenda(${venda.id}, this)" title="Excluir venda">🗑</button>
       </div>
     </div>`;
   }).join('');

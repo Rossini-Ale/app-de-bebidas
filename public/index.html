@@ -68,48 +68,11 @@
 
     <!-- ABA ESTOQUE -->
     <div id="tab-estoque" class="section">
-      <div class="card-form">
-        <h3>+ Adicionar produto</h3>
-        <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
-        <input id="new-cat" class="input" placeholder="Categoria (ex: Bebidas, Comidas…)" type="text" list="cat-list" autocomplete="off" style="margin-bottom:8px" />
-        <datalist id="cat-list">
-          <option value="Bebidas">
-          <option value="Comidas">
-          <option value="Outros">
-        </datalist>
-        <div class="form-row three">
-          <input id="new-price" class="input" placeholder="Preço de venda R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
-          <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
-          <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <input id="new-min-stock"  class="input" placeholder="Estoque mínimo (alerta)" type="number" min="0" inputmode="numeric" />
-          <input id="new-fardo-qtd" class="input" placeholder="Un. por fardo (ex: 24)" type="number" min="2" inputmode="numeric" oninput="atualizarPlaceholderQty()" />
-        </div>
-        <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
-        <label class="combo-toggle-label">
-          <input type="checkbox" id="new-combo-check" onchange="toggleComboRow('new')" />
-          Ativar combo por quantidade
-        </label>
-        <div class="combo-row" id="combo-row-new" style="display:none">
-          <input id="new-combo-qtd" class="input" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" />
-          <input id="new-combo-preco" class="input" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" />
-        </div>
-        <label class="combo-toggle-label" style="margin-top:4px">
-          <input type="checkbox" id="new-dose-check" onchange="toggleDoseRow('new')" />
-          Vender por dose (garrafa/ml)
-        </label>
-        <div class="dose-row" id="dose-row-new" style="display:none">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
-            <input id="new-garrafa-ml" class="input" placeholder="ml da garrafa (ex: 700)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
-            <input id="new-dose-ml" class="input" placeholder="ml por dose (ex: 50)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
-          </div>
-          <input id="new-garrafa-preco" class="input" placeholder="Preço da garrafa inteira (ex: 45.00)" type="number" step="0.01" inputmode="decimal" oninput="calcularDose('new')" />
-          <div id="dose-hint-new" class="dose-hint">Preencha os ml da garrafa e da dose</div>
-        </div>
-        <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
-      </div>
-      <div class="metrics" style="grid-template-columns:1fr;margin-top:1rem">
+      <button class="btn-add-produto" onclick="abrirAddDrawer()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Adicionar produto
+      </button>
+      <div class="metrics" style="grid-template-columns:1fr;margin-top:.75rem">
         <div class="metric">
           <div class="label">Produtos cadastrados</div>
           <div class="value" id="m-produtos">—</div>
@@ -131,37 +94,42 @@
 
     <!-- ABA RELATÓRIO -->
     <div id="tab-relatorio" class="section">
-      <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;">
-        <div class="metric">
-          <div class="label">Arrecadado</div>
-          <div class="value" id="r-total">—</div>
+      <div class="rel-metrics-card">
+        <p class="rel-metrics-label">Resumo do evento</p>
+        <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:0">
+          <div class="metric metric-incard">
+            <div class="label">Arrecadado</div>
+            <div class="value" id="r-total">—</div>
+          </div>
+          <div class="metric metric-incard">
+            <div class="label">Lucro</div>
+            <div class="value green" id="r-lucro">—</div>
+          </div>
+          <div class="metric metric-incard">
+            <div class="label">Margem</div>
+            <div class="value" id="r-margem">—</div>
+          </div>
         </div>
-        <div class="metric">
-          <div class="label">Lucro total</div>
-          <div class="value green" id="r-lucro">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">Margem</div>
-          <div class="value" id="r-margem">—</div>
-        </div>
-      </div>
-      <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;margin-top:.5rem">
-        <div class="metric">
-          <div class="label">💵 Dinheiro</div>
-          <div class="value" id="r-dinheiro">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">Pix</div>
-          <div class="value" id="r-pix">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">💳 Cartão</div>
-          <div class="value" id="r-cartao">—</div>
+        <div class="rel-metrics-sep"></div>
+        <p class="rel-metrics-label">Pagamentos</p>
+        <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:0">
+          <div class="metric metric-incard metric-sm">
+            <div class="label">💵 Dinheiro</div>
+            <div class="value" id="r-dinheiro">—</div>
+          </div>
+          <div class="metric metric-incard metric-sm">
+            <div class="label">Pix</div>
+            <div class="value" id="r-pix">—</div>
+          </div>
+          <div class="metric metric-incard metric-sm">
+            <div class="label">💳 Cartão</div>
+            <div class="value" id="r-cartao">—</div>
+          </div>
         </div>
       </div>
       <div id="custo-resumo"></div>
-      <div class="rel-actions">
-        <button class="btn-pdf" id="btn-gerar-pdf" onclick="gerarPDF()">📄 PDF</button>
+      <button class="btn-pdf-main" id="btn-gerar-pdf" onclick="gerarPDF()">📄 Exportar relatório PDF</button>
+      <div class="rel-actions" style="margin-top:8px">
         <button class="btn-whatsapp" onclick="compartilharWhatsApp()">📲 WhatsApp</button>
         <button class="btn-csv" onclick="exportarCSV()">⬇ CSV</button>
       </div>
@@ -457,6 +425,52 @@
       🔄 Preparar para novo evento
     </button>
     <p class="admin-hint">Apaga vendas e reposições. Mantém produtos e estoque.</p>
+  </div>
+
+  <!-- BACKDROP ADD PRODUTO -->
+  <div id="add-drawer-bg" onclick="fecharAddDrawer()"></div>
+  <!-- DRAWER ADD PRODUTO -->
+  <div id="add-drawer">
+    <div class="cart-drawer-handle"></div>
+    <div class="cart-drawer-header">
+      <span class="cart-drawer-title">Adicionar produto</span>
+      <button class="cart-drawer-close" onclick="fecharAddDrawer()">✕</button>
+    </div>
+    <div id="add-drawer-scroll">
+      <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
+      <input id="new-cat" class="input" placeholder="Categoria (ex: Bebidas, Comidas…)" type="text" list="cat-list" autocomplete="off" style="margin-bottom:8px" />
+      <div class="form-row three">
+        <input id="new-price" class="input" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
+        <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
+        <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input id="new-min-stock"  class="input" placeholder="Estoque mínimo (alerta)" type="number" min="0" inputmode="numeric" />
+        <input id="new-fardo-qtd" class="input" placeholder="Un. por fardo (ex: 24)" type="number" min="2" inputmode="numeric" oninput="atualizarPlaceholderQty()" />
+      </div>
+      <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
+      <label class="combo-toggle-label">
+        <input type="checkbox" id="new-combo-check" onchange="toggleComboRow('new')" />
+        Ativar combo por quantidade
+      </label>
+      <div class="combo-row" id="combo-row-new" style="display:none">
+        <input id="new-combo-qtd" class="input" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" />
+        <input id="new-combo-preco" class="input" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" />
+      </div>
+      <label class="combo-toggle-label" style="margin-top:4px">
+        <input type="checkbox" id="new-dose-check" onchange="toggleDoseRow('new')" />
+        Vender por dose (garrafa/ml)
+      </label>
+      <div class="dose-row" id="dose-row-new" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+          <input id="new-garrafa-ml" class="input" placeholder="ml da garrafa (ex: 700)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
+          <input id="new-dose-ml" class="input" placeholder="ml por dose (ex: 50)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
+        </div>
+        <input id="new-garrafa-preco" class="input" placeholder="Preço da garrafa inteira (ex: 45.00)" type="number" step="0.01" inputmode="decimal" oninput="calcularDose('new')" />
+        <div id="dose-hint-new" class="dose-hint">Preencha os ml da garrafa e da dose</div>
+      </div>
+      <button class="btn-primary" style="margin-bottom:4px" onclick="addProduto()">✓ Adicionar ao estoque</button>
+    </div>
   </div>
 
   <script src="/js/app.js"></script>

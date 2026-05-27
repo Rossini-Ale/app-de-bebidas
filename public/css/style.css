@@ -210,6 +210,7 @@ button { touch-action: manipulation; }
   gap: 10px;
   margin-bottom: 1.25rem;
 }
+.rel-metrics-card .metrics { margin-bottom: 0; }
 .metric {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -416,6 +417,91 @@ button { touch-action: manipulation; }
   from { transform: scale(1);   opacity: .7; }
   to   { transform: scale(1.9); opacity: 0; }
 }
+
+/* ── BOTÃO ADICIONAR PRODUTO ─────────────── */
+.btn-add-produto {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 13px;
+  background: var(--amber); color: #fff;
+  border: none; border-radius: var(--rl);
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  min-height: 50px; transition: background .12s;
+  box-shadow: 0 2px 10px rgba(217,119,6,.25);
+}
+.btn-add-produto:hover, .btn-add-produto:active { background: var(--amber-d); }
+.btn-add-produto svg { flex-shrink: 0; }
+
+/* ── DRAWER ADD PRODUTO ──────────────────── */
+#add-drawer-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 97;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+}
+#add-drawer-bg.open { opacity: 1; pointer-events: auto; }
+
+#add-drawer {
+  position: fixed;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: calc(100% - 2rem); max-width: 868px;
+  background: var(--bg-card);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+  z-index: 100;
+  display: flex; flex-direction: column;
+  max-height: 88vh;
+  transition: transform .32s cubic-bezier(.4,0,.2,1);
+}
+#add-drawer.open { transform: translateX(-50%) translateY(0); }
+
+#add-drawer-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 20px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
+}
+#add-drawer-scroll .input { margin-bottom: 8px; }
+
+/* ── MÉTRICAS RELATÓRIO ──────────────────── */
+.rel-metrics-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--rl);
+  padding: 14px 14px 12px;
+  margin-bottom: 1rem;
+}
+.rel-metrics-label {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); margin-bottom: 8px; display: block;
+}
+.rel-metrics-sep {
+  height: 1px; background: var(--border);
+  margin: 12px 0 10px;
+}
+.rel-metrics-card .metrics { gap: 8px; }
+.metric-incard {
+  background: var(--bg-sec);
+  border: none !important;
+  padding: .7rem .75rem;
+}
+.metric-sm .value { font-size: 16px !important; }
+
+/* ── PDF BOTÃO PRINCIPAL ─────────────────── */
+.btn-pdf-main {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 13px;
+  background: var(--amber); color: #fff;
+  border: none; border-radius: var(--r);
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  min-height: 48px; transition: background .15s;
+}
+.btn-pdf-main:hover, .btn-pdf-main:active { background: var(--amber-d); }
+.btn-pdf-main:disabled { opacity: .65; cursor: not-allowed; }
 
 /* ── ESTOQUE ─────────────────────────────── */
 .stock-item {
@@ -666,12 +752,19 @@ button { touch-action: manipulation; }
 .hist-pag      { font-size: 11px; color: var(--muted); background: var(--bg-sec); border-radius: 5px; padding: 2px 7px; font-weight: 600; }
 .hist-operador { font-size: 10px; color: var(--muted); font-weight: 600; opacity: .7; }
 .hist-del {
-  background: none; border: 1px solid var(--border-s); border-radius: 6px;
-  padding: 5px 10px; font-size: 12px; color: var(--muted);
-  cursor: pointer; font-family: inherit; transition: all .15s; white-space: nowrap; min-height: 32px;
+  background: none; border: none; border-radius: 6px;
+  padding: 5px 7px; font-size: 15px; color: var(--border-s);
+  cursor: pointer; font-family: inherit; transition: all .15s;
+  min-height: 30px; min-width: 30px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: .55;
 }
-.hist-del:hover, .hist-del:active { border-color: var(--red); color: var(--red); }
-.hist-del.confirming { background: var(--red); color: #fff; border-color: var(--red); font-weight: 600; }
+.hist-del:hover, .hist-del:active { color: var(--red); opacity: 1; background: rgba(220,38,38,.07); }
+.hist-del.confirming {
+  background: var(--red); color: #fff; font-weight: 700;
+  font-size: 11px; opacity: 1; padding: 5px 8px; border-radius: 6px;
+  white-space: nowrap;
+}
 .hist-paginacao { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 .hist-pag-btn { padding: 8px 16px; border-radius: var(--r); border: 1px solid var(--border-s); background: var(--bg-card); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; min-height: 40px; transition: all .12s; }
 .hist-pag-btn:hover:not(:disabled) { border-color: var(--amber); color: var(--amber); }

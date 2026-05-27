@@ -1749,6 +1749,14 @@ function handleWsMsg(data) {
       if (activeTab === 'tab-estoque') carregarReposicoes();
       break;
     }
+    case 'historico_zerado': {
+      carregarProdutos();
+      carregarResumo();
+      if (activeTab === 'tab-historico') carregarHistorico();
+      if (activeTab === 'tab-relatorio') carregarRelatorio();
+      if (activeTab === 'tab-estoque')   carregarReposicoes();
+      break;
+    }
   }
 }
 
@@ -1991,3 +1999,54 @@ setInterval(async () => {
   const a = document.querySelector('.section.active').id;
   if (a === 'tab-venda') { await carregarProdutos(); await carregarResumo(); }
 }, 60000);
+
+/* ── Administração ───────────────────────────── */
+async function abrirAdmin() {
+  document.getElementById('admin-overlay').classList.add('open');
+  document.getElementById('admin-modal').classList.add('open');
+  document.getElementById('admin-zerar-confirm').style.display = 'none';
+  document.getElementById('btn-zerar').style.display = 'block';
+  document.getElementById('admin-cnt-vendas').textContent = '…';
+  document.getElementById('admin-cnt-repos').textContent = '…';
+  try {
+    const s = await apiFetch('/admin/status');
+    document.getElementById('admin-cnt-vendas').textContent = s.vendas;
+    document.getElementById('admin-cnt-repos').textContent = s.reposicoes;
+  } catch (e) {
+    document.getElementById('admin-cnt-vendas').textContent = 'erro';
+    document.getElementById('admin-cnt-repos').textContent = 'erro';
+  }
+}
+
+function fecharAdmin() {
+  document.getElementById('admin-overlay').classList.remove('open');
+  document.getElementById('admin-modal').classList.remove('open');
+}
+
+function pedirConfirmacaoZerar() {
+  document.getElementById('btn-zerar').style.display = 'none';
+  document.getElementById('admin-zerar-confirm').style.display = 'block';
+}
+
+function cancelarZerar() {
+  document.getElementById('admin-zerar-confirm').style.display = 'none';
+  document.getElementById('btn-zerar').style.display = 'block';
+}
+
+async function confirmarZerar() {
+  const btn = document.getElementById('btn-confirmar-zerar');
+  btn.disabled = true;
+  btn.textContent = 'Zerando…';
+  try {
+    const r = await apiFetch('/admin/zerar-historico', { method: 'DELETE' });
+    fecharAdmin();
+    await carregarProdutos();
+    await carregarResumo();
+    showToast(`✅ Pronto! ${r.vendas} venda${r.vendas !== 1 ? 's' : ''} e ${r.reposicoes} reposição apagadas.`, 'green-toast');
+  } catch (e) {
+    showToast('Erro ao zerar: ' + e.message, 'error-toast');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sim, zerar histórico';
+  }
+}

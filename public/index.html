@@ -23,6 +23,7 @@
         <button class="btn-refresh" id="btn-dark" onclick="toggleDarkMode()" title="Alternar tema">🌙</button>
         <button class="btn-refresh" id="btn-qr-cardapio" onclick="abrirQrCardapio()" title="QR Code do Cardápio">⬛</button>
         <button class="btn-refresh" onclick="location.reload()">↺</button>
+        <button class="btn-refresh" id="btn-admin" onclick="abrirAdmin()" title="Administração">⚙️</button>
         <button class="btn-refresh btn-logout" id="btn-logout" onclick="fazerLogout()" title="Sair">⎋</button>
       </div>
     </header>
@@ -384,6 +385,40 @@
         <button class="btn-secondary" style="flex:1" onclick="fecharQr()">Fechar</button>
       </div>
     </div>
+  </div>
+
+  <!-- MODAL ADMINISTRAÇÃO -->
+  <div id="admin-overlay" onclick="fecharAdmin()"></div>
+  <div id="admin-modal">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title">⚙️ Administração</span>
+      <button class="admin-modal-close" onclick="fecharAdmin()">✕</button>
+    </div>
+
+    <p class="admin-section-label">Evento</p>
+    <div class="admin-status-card" id="admin-status-card">
+      <div class="admin-status-row">
+        <span>Vendas registradas</span>
+        <span class="admin-status-val" id="admin-cnt-vendas">—</span>
+      </div>
+      <div class="admin-status-row">
+        <span>Reposições registradas</span>
+        <span class="admin-status-val" id="admin-cnt-repos">—</span>
+      </div>
+    </div>
+
+    <div id="admin-zerar-confirm" style="display:none">
+      <p class="admin-confirm-msg">⚠️ Isso vai apagar <strong>todas as vendas e reposições</strong>.<br>Os produtos e o estoque atual serão mantidos.<br><br>Tem certeza?</p>
+      <div class="admin-confirm-btns">
+        <button class="admin-btn-cancel" onclick="cancelarZerar()">Cancelar</button>
+        <button class="admin-btn-danger-confirm" id="btn-confirmar-zerar" onclick="confirmarZerar()">Sim, zerar histórico</button>
+      </div>
+    </div>
+
+    <button class="admin-btn-danger" id="btn-zerar" onclick="pedirConfirmacaoZerar()">
+      🔄 Preparar para novo evento
+    </button>
+    <p class="admin-hint">Apaga vendas e reposições. Mantém produtos e estoque.</p>
   </div>
 
   <script src="/js/app.js"></script>

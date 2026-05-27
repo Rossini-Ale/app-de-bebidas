@@ -12,6 +12,7 @@ const appEvents = require('./events');
 
 const produtosRouter = require('./routes/produtos');
 const vendasRouter   = require('./routes/vendas');
+const adminRouter    = require('./routes/admin');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -60,6 +61,7 @@ function requireAuth(req, res, next) {
 
 app.use('/api/produtos', requireAuth, produtosRouter);
 app.use('/api/vendas',   requireAuth, vendasRouter);
+app.use('/api/admin',    requireAuth, adminRouter);
 
 /* ── Cardápio público (sem autenticação) ── */
 app.get('/api/publico/produtos', async (req, res) => {

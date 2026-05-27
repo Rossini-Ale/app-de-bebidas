@@ -1151,3 +1151,92 @@ button { touch-action: manipulation; }
 .rep-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .rep-qty { font-size: 15px; font-weight: 700; color: var(--green); }
 .rep-op { font-size: 10px; color: var(--muted); }
+
+/* ── Modal Administração ─────────────────────── */
+#admin-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.45); z-index: 150;
+}
+#admin-overlay.open { display: block; }
+
+#admin-modal {
+  display: none; position: fixed;
+  bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 900px;
+  background: var(--bg-card);
+  border-radius: var(--rl) var(--rl) 0 0;
+  padding: 24px 24px 40px;
+  z-index: 151;
+  box-shadow: 0 -4px 28px rgba(0,0,0,.15);
+}
+#admin-modal.open { display: block; }
+
+.admin-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.admin-modal-title {
+  font-size: 17px; font-weight: 800; color: var(--text);
+}
+.admin-modal-close {
+  background: var(--bg-sec); border: none; border-radius: 50%;
+  width: 32px; height: 32px; font-size: 14px; cursor: pointer;
+  color: var(--muted); font-family: inherit; display: flex;
+  align-items: center; justify-content: center;
+}
+.admin-modal-close:active { opacity: .7; }
+
+.admin-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted); margin-bottom: 8px;
+}
+
+.admin-status-card {
+  background: var(--bg-sec); border-radius: var(--r);
+  padding: 14px 16px; margin-bottom: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.admin-status-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 14px; color: var(--text);
+}
+.admin-status-val {
+  font-weight: 700; font-size: 15px; color: var(--amber);
+}
+
+.admin-btn-danger {
+  width: 100%; padding: 15px; margin-top: 4px;
+  background: var(--red); color: #fff;
+  border: none; border-radius: var(--r);
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  font-family: inherit; transition: opacity .12s;
+}
+.admin-btn-danger:active { opacity: .8; }
+
+.admin-hint {
+  font-size: 12px; color: var(--muted); margin-top: 8px;
+  text-align: center; line-height: 1.4;
+}
+
+/* Confirmação de zerar */
+.admin-confirm-msg {
+  background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.25);
+  border-radius: var(--r); padding: 14px; margin-bottom: 12px;
+  font-size: 14px; color: var(--text); line-height: 1.5;
+}
+.admin-confirm-btns {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px;
+}
+.admin-btn-cancel {
+  padding: 13px; background: var(--bg-sec);
+  border: 1px solid var(--border-s); border-radius: var(--r);
+  font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+  color: var(--text);
+}
+.admin-btn-cancel:active { opacity: .7; }
+.admin-btn-danger-confirm {
+  padding: 13px; background: var(--red); color: #fff;
+  border: none; border-radius: var(--r);
+  font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.admin-btn-danger-confirm:active { opacity: .8; }

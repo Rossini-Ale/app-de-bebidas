@@ -192,6 +192,12 @@
         <button class="sort-btn active" data-sort="recente" onclick="setSortHistorico('recente')">Recente</button>
         <button class="sort-btn" data-sort="valor" onclick="setSortHistorico('valor')">Valor</button>
       </div>
+      <div id="hist-pag-filter" class="sort-bar">
+        <button class="sort-btn active" data-pag="" onclick="setFiltroPagamento('')">Todos</button>
+        <button class="sort-btn" data-pag="dinheiro" onclick="setFiltroPagamento('dinheiro')">💵 Dinheiro</button>
+        <button class="sort-btn" data-pag="pix" onclick="setFiltroPagamento('pix')">Pix</button>
+        <button class="sort-btn" data-pag="cartao" onclick="setFiltroPagamento('cartao')">💳 Cartão</button>
+      </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>
   </div>

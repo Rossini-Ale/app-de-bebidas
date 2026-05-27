@@ -11,6 +11,7 @@ let categoriaFiltro = '';
 let wsConn = null, wsConectado = false;
 let qmCurrentVal = '';
 let reposicaoHistoricoAberto = false;
+let filtroPagamento = '';
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) { return 'R$' + Math.round(v); }
@@ -281,6 +282,15 @@ function setSortHistorico(s) {
 
 function setBuscaHistorico() {
   histPagina = 1;
+  renderHistoricoLista();
+}
+
+function setFiltroPagamento(pag) {
+  filtroPagamento = pag;
+  histPagina = 1;
+  document.querySelectorAll('#hist-pag-filter .sort-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.pag === pag)
+  );
   renderHistoricoLista();
 }
 
@@ -1470,13 +1480,19 @@ function renderHistoricoLista() {
     ? [...v].sort((a, b) => Number(b.total) - Number(a.total))
     : [...v];
 
+  // Filtro por texto
   const busca = (document.getElementById('busca-historico')?.value || '').trim().toLowerCase();
-  const filtrado = busca
+  let filtrado = busca
     ? sorted.filter(venda =>
         (venda.descricao || '').toLowerCase().includes(busca) ||
         (venda.operador  || '').toLowerCase().includes(busca) ||
         (venda.forma_pagamento || '').toLowerCase().includes(busca))
     : sorted;
+
+  // Filtro por forma de pagamento
+  if (filtroPagamento) {
+    filtrado = filtrado.filter(venda => (venda.forma_pagamento || 'dinheiro') === filtroPagamento);
+  }
 
   if (!filtrado.length) {
     l.innerHTML = '<div class="empty-state">Nenhuma venda encontrada</div>';
@@ -1488,10 +1504,44 @@ function renderHistoricoLista() {
   const inicio = (histPagina - 1) * HIST_POR_PAG;
   const pagina = filtrado.slice(inicio, inicio + HIST_POR_PAG);
 
+  // Contagem por hora (sobre todos os filtrados, não só a página atual)
+  const countPorHora = {};
+  if (sortHistorico === 'recente') {
+    filtrado.forEach(venda => {
+      const h = parseDataUTC(venda.criado_em)
+        .toLocaleString('pt-BR', { hour: '2-digit', hour12: false, timeZone: 'America/Sao_Paulo' })
+        .split(':')[0].replace(/\D/g, '').padStart(2, '0');
+      countPorHora[h] = (countPorHora[h] || 0) + 1;
+    });
+  }
+
   const labelPag = { dinheiro: '💵 Dinheiro', pix: 'Pix', cartao: '💳 Cartão' };
-  const itensHtml = pagina.map(venda => {
+  const pagClass  = { dinheiro: 'pag-dinheiro', pix: 'pag-pix', cartao: 'pag-cartao' };
+
+  let itensHtml = '';
+  let lastHora  = null;
+
+  pagina.forEach(venda => {
+    // Separador de hora (só quando ordem é "Recente")
+    if (sortHistorico === 'recente') {
+      const hora = parseDataUTC(venda.criado_em)
+        .toLocaleString('pt-BR', { hour: '2-digit', hour12: false, timeZone: 'America/Sao_Paulo' })
+        .split(':')[0].replace(/\D/g, '').padStart(2, '0');
+      if (hora !== lastHora) {
+        const cnt = countPorHora[hora];
+        const mt  = lastHora === null ? 'margin-top:0' : 'margin-top:14px';
+        itensHtml += `<div class="hist-hora-sep" style="${mt}">
+          <span class="hist-hora-sep-label">${hora}h</span>
+          <span class="hist-hora-sep-line"></span>
+          <span class="hist-hora-sep-count">${cnt} ${cnt === 1 ? 'venda' : 'vendas'}</span>
+        </div>`;
+        lastHora = hora;
+      }
+    }
+
     const num = v.length - v.findIndex(x => x.id === venda.id);
-    return `<div class="historico-item" id="hist-${venda.id}">
+    const pag = venda.forma_pagamento || 'dinheiro';
+    itensHtml += `<div class="historico-item" id="hist-${venda.id}">
       <span class="hist-num">#${num}</span>
       <div class="hist-info">
         <div class="hist-desc">${venda.descricao}</div>
@@ -1499,12 +1549,12 @@ function renderHistoricoLista() {
       </div>
       <div class="hist-right">
         <span class="hist-total">${fmt(venda.total)}</span>
-        <span class="hist-pag">${labelPag[venda.forma_pagamento] || venda.forma_pagamento || 'Dinheiro'}</span>
+        <span class="hist-pag ${pagClass[pag] || ''}">${labelPag[pag] || pag}</span>
         ${venda.operador ? `<span class="hist-operador">${venda.operador}</span>` : ''}
         <button class="hist-del" onclick="deletarVenda(${venda.id}, this)" title="Excluir venda">🗑</button>
       </div>
     </div>`;
-  }).join('');
+  });
 
   const paginacaoHtml = totalPags > 1 ? `
     <div class="hist-paginacao">

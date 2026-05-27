@@ -82,7 +82,10 @@
           <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
           <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
         </div>
-        <input id="new-min-stock" class="input" placeholder="Estoque mínimo para alerta (opcional)" type="number" min="0" inputmode="numeric" style="margin-bottom:8px" />
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <input id="new-min-stock"  class="input" placeholder="Estoque mínimo (alerta)" type="number" min="0" inputmode="numeric" />
+          <input id="new-fardo-qtd" class="input" placeholder="Un. por fardo (ex: 24)" type="number" min="2" inputmode="numeric" oninput="atualizarPlaceholderQty()" />
+        </div>
         <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
         <label class="combo-toggle-label">
           <input type="checkbox" id="new-combo-check" onchange="toggleComboRow('new')" />

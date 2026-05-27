@@ -160,4 +160,7 @@ async function runMigrations() {
   try { await db.query(`ALTER TABLE produtos ADD COLUMN dose_ml INT DEFAULT NULL`); } catch (_) {}
   try { await db.query(`ALTER TABLE produtos ADD COLUMN garrafa_ml INT DEFAULT NULL`); } catch (_) {}
   try { await db.query(`ALTER TABLE produtos ADD COLUMN garrafa_preco DECIMAL(10,2) DEFAULT NULL`); } catch (_) {}
+
+  /* ── Fardo ───────────────────────────────── */
+  try { await db.query(`ALTER TABLE produtos ADD COLUMN unidades_por_fardo INT DEFAULT NULL`); } catch (_) {}
 }

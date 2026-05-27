@@ -103,6 +103,16 @@ function toggleComboRow(prefix) {
   if (row) row.style.display = check?.checked ? 'grid' : 'none';
 }
 
+/* Atualiza placeholder do campo Estoque conforme dose/fardo */
+function atualizarPlaceholderQty() {
+  const doseCheck = document.getElementById('new-dose-check');
+  const fardoQtd  = parseInt(document.getElementById('new-fardo-qtd')?.value) || 0;
+  const qtyEl     = document.getElementById('new-qty');
+  if (!qtyEl) return;
+  if (doseCheck?.checked) return; // dose já gerencia o placeholder
+  qtyEl.placeholder = fardoQtd >= 2 ? `Fardos (1 = ${fardoQtd} un.)` : 'Estoque';
+}
+
 function atualizarBadgeEstoque() {
   const baixos = produtos.filter(p => Number(p.estoque_minimo) > 0 && p.estoque <= Number(p.estoque_minimo));
   const n = baixos.length;
@@ -137,7 +147,13 @@ function toggleDoseRow(prefix) {
   // Atualiza placeholder do campo de estoque no formulário de novo produto
   if (prefix === 'new') {
     const qtyEl = document.getElementById('new-qty');
-    if (qtyEl) qtyEl.placeholder = check?.checked ? 'Qtd de garrafas' : 'Estoque';
+    if (qtyEl) {
+      if (check?.checked) {
+        qtyEl.placeholder = 'Qtd de garrafas';
+      } else {
+        atualizarPlaceholderQty(); // usa fardo se houver
+      }
+    }
   }
 }
 
@@ -461,7 +477,8 @@ function renderEstoque() {
           <input class="input input-sm" id="edit-preco-${p.id}" value="${fmtMoeda(p.preco)}" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
           <input class="input input-sm" id="edit-custo-${p.id}" value="${fmtMoeda(p.custo)}" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
           <input class="input input-sm" id="edit-cat-${p.id}" value="${p.categoria || ''}" placeholder="Categoria" type="text" list="cat-list" autocomplete="off" style="grid-column:1/-1" />
-          <input class="input input-sm" id="edit-min-stock-${p.id}" value="${p.estoque_minimo || ''}" placeholder="Estoque mínimo para alerta" type="number" min="0" style="grid-column:1/-1" />
+          <input class="input input-sm" id="edit-min-stock-${p.id}"  value="${p.estoque_minimo       || ''}" placeholder="Estoque mínimo (alerta)" type="number" min="0" style="grid-column:1/-1" />
+          <input class="input input-sm" id="edit-fardo-qtd-${p.id}" value="${p.unidades_por_fardo || ''}" placeholder="Un. por fardo (ex: 24)"  type="number" min="2" style="grid-column:1/-1" />
         </div>
         <label class="combo-toggle-label">
           <input type="checkbox" id="combo-check-${p.id}" ${hasCombo ? 'checked' : ''} onchange="toggleComboRow('${p.id}')" />
@@ -501,18 +518,26 @@ function renderEstoque() {
     const qtyLabel      = (atMin || p.estoque === 0) ? `⚠ ${p.estoque}` : `${p.estoque}`;
     const comboInfo     = (p.combo_qtd && p.combo_preco)
       ? `<div class="stock-combo">Combo: ${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+    const hasFardo      = Number(p.unidades_por_fardo) >= 2;
+    const fardoQtd      = hasFardo ? Number(p.unidades_por_fardo) : 1;
     const doseInfo      = hasDose
       ? `<div class="stock-combo">🥃 ${p.dose_ml}ml/dose · ${dosesPorGar} doses/garrafa · ${p.estoque} doses em estoque</div>` : '';
-    const reporLabel    = hasDose && reposicaoModo === 'add' ? '+ Repor garrafas' : '+ Repor';
+    const fardoInfo     = hasFardo
+      ? `<div class="stock-combo">📦 ${fardoQtd} un./fardo${p.estoque > 0 ? ` · ${(p.estoque / fardoQtd).toFixed(1)} fardo${p.estoque / fardoQtd !== 1 ? 's' : ''} em estoque` : ''}</div>` : '';
+    const reporLabel    = hasDose && reposicaoModo === 'add' ? '+ Repor garrafas'
+                        : hasFardo && reposicaoModo === 'add' ? '+ Repor fardos'
+                        : '+ Repor';
     const reporPlaceholder = (hasDose && reposicaoModo === 'add')
       ? `Garrafas (1 garrafa = ${dosesPorGar} doses)`
+      : (hasFardo && reposicaoModo === 'add')
+      ? `Fardos (1 fardo = ${fardoQtd} un.)`
       : reposicaoModo === 'add' ? 'Qtd a adicionar…' : 'Qtd a retirar…';
     return `<div class="stock-item">
       <div class="stock-info">
         <div class="stock-name">${p.nome}</div>
         <div class="stock-sub">Venda ${fmt(p.preco)}${hasDose ? '/dose' : ''} · Custo ${fmt(p.custo)}${hasDose ? '/dose' : ''}</div>
         ${margem !== null ? `<div class="stock-margin">Margem: ${margem}%</div>` : ''}
-        ${doseInfo}${comboInfo}
+        ${doseInfo}${fardoInfo}${comboInfo}
         <div class="stock-actions">
           <button class="stock-act-btn repor ${isRepondo && reposicaoModo==='add' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'add')">${reporLabel}</button>
           <button class="stock-act-btn retirar ${isRepondo && reposicaoModo==='sub' ? 'active' : ''}" onclick="abrirReposicao(${p.id},'sub')">− Retirar</button>
@@ -582,8 +607,13 @@ async function confirmarReposicao(id) {
   const p = produtos.find(x => x.id === id);
   const hasDose     = !!(p?.dose_ml && p?.garrafa_ml);
   const dosesPorGar = hasDose ? Math.floor(Number(p.garrafa_ml) / Number(p.dose_ml)) : 1;
-  const quantidade  = (hasDose && reposicaoModo === 'add') ? val * dosesPorGar : val;
-  const delta       = reposicaoModo === 'sub' ? -quantidade : quantidade;
+  const hasFardo    = Number(p?.unidades_por_fardo) >= 2;
+  const fardoQtd    = hasFardo ? Number(p.unidades_por_fardo) : 1;
+  let quantidade;
+  if      (hasDose  && reposicaoModo === 'add') quantidade = val * dosesPorGar;
+  else if (hasFardo && reposicaoModo === 'add') quantidade = val * fardoQtd;
+  else                                          quantidade = val;
+  const delta = reposicaoModo === 'sub' ? -quantidade : quantidade;
   try {
     const updated = await apiFetch(`/produtos/${id}/estoque`, { method: 'PATCH', body: JSON.stringify({ delta, registrar: true }) });
     const i = produtos.findIndex(x => x.id === id);
@@ -593,6 +623,8 @@ async function confirmarReposicao(id) {
     carregarReposicoes();
     const msg = hasDose && reposicaoModo === 'add'
       ? `+${val} garrafa${val > 1 ? 's' : ''} (${quantidade} doses) adicionadas`
+      : hasFardo && reposicaoModo === 'add'
+      ? `+${val} fardo${val > 1 ? 's' : ''} (${quantidade} un.) adicionados`
       : delta > 0 ? `+${quantidade} ${hasDose ? 'doses' : 'unidades'} adicionadas`
                   : `−${Math.abs(quantidade)} ${hasDose ? 'doses' : 'unidades'} retiradas`;
     showToast(msg, delta > 0 ? 'green-toast' : '');
@@ -619,8 +651,9 @@ async function salvarEdicao(id) {
   const comboAtivo  = document.getElementById(`combo-check-${id}`)?.checked;
   const comboQtdVal = parseInt(document.getElementById(`edit-combo-qtd-${id}`)?.value);
   const comboPrecVal = parseFloat(document.getElementById(`edit-combo-preco-${id}`)?.value);
-  const estoqueMinimo = parseInt(document.getElementById(`edit-min-stock-${id}`)?.value) || 0;
-  const doseAtivo    = document.getElementById(`dose-check-${id}`)?.checked;
+  const estoqueMinimo    = parseInt(document.getElementById(`edit-min-stock-${id}`)?.value)  || 0;
+  const unidadesPorFardo = parseInt(document.getElementById(`edit-fardo-qtd-${id}`)?.value)  || null;
+  const doseAtivo        = document.getElementById(`dose-check-${id}`)?.checked;
   const doseMlVal    = parseInt(document.getElementById(`edit-dose-ml-${id}`)?.value)    || null;
   const garrafaMlVal = parseInt(document.getElementById(`edit-garrafa-ml-${id}`)?.value) || null;
   const garrafaPreco = parseFloat(document.getElementById(`edit-garrafa-preco-${id}`)?.value) || null;
@@ -636,7 +669,7 @@ async function salvarEdicao(id) {
     const updated = await apiFetch(`/produtos/${id}`, {
       method: 'PUT',
       body: JSON.stringify({
-        nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo: estoqueMinimo, categoria,
+        nome, emoji: p.emoji, preco, custo, estoque: p.estoque, estoque_minimo: estoqueMinimo, categoria, unidades_por_fardo: unidadesPorFardo,
         combo_qtd:    comboAtivo ? comboQtdVal    : null,
         combo_preco:  comboAtivo ? comboPrecVal / comboQtdVal : null,
         dose_ml:      doseAtivo  ? doseMlVal      : null,
@@ -722,8 +755,9 @@ async function addProduto() {
   const comboAtivo   = document.getElementById('new-combo-check')?.checked;
   const comboQtdVal  = parseInt(document.getElementById('new-combo-qtd')?.value);
   const comboPrecVal = parseFloat(document.getElementById('new-combo-preco')?.value);
-  const estoqueMinimo = parseInt(document.getElementById('new-min-stock')?.value) || 0;
-  const doseAtivo    = document.getElementById('new-dose-check')?.checked;
+  const estoqueMinimo    = parseInt(document.getElementById('new-min-stock')?.value)  || 0;
+  const unidadesPorFardo = parseInt(document.getElementById('new-fardo-qtd')?.value)   || null;
+  const doseAtivo        = document.getElementById('new-dose-check')?.checked;
   const doseMlVal    = parseInt(document.getElementById('new-dose-ml')?.value)    || null;
   const garrafaMlVal = parseInt(document.getElementById('new-garrafa-ml')?.value) || null;
   const garrafaPreco = parseFloat(document.getElementById('new-garrafa-preco')?.value) || null;
@@ -734,15 +768,17 @@ async function addProduto() {
   if (doseAtivo && (!doseMlVal || !garrafaMlVal)) {
     showToast('⚠ Preencha ml da garrafa e ml por dose', 'error-toast'); return;
   }
-  // Converte garrafas → doses ao cadastrar
+  // Converte garrafas/fardos → unidades ao cadastrar
   let estoqueRaw = parseInt(document.getElementById('new-qty').value) || 0;
   let estoque = estoqueRaw;
   if (doseAtivo && garrafaMlVal && doseMlVal) {
     estoque = estoqueRaw * Math.floor(garrafaMlVal / doseMlVal);
+  } else if (unidadesPorFardo >= 2) {
+    estoque = estoqueRaw * unidadesPorFardo;
   }
   try {
     const novo = await apiFetch('/produtos', { method: 'POST', body: JSON.stringify({
-      nome, preco, custo, estoque, estoque_minimo: estoqueMinimo, categoria,
+      nome, preco, custo, estoque, estoque_minimo: estoqueMinimo, categoria, unidades_por_fardo: unidadesPorFardo,
       combo_qtd:    comboAtivo ? comboQtdVal    : null,
       combo_preco:  comboAtivo ? comboPrecVal / comboQtdVal : null,
       dose_ml:      doseAtivo  ? doseMlVal      : null,
@@ -750,7 +786,7 @@ async function addProduto() {
       garrafa_preco: doseAtivo ? garrafaPreco   : null
     }) });
     produtos.push(novo);
-    ['new-name', 'new-cat', 'new-price', 'new-cost', 'new-qty', 'new-min-stock',
+    ['new-name', 'new-cat', 'new-price', 'new-cost', 'new-qty', 'new-min-stock', 'new-fardo-qtd',
      'new-combo-qtd', 'new-combo-preco', 'new-garrafa-ml', 'new-dose-ml', 'new-garrafa-preco'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
@@ -762,6 +798,7 @@ async function addProduto() {
     const doseCheck = document.getElementById('new-dose-check');
     if (doseCheck) doseCheck.checked = false;
     toggleDoseRow('new'); // reseta row + placeholder do qty
+    atualizarPlaceholderQty(); // garante reset do placeholder de fardo
     document.getElementById('margin-hint').textContent = 'Margem: —';
     document.getElementById('dose-hint-new').textContent = 'Preencha os ml da garrafa e da dose';
     renderEstoque(); renderVenda();

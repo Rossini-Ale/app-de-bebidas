@@ -190,15 +190,14 @@ button { touch-action: manipulation; }
   align-items: center;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--rl);
+  border-radius: var(--r);
   margin-bottom: 1rem;
   overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,.05);
 }
-.ms-item { flex: 1; padding: 10px 10px; text-align: center; }
-.ms-val { display: block; font-size: 18px; font-weight: 800; line-height: 1.2; letter-spacing: -.3px; }
+.ms-item { flex: 1; padding: 8px 10px; text-align: center; }
+.ms-val { display: block; font-size: 17px; font-weight: 700; line-height: 1.2; }
 .ms-val.green { color: var(--green); }
-.ms-label { display: block; font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+.ms-label { display: block; font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; margin-top: 1px; }
 .ms-sep { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
 
 /* ── MÉTRICAS CARDS (outras abas) ────────── */
@@ -224,14 +223,13 @@ button { touch-action: manipulation; }
 /* ── BUSCA ───────────────────────────────── */
 .search-wrap { margin-bottom: 8px; }
 .search-inp {
-  font-size: 15px;
-  background: var(--bg-card);
-  border-color: var(--border);
-  border-radius: 12px;
-  padding: 11px 16px;
-  font-weight: 500;
+  font-size: 14px;
+  background: var(--bg-sec);
+  border-color: transparent;
+  border-radius: 25px;
+  padding: 10px 16px;
 }
-.search-inp:focus { background: var(--bg-card); border-color: var(--amber); box-shadow: 0 0 0 3px rgba(217,119,6,.1); }
+.search-inp:focus { background: var(--bg-card); border-color: var(--amber); }
 
 /* ── GRÁFICO POR HORA ────────────────────── */
 .grafico-horas {
@@ -389,71 +387,6 @@ button { touch-action: manipulation; }
   from { transform: scale(1);   opacity: .7; }
   to   { transform: scale(1.9); opacity: 0; }
 }
-
-/* ── LISTA MINIMALISTA DE PRODUTOS ───────── */
-.pm-list { }
-
-.pm-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 13px 0;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background .1s, padding .1s;
-  animation: cardIn .18s ease both;
-  border-radius: 6px;
-}
-.pm-row:last-child { border-bottom: none; }
-.pm-row:active:not(.no-stock) {
-  background: var(--bg-sec);
-  padding-left: 10px; padding-right: 10px;
-  margin-left: -10px; margin-right: -10px;
-  border-radius: 8px;
-}
-.pm-info { flex: 1; min-width: 0; }
-.pm-nome {
-  display: block;
-  font-size: 15px; font-weight: 600;
-  color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.pm-meta {
-  display: block;
-  font-size: 12px; color: var(--muted);
-  margin-top: 2px;
-}
-.pm-badge {
-  background: var(--amber); color: #fff;
-  font-size: 12px; font-weight: 700;
-  border-radius: 10px; padding: 3px 9px;
-  flex-shrink: 0; cursor: pointer;
-  white-space: nowrap;
-}
-.pm-preco {
-  font-size: 15px; font-weight: 700;
-  color: var(--amber); white-space: nowrap; flex-shrink: 0;
-}
-.pm-preco-tag {
-  font-size: 10px; font-weight: 600;
-  color: var(--green); opacity: .85;
-}
-.pm-chevron {
-  color: var(--border-s); font-size: 18px;
-  flex-shrink: 0; line-height: 1;
-}
-.pm-row.no-stock { opacity: .35; cursor: not-allowed; }
-.pm-row.no-stock .pm-chevron { display: none; }
-.pm-row.in-cart .pm-nome { color: var(--amber); font-weight: 700; }
-.pm-row.very-low-stock .pm-meta { color: var(--red); font-weight: 600; }
-.pm-row.low-stock .pm-meta { color: var(--amber); font-weight: 600; }
-.pm-row.combo-active .pm-preco { color: var(--green); }
-
-@keyframes flashAddRow {
-  0%   { background: transparent; }
-  30%  { background: rgba(217,119,6,.08); }
-  100% { background: transparent; }
-}
-.pm-row.flash        { animation: flashAddRow .25s ease; }
-.pm-row.in-cart.flash { animation: flashAddRow .25s ease; }
 
 /* ── ESTOQUE ─────────────────────────────── */
 .stock-item {

@@ -84,7 +84,7 @@ function vibrar(pattern) {
 }
 
 function flashCard(id) {
-  const card = document.querySelector(`.produto-card[data-id="${id}"], .pm-row[data-id="${id}"]`);
+  const card = document.querySelector(`.produto-card[data-id="${id}"]`);
   if (!card) return;
   card.classList.remove('flash');
   void card.offsetWidth; // força reflow para reiniciar animação
@@ -432,45 +432,44 @@ function renderVenda() {
   const termo = (document.getElementById('busca-produto')?.value || '').trim().toLowerCase();
   let lista = termo ? sorted.filter(p => p.nome.toLowerCase().includes(termo)) : sorted;
   if (categoriaFiltro) lista = lista.filter(p => (p.categoria || '') === categoriaFiltro);
+  const maxEstoque = Math.max(...lista.map(p => p.estoque), 1);
 
   if (lista.length === 0) {
     l.innerHTML = '<div class="empty-state"><span style="font-size:28px;display:block;margin-bottom:4px;opacity:.55">🔍</span>Nenhum produto encontrado<br><span style="font-size:12px">Tente outro termo ou categoria</span></div>';
     return;
   }
 
-  l.innerHTML = '<div class="pm-list">' + lista.map((p, index) => {
-    const isDose      = !!(p.dose_ml && p.garrafa_ml);
-    const unidade     = isDose ? 'doses' : 'un.';
-    const noStock     = p.estoque === 0;
-    const minimo      = Number(p.estoque_minimo) || 0;
-    const veryLow     = p.estoque > 0 && minimo > 0 && p.estoque <= minimo;
-    const lowStock    = p.estoque > 0 && minimo > 0 && p.estoque > minimo && p.estoque <= minimo * 2;
-    const itemCart    = carrinho.find(c => c.id === p.id);
-    const inCart      = !!itemCart;
+  l.innerHTML = '<div class="produto-grid">' + lista.map((p, index) => {
+    const isDose     = !!(p.dose_ml && p.garrafa_ml);
+    const unidade    = isDose ? 'doses' : 'un.';
+    const noStock    = p.estoque === 0;
+    const minimo     = Number(p.estoque_minimo) || 0;
+    const veryLow    = p.estoque > 0 && minimo > 0 && p.estoque <= minimo;
+    const lowStock   = p.estoque > 0 && minimo > 0 && p.estoque > minimo && p.estoque <= minimo * 2;
+    const itemCart   = carrinho.find(c => c.id === p.id);
+    const inCart     = !!itemCart;
     const comboActive = inCart && p.combo_qtd && p.combo_preco && itemCart.qty >= p.combo_qtd;
-    const onclick     = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
-    const classes     = ['pm-row', noStock ? 'no-stock' : '', inCart ? 'in-cart' : '',
-                         veryLow ? 'very-low-stock' : lowStock ? 'low-stock' : '',
-                         comboActive ? 'combo-active' : ''].filter(Boolean).join(' ');
-    const stockLabel  = noStock ? 'Sem estoque'
-                      : veryLow ? `⚠ ${p.estoque} ${unidade}`
-                      :           `${p.estoque} ${unidade}`;
-    const metaParts   = [stockLabel];
-    if (isDose) metaParts.push(`${p.dose_ml}ml/dose`);
-    if (p.combo_qtd && p.combo_preco) metaParts.push(`Combo ${p.combo_qtd}× por ${fmt(Number(p.combo_preco) * p.combo_qtd)}`);
-    const badge       = inCart
-      ? `<span class="pm-badge" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${itemCart.qty}×</span>` : '';
-    const preco       = comboActive
-      ? `<span class="pm-preco">${fmt(Number(p.combo_preco))}<span class="pm-preco-tag"> combo</span></span>`
-      : `<span class="pm-preco">${fmt(p.preco)}</span>`;
+    const badge      = inCart ? `<span class="pc-badge" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${itemCart.qty}</span>` : '';
+    const stockLabel = noStock  ? 'Sem estoque' :
+                       veryLow  ? `⚠ ${p.estoque} ${unidade}` :
+                                  `${p.estoque} ${unidade}`;
+    const classes    = ['produto-card', noStock ? 'no-stock' : '', inCart ? 'in-cart' : '',
+                        veryLow ? 'very-low-stock' : lowStock ? 'low-stock' : '',
+                        comboActive ? 'combo-active' : ''].filter(Boolean).join(' ');
+    const onclick    = noStock ? '' : `onclick="addCarrinho(${p.id})"`;
+    const barPct     = noStock ? 0 : Math.round((p.estoque / maxEstoque) * 100);
+    const barColor   = veryLow ? 'var(--red)' : lowStock ? 'var(--amber)' : 'var(--green)';
+    const comboBadge = (p.combo_qtd && p.combo_preco)
+      ? `<div class="pc-combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+    const doseBadge  = isDose
+      ? `<div class="pc-combo" style="color:var(--muted);background:var(--bg-sec);border-color:var(--border)">${p.dose_ml}ml/dose</div>` : '';
     return `<div class="${classes}" data-id="${p.id}" ${onclick} style="animation-delay:${Math.min(index * 28, 140)}ms">
-      <div class="pm-info">
-        <span class="pm-nome">${p.nome}</span>
-        <span class="pm-meta">${metaParts.join(' · ')}</span>
-      </div>
       ${badge}
-      ${preco}
-      <span class="pm-chevron">›</span>
+      <div class="pc-nome">${p.nome}</div>
+      <div class="pc-preco">${fmt(p.preco)}</div>
+      ${doseBadge}${comboBadge}
+      <div class="pc-stock">${stockLabel}</div>
+      <div class="pc-stock-bar-wrap"><div class="pc-stock-bar" style="width:${barPct}%;background:${barColor}"></div></div>
     </div>`;
   }).join('') + '</div>';
 }

@@ -405,8 +405,16 @@ function renderCatFiltros() {
   if (!el) return;
   const cats = [...new Set(produtos.map(p => p.categoria || '').filter(Boolean))].sort();
   if (!cats.length) { el.innerHTML = ''; return; }
+  const emojis = { 'Cerveja':'🍺','Cervejas':'🍺','Destilado':'🥃','Destilados':'🥃',
+    'Comida':'🍔','Comidas':'🍔','Bebida':'🥤','Bebidas':'🥤',
+    'Refrigerante':'🥤','Refrigerantes':'🥤','Água':'💧','Aguas':'💧',
+    'Vinho':'🍷','Vinhos':'🍷','Shots':'🥂','Outros':'📦' };
   el.innerHTML = [{ label: 'Todos', val: '' }, ...cats.map(c => ({ label: c, val: c }))]
-    .map(item => `<button class="sort-btn${categoriaFiltro === item.val ? ' active' : ''}" onclick="setCatFiltro('${item.val}')">${item.label}</button>`)
+    .map(item => {
+      const emoji = item.val ? (emojis[item.val] || '') : '';
+      const txt   = emoji ? `${emoji} ${item.label}` : item.label;
+      return `<button class="cat-btn${categoriaFiltro === item.val ? ' active' : ''}" onclick="setCatFiltro('${item.val}')">${txt}</button>`;
+    })
     .join('');
 }
 

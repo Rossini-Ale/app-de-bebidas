@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const session = require('express-session');
+const session      = require('express-session');
+const MySQLStore   = require('express-mysql-session')(session);
 const bcrypt = require('bcryptjs');
 const http = require('http');
 const { WebSocketServer } = require('ws');
@@ -21,10 +22,25 @@ const SENHA_HASH = bcrypt.hashSync(process.env.APP_SENHA || 'unifsp2026', 10);
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+
+/* ── Sessões persistidas no MySQL ─────────────── */
+const sessionStore = new MySQLStore({
+  host:               process.env.DB_HOST     || 'localhost',
+  port:               process.env.DB_PORT     || 3306,
+  user:               process.env.DB_USER     || 'root',
+  password:           process.env.DB_PASSWORD || '',
+  database:           process.env.DB_NAME     || 'caixa_unifsp',
+  clearExpired:       true,   // apaga sessões expiradas automaticamente
+  checkExpirationInterval: 60 * 60 * 1000, // verifica a cada 1 hora
+  expiration:         12 * 60 * 60 * 1000, // sessão dura 12 horas
+  createDatabaseTable: true,  // cria tabela sessions se não existir
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'caixa-unifsp-secret-key',
   resave: false,
   saveUninitialized: false,
+  store: sessionStore,
   cookie: { maxAge: 12 * 60 * 60 * 1000 }
 }));
 app.use(express.static(path.join(__dirname, 'public')));

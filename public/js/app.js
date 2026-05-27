@@ -395,12 +395,7 @@ function renderEstoque() {
           <input class="input input-sm" id="edit-nome-${p.id}" value="${p.nome}" placeholder="Nome" type="text" style="grid-column:1/-1" />
           <input class="input input-sm" id="edit-preco-${p.id}" value="${fmtMoeda(p.preco)}" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
           <input class="input input-sm" id="edit-custo-${p.id}" value="${fmtMoeda(p.custo)}" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
-          <select class="input input-sm" id="edit-cat-${p.id}" style="grid-column:1/-1">
-            <option value="" ${!p.categoria ? 'selected' : ''}>Sem categoria</option>
-            <option value="Bebidas" ${p.categoria === 'Bebidas' ? 'selected' : ''}>Bebidas</option>
-            <option value="Comidas" ${p.categoria === 'Comidas' ? 'selected' : ''}>Comidas</option>
-            <option value="Outros" ${p.categoria === 'Outros' ? 'selected' : ''}>Outros</option>
-          </select>
+          <input class="input input-sm" id="edit-cat-${p.id}" value="${p.categoria || ''}" placeholder="Categoria" type="text" list="cat-list" autocomplete="off" style="grid-column:1/-1" />
         </div>
         <label class="combo-toggle-label">
           <input type="checkbox" id="combo-check-${p.id}" ${hasCombo ? 'checked' : ''} onchange="toggleComboRow('${p.id}')" />

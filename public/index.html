@@ -71,12 +71,12 @@
       <div class="card-form">
         <h3>+ Adicionar produto</h3>
         <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
-        <select id="new-cat" class="input" style="margin-bottom:8px">
-          <option value="">Sem categoria</option>
-          <option value="Bebidas">Bebidas</option>
-          <option value="Comidas">Comidas</option>
-          <option value="Outros">Outros</option>
-        </select>
+        <input id="new-cat" class="input" placeholder="Categoria (ex: Bebidas, Comidas…)" type="text" list="cat-list" autocomplete="off" style="margin-bottom:8px" />
+        <datalist id="cat-list">
+          <option value="Bebidas">
+          <option value="Comidas">
+          <option value="Outros">
+        </datalist>
         <div class="form-row three">
           <input id="new-price" class="input" placeholder="Preço de venda R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
           <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />

@@ -94,12 +94,9 @@ function flashCard(id) {
 
 /* ── Toast ────────────────────────────────── */
 function showToast(msg, tipo = '') {
-  const t    = document.getElementById('toast');
-  const msgEl = document.getElementById('toast-msg');
-  const prog  = document.getElementById('toast-progress');
-  if (msgEl) msgEl.textContent = msg; else t.textContent = msg;
+  const t = document.getElementById('toast');
+  t.textContent = msg;
   t.className = 'toast show' + (tipo ? ' ' + tipo : '');
-  if (prog) { prog.style.animation = 'none'; void prog.offsetWidth; prog.style.animation = ''; }
   clearTimeout(t._t);
   t._t = setTimeout(() => { t.className = 'toast'; }, 2800);
 }
@@ -946,7 +943,6 @@ function atualizarCartBar() {
     infoBtn.innerHTML = `<span style="font-size:11px;opacity:.8">${arrow}</span> ${totalItens} ${totalItens === 1 ? 'item' : 'itens'} · ${fmt(total)}`;
   }
   bar.classList.add('visible');
-  atualizarCartSidebar();
 }
 
 function atualizarCartSidebar() {
@@ -1056,7 +1052,6 @@ function renderCarrinho() {
   }
   renderVenda();
   atualizarCartBar();
-  atualizarCartSidebar();
 }
 
 /* ── Pagamento ────────────────────────────── */

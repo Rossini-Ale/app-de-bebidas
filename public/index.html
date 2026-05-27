@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <div class="pos-container">
   <div class="app">
     <header class="header">
       <div class="header-left">
@@ -219,33 +218,7 @@
       </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>
-  </div><!-- /app -->
-
-  <aside id="cart-sidebar">
-    <div class="cs-header">
-      <h2 class="cs-title">Carrinho</h2>
-    </div>
-    <!-- métricas ocultas para countUp continuar funcionando -->
-    <span id="cs-m-vendas" style="display:none"></span>
-    <span id="cs-m-total"  style="display:none"></span>
-    <span id="cs-m-lucro"  style="display:none"></span>
-    <span id="cs-operador-nome" style="display:none"></span>
-    <div class="cs-empty" id="cs-empty">
-      <div class="cs-empty-icon">🛒</div>
-      <p>Toque nos produtos para adicionar ao carrinho</p>
-    </div>
-    <div class="cs-items" id="cs-items"></div>
-    <div class="cs-footer" id="cs-footer" style="display:none">
-      <div class="cs-total-row">
-        <span class="cs-total-label">Total</span>
-        <span class="cs-total-val" id="cs-total">—</span>
-      </div>
-      <button class="cs-btn-clear" id="cs-btn-clear" onclick="limparCarrinhoConfirmSidebar()">🗑 Limpar carrinho</button>
-      <button class="cs-btn-confirm" onclick="abrirPagamento()">✓ Finalizar venda</button>
-    </div>
-  </aside>
-
-  </div><!-- /pos-container -->
+  </div>
 
   <!-- NAVEGAÇÃO INFERIOR (mobile) -->
   <nav id="bottom-nav">
@@ -371,7 +344,7 @@
   <!-- ANIMAÇÃO DE SUCESSO -->
   <div id="success-anim"><div class="success-circle">✓</div></div>
 
-  <div class="toast" id="toast"><span id="toast-msg"></span><div class="toast-progress" id="toast-progress"></div></div>
+  <div class="toast" id="toast"></div>
 
   <!-- TELA DE LOGIN -->
   <div id="login-screen">

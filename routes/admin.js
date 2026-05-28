@@ -1,5 +1,6 @@
 const express = require('express');
 const router  = express.Router();
+const bcrypt  = require('bcryptjs');
 const db      = require('../db');
 const appEvents = require('../events');
 
@@ -158,6 +159,51 @@ router.post('/sync-railway', async (req, res) => {
     }
     res.status(500).json({ error: err.message });
   }
+});
+
+/* GET /api/admin/fundo — fundo de caixa do evento */
+router.get('/fundo', async (req, res) => {
+  try {
+    const [[ev]] = await db.query('SELECT fundo_caixa FROM eventos WHERE id = ?', [req.eventoId]);
+    res.json({ fundo: Number(ev?.fundo_caixa) || 0 });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* POST /api/admin/fundo — salva fundo de caixa */
+router.post('/fundo', async (req, res) => {
+  const fundo = parseFloat(req.body.fundo) || 0;
+  try {
+    await db.query('UPDATE eventos SET fundo_caixa = ? WHERE id = ?', [fundo, req.eventoId]);
+    res.json({ ok: true, fundo });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* POST /api/admin/evento-nome — renomeia o evento */
+router.post('/evento-nome', async (req, res) => {
+  const nome = (req.body.nome || '').trim();
+  if (!nome) return res.status(400).json({ error: 'Nome não pode ser vazio' });
+  try {
+    await db.query('UPDATE eventos SET nome = ? WHERE id = ?', [nome, req.eventoId]);
+    appEvents.emit('broadcast', { type: 'evento_renomeado', nome });
+    res.json({ ok: true, nome });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* POST /api/admin/senha — altera a senha do app */
+router.post('/senha', async (req, res) => {
+  const { senhaAtual, novaSenha } = req.body;
+  if (!senhaAtual || !novaSenha)
+    return res.status(400).json({ error: 'Preencha todos os campos' });
+  if (novaSenha.length < 4)
+    return res.status(400).json({ error: 'Nova senha precisa ter pelo menos 4 caracteres' });
+  try {
+    const [[ev]] = await db.query('SELECT senha_hash FROM eventos WHERE id = ?', [req.eventoId]);
+    if (!ev?.senha_hash || !bcrypt.compareSync(senhaAtual, ev.senha_hash))
+      return res.status(401).json({ error: 'Senha atual incorreta' });
+    const novoHash = bcrypt.hashSync(novaSenha, 10);
+    await db.query('UPDATE eventos SET senha_hash = ? WHERE id = ?', [novoHash, req.eventoId]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = router;

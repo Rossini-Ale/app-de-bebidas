@@ -84,6 +84,9 @@
         <input id="busca-estoque" class="input search-inp" type="search" placeholder="Buscar produto no estoque…"
           oninput="renderEstoque()" autocomplete="off" />
       </div>
+      <div class="cat-filter-wrap-est">
+        <div id="cat-filter-estoque" class="sort-bar"></div>
+      </div>
       <div id="stock-alert-banner" class="stock-alert-banner" style="display:none">
         <span class="sab-icon">⚠</span>
         <span class="sab-msg" id="stock-alert-msg"></span>
@@ -146,6 +149,10 @@
         <button class="btn-cardapio" id="btn-exportar-cardapio" onclick="exportarCardapioPDF()">📋 Cardápio PDF</button>
         <button class="btn-cardapio" onclick="abrirQrCardapio()">⬛ QR Cardápio</button>
       </div>
+      <label class="pdf-toggle-label" style="margin-top:6px">
+        <input type="checkbox" id="pdf-ocultar-esgotados" />
+        Ocultar esgotados no PDF
+      </label>
       <p class="section-label" style="margin-top:1rem">Vendas por hora</p>
       <div class="grafico-horas" id="grafico-hora"></div>
 
@@ -197,6 +204,11 @@
         <button class="sort-btn" data-pag="dinheiro" onclick="setFiltroPagamento('dinheiro')">💵 Dinheiro</button>
         <button class="sort-btn" data-pag="pix" onclick="setFiltroPagamento('pix')">Pix</button>
         <button class="sort-btn" data-pag="cartao" onclick="setFiltroPagamento('cartao')">💳 Cartão</button>
+      </div>
+      <div id="hist-op-filter" style="display:none">
+        <select id="hist-op-select" onchange="setFiltroOperador(this.value)">
+          <option value="">Todos os operadores</option>
+        </select>
       </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>
@@ -352,8 +364,11 @@
       <div class="login-fields">
         <input id="login-operador" class="input" type="text" placeholder="Seu nome"
           autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()" />
-        <input id="login-senha" class="input" type="password" placeholder="Senha"
-          onkeydown="if(event.key==='Enter')fazerLogin()" />
+        <div class="senha-wrap">
+          <input id="login-senha" class="input" type="password" placeholder="Senha"
+            onkeydown="if(event.key==='Enter')fazerLogin()" />
+          <button type="button" class="btn-show-pass" onclick="toggleMostrarSenha()" title="Mostrar/ocultar senha" tabindex="-1">👁</button>
+        </div>
       </div>
       <div id="login-erro" class="login-erro"></div>
       <button class="btn-primary" id="login-btn" onclick="fazerLogin()">Entrar</button>
@@ -377,15 +392,19 @@
   </datalist>
 
   <!-- QR CODE MODAL -->
-  <div id="qr-overlay" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)fecharQr()">
-    <div style="background:var(--bg-card);border-radius:16px;padding:1.5rem;max-width:320px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3)">
-      <h3 style="margin-bottom:.5rem;font-size:16px">QR Code – Cardápio</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Escaneie para ver o cardápio</p>
-      <div id="qr-img-wrap" style="margin-bottom:1rem"></div>
-      <p id="qr-url" style="font-size:11px;color:var(--muted);word-break:break-all;margin-bottom:1rem"></p>
-      <div style="display:flex;gap:8px;justify-content:center">
-        <button class="btn-primary" style="flex:1" onclick="baixarQr()">⬇ Salvar imagem</button>
-        <button class="btn-secondary" style="flex:1" onclick="fecharQr()">Fechar</button>
+  <div id="qr-overlay" onclick="if(event.target===this)fecharQr()">
+    <div class="qr-modal">
+      <h3 class="qr-modal-title">QR Code – Cardápio</h3>
+      <p class="qr-modal-sub">Escaneie para ver o cardápio</p>
+      <div id="qr-img-wrap" class="qr-img-wrap"></div>
+      <p id="qr-url" class="qr-modal-url"></p>
+      <div class="qr-modal-row">
+        <button class="btn-primary" onclick="copiarLinkCardapio()">📋 Copiar link</button>
+        <a id="qr-abrir-link" class="btn-secondary" href="#" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none">↗ Abrir</a>
+      </div>
+      <div class="qr-modal-row">
+        <button class="btn-secondary" onclick="baixarQr()">⬇ Salvar SVG</button>
+        <button class="btn-secondary" onclick="fecharQr()">Fechar</button>
       </div>
     </div>
   </div>
@@ -416,7 +435,31 @@
       <p class="admin-hint" style="margin-top:6px">Use se a internet estiver falhando. Atualiza o estoque local com o estado atual do Railway.</p>
     </div>
 
-    <p class="admin-section-label" style="margin-top:16px">Evento</p>
+    <p class="admin-section-label" style="margin-top:16px">Nome do evento</p>
+    <div class="admin-edit-row">
+      <input id="admin-nome-inp" class="input" type="text" placeholder="Nome do evento" maxlength="60" />
+      <button class="admin-btn-save" id="btn-salvar-nome" onclick="salvarNomeEvento()">Salvar</button>
+    </div>
+    <p class="admin-hint" style="margin-top:4px;text-align:left">Aparece no cabeçalho, PDF e cardápio público.</p>
+
+    <p class="admin-section-label" style="margin-top:20px">Alterar senha</p>
+    <div class="admin-senha-fields">
+      <div class="senha-wrap">
+        <input id="admin-senha-atual" class="input" type="password" placeholder="Senha atual" autocomplete="current-password" />
+        <button type="button" class="btn-show-pass" onclick="toggleMostrarSenhaAdmin('admin-senha-atual')" tabindex="-1">👁</button>
+      </div>
+      <div class="senha-wrap">
+        <input id="admin-senha-nova" class="input" type="password" placeholder="Nova senha (mín. 4 caracteres)" autocomplete="new-password" />
+        <button type="button" class="btn-show-pass" onclick="toggleMostrarSenhaAdmin('admin-senha-nova')" tabindex="-1">👁</button>
+      </div>
+      <div class="senha-wrap">
+        <input id="admin-senha-conf" class="input" type="password" placeholder="Confirmar nova senha" autocomplete="new-password" />
+        <button type="button" class="btn-show-pass" onclick="toggleMostrarSenhaAdmin('admin-senha-conf')" tabindex="-1">👁</button>
+      </div>
+    </div>
+    <button class="admin-btn-save" id="btn-alterar-senha" onclick="alterarSenha()" style="width:100%">🔑 Alterar senha</button>
+
+    <p class="admin-section-label" style="margin-top:20px">Evento</p>
     <div class="admin-status-card" id="admin-status-card">
       <div class="admin-status-row">
         <span>Vendas registradas</span>
@@ -485,6 +528,51 @@
         <div id="dose-hint-new" class="dose-hint">Preencha os ml da garrafa e da dose</div>
       </div>
       <button class="btn-primary" style="margin-bottom:4px" onclick="addProduto()">✓ Adicionar ao estoque</button>
+    </div>
+  </div>
+
+  <!-- BACKDROP EDITAR PRODUTO -->
+  <div id="edit-drawer-bg" onclick="fecharEditDrawer()"></div>
+  <!-- DRAWER EDITAR PRODUTO -->
+  <div id="edit-drawer">
+    <div class="cart-drawer-handle"></div>
+    <div class="cart-drawer-header">
+      <span class="cart-drawer-title">Editar produto</span>
+      <button class="cart-drawer-close" onclick="fecharEditDrawer()">✕</button>
+    </div>
+    <div id="edit-drawer-scroll">
+      <input id="ed-nome" class="input" placeholder="Nome do produto" type="text" />
+      <input id="ed-cat" class="input" placeholder="Categoria (ex: Bebidas, Comidas…)" type="text" list="cat-list" autocomplete="off" />
+      <div class="form-row three">
+        <input id="ed-preco" class="input" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
+        <input id="ed-custo" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
+        <input id="ed-estoque-display" class="input" placeholder="Estoque atual" type="number" min="0" inputmode="numeric" disabled />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input id="ed-min-stock" class="input" placeholder="Estoque mínimo (alerta)" type="number" min="0" inputmode="numeric" />
+        <input id="ed-fardo-qtd" class="input" placeholder="Un. por fardo (ex: 24)" type="number" min="2" inputmode="numeric" />
+      </div>
+      <label class="combo-toggle-label">
+        <input type="checkbox" id="ed-combo-check" onchange="toggleComboRow('ed')" />
+        Ativar combo por quantidade
+      </label>
+      <div class="combo-row" id="combo-row-ed" style="display:none">
+        <input id="ed-combo-qtd" class="input" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" />
+        <input id="ed-combo-preco" class="input" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" />
+      </div>
+      <label class="combo-toggle-label" style="margin-top:4px">
+        <input type="checkbox" id="ed-dose-check" onchange="toggleDoseRow('ed')" />
+        Vender por dose (garrafa/ml)
+      </label>
+      <div class="dose-row" id="dose-row-ed" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+          <input id="ed-garrafa-ml" class="input" placeholder="ml da garrafa (ex: 700)" type="number" min="1" inputmode="numeric" oninput="calcularDose('ed')" />
+          <input id="ed-dose-ml" class="input" placeholder="ml por dose (ex: 50)" type="number" min="1" inputmode="numeric" oninput="calcularDose('ed')" />
+        </div>
+        <input id="ed-garrafa-preco" class="input" placeholder="Preço da garrafa inteira (ex: 45.00)" type="number" step="0.01" inputmode="decimal" oninput="calcularDose('ed')" />
+        <div id="dose-hint-ed" class="dose-hint">Preencha os ml da garrafa e da dose</div>
+      </div>
+      <button class="btn-primary" style="margin-bottom:4px" onclick="salvarEdicaoDrawer()">✓ Salvar alterações</button>
     </div>
   </div>
 

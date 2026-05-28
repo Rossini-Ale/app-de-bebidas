@@ -8,13 +8,20 @@ let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
 let dinheiroVendas = 0, wakeLock = null, reposicaoId = null, reposicaoModo = 'add';
 let eventoAtual = null, operadorAtual = 'Caixa', venderAoCusto = false;
 let categoriaFiltro = '';
+let categoriaFiltroEstoque = '';
 let wsConn = null, wsConectado = false;
 let qmCurrentVal = '';
 let reposicaoHistoricoAberto = false;
 let filtroPagamento = '';
+let filtroOperador  = '';
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
-function fmtShort(v) { return 'R$' + Math.round(v); }
+function fmtShort(v) {
+  const n = Number(v);
+  if (n >= 10000) return 'R$' + (n / 1000).toFixed(1).replace('.', ',') + 'k';
+  if (Number.isInteger(n)) return 'R$' + n;
+  return 'R$' + n.toFixed(2).replace('.', ',');
+}
 
 function fmtMoeda(v) { return Number(v).toFixed(2).replace('.', ','); }
 function lerMoeda(id) {
@@ -103,6 +110,18 @@ function showToast(msg, tipo = '') {
   t._t = setTimeout(() => { t.className = 'toast'; }, 2800);
 }
 
+/* ── Mostrar/ocultar senha ────────────────── */
+function toggleMostrarSenha() {
+  const inp = document.getElementById('login-senha');
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+function toggleMostrarSenhaAdmin(id) {
+  const inp = document.getElementById(id);
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
 /* ── Tema escuro ──────────────────────────── */
 function aplicarTema() {
   const tema = localStorage.getItem('tema') || 'light';
@@ -120,8 +139,8 @@ function toggleDarkMode() {
 
 /* ── Combo toggle ─────────────────────────── */
 function toggleComboRow(prefix) {
-  // new product uses 'new-combo-check'; edit products use 'combo-check-{id}'
-  const checkId = prefix === 'new' ? 'new-combo-check' : `combo-check-${prefix}`;
+  // 'new' and 'ed' use prefix-combo-check; numeric IDs use combo-check-{id}
+  const checkId = (prefix === 'new' || prefix === 'ed') ? `${prefix}-combo-check` : `combo-check-${prefix}`;
   const check = document.getElementById(checkId);
   const row = document.getElementById(`combo-row-${prefix}`);
   if (row) row.style.display = check?.checked ? 'grid' : 'none';
@@ -164,7 +183,7 @@ function atualizarBadgeEstoque() {
 }
 
 function toggleDoseRow(prefix) {
-  const checkId = prefix === 'new' ? 'new-dose-check' : `dose-check-${prefix}`;
+  const checkId = (prefix === 'new' || prefix === 'ed') ? `${prefix}-dose-check` : `dose-check-${prefix}`;
   const check = document.getElementById(checkId);
   const row = document.getElementById(`dose-row-${prefix}`);
   if (row) row.style.display = check?.checked ? 'block' : 'none';
@@ -182,10 +201,20 @@ function toggleDoseRow(prefix) {
 }
 
 function calcularDose(prefix) {
-  const isNew = prefix === 'new';
-  const garMlEl  = document.getElementById(isNew ? 'new-garrafa-ml'    : `edit-garrafa-ml-${prefix}`);
-  const dMlEl    = document.getElementById(isNew ? 'new-dose-ml'        : `edit-dose-ml-${prefix}`);
-  const gPrecoEl = document.getElementById(isNew ? 'new-garrafa-preco'  : `edit-garrafa-preco-${prefix}`);
+  let garMlEl, dMlEl, gPrecoEl;
+  if (prefix === 'new') {
+    garMlEl  = document.getElementById('new-garrafa-ml');
+    dMlEl    = document.getElementById('new-dose-ml');
+    gPrecoEl = document.getElementById('new-garrafa-preco');
+  } else if (prefix === 'ed') {
+    garMlEl  = document.getElementById('ed-garrafa-ml');
+    dMlEl    = document.getElementById('ed-dose-ml');
+    gPrecoEl = document.getElementById('ed-garrafa-preco');
+  } else {
+    garMlEl  = document.getElementById(`edit-garrafa-ml-${prefix}`);
+    dMlEl    = document.getElementById(`edit-dose-ml-${prefix}`);
+    gPrecoEl = document.getElementById(`edit-garrafa-preco-${prefix}`);
+  }
   const hint     = document.getElementById(`dose-hint-${prefix}`);
   if (!hint) return;
   const garMl  = parseInt(garMlEl?.value)  || 0;
@@ -294,6 +323,24 @@ function setFiltroPagamento(pag) {
   renderHistoricoLista();
 }
 
+function setFiltroOperador(op) {
+  filtroOperador = op;
+  histPagina = 1;
+  renderHistoricoLista();
+}
+
+function atualizarSelectOperador() {
+  const wrap  = document.getElementById('hist-op-filter');
+  const sel   = document.getElementById('hist-op-select');
+  if (!sel || !historicoVendas) return;
+  const ops = [...new Set(historicoVendas.map(v => v.operador).filter(Boolean))].sort();
+  if (ops.length <= 1) { if (wrap) wrap.style.display = 'none'; return; }
+  if (wrap) wrap.style.display = '';
+  const current = sel.value;
+  sel.innerHTML = `<option value="">Todos os operadores</option>` +
+    ops.map(op => `<option value="${op}" ${op === current ? 'selected' : ''}>${op}</option>`).join('');
+}
+
 /* ── API ──────────────────────────────────── */
 async function apiFetch(path, opts = {}) {
   const r = await fetch(API + '/api' + path, { headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', ...opts });
@@ -311,8 +358,19 @@ async function checkAuth() {
     const data = await ev.json();
     operadorAtual = data.operador || 'Caixa';
     setOperadorBadge(operadorAtual);
+    atualizarNomeEvento(data.eventoNome || 'Caixa UNIFSP');
     return true;
   } catch { mostrarLogin(); return false; }
+}
+
+function atualizarNomeEvento(nome) {
+  eventoAtual = { nome };
+  document.title = nome + ' · Caixa';
+  const h1 = document.querySelector('.header h1');
+  if (h1) h1.textContent = nome;
+  // Preenche campo do admin modal se já estiver aberto
+  const inp = document.getElementById('admin-nome-inp');
+  if (inp && !inp.value) inp.value = nome;
 }
 
 function mostrarLogin() {
@@ -352,6 +410,7 @@ async function fazerLogin() {
     if (!data.ok) { erro.textContent = json.error || 'Erro ao entrar'; return; }
     operadorAtual = json.operador || operador;
     setOperadorBadge(operadorAtual);
+    atualizarNomeEvento(json.eventoNome || 'Caixa UNIFSP');
     ocultarLogin();
     relatorioItens = null; historicoVendas = null;
     carregarTudo();
@@ -360,6 +419,20 @@ async function fazerLogin() {
 }
 
 async function fazerLogout() {
+  const btn = document.getElementById('btn-logout');
+  if (!btn) return;
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    btn.title = 'Toque de novo para sair';
+    btn._timer = setTimeout(() => {
+      btn.classList.remove('confirming');
+      btn.title = 'Sair';
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn._timer);
+  btn.classList.remove('confirming');
+  btn.title = 'Sair';
   await fetch(API + '/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
   operadorAtual = 'Caixa';
   produtos = []; carrinho = [];
@@ -434,6 +507,21 @@ function setCatFiltro(cat) {
   renderVenda();
 }
 
+function renderCatFiltrosEstoque() {
+  const el = document.getElementById('cat-filter-estoque');
+  if (!el) return;
+  const cats = [...new Set(produtos.map(p => p.categoria || '').filter(Boolean))].sort();
+  if (cats.length <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = [{ label: 'Todos', val: '' }, ...cats.map(c => ({ label: c, val: c }))]
+    .map(item => `<button class="cat-btn${categoriaFiltroEstoque === item.val ? ' active' : ''}" onclick="setCatFiltroEstoque('${item.val}')">${item.label}</button>`)
+    .join('');
+}
+
+function setCatFiltroEstoque(cat) {
+  categoriaFiltroEstoque = cat;
+  renderEstoque();
+}
+
 function renderVenda() {
   renderCatFiltros();
   const l = document.getElementById('venda-lista');
@@ -475,7 +563,7 @@ function renderVenda() {
     const itemCart   = carrinho.find(c => c.id === p.id);
     const inCart     = !!itemCart;
     const comboActive = inCart && p.combo_qtd && p.combo_preco && itemCart.qty >= p.combo_qtd;
-    const badge      = inCart ? `<span class="pc-badge" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${itemCart.qty}</span>` : '';
+    const badge      = `<span class="pc-badge" style="${inCart ? '' : 'display:none'}" onclick="event.stopPropagation();abrirQtyPicker(${p.id})">${inCart ? itemCart.qty : ''}</span>`;
 
     // Rank badge (só para produtos com estoque)
     const rank = !noStock ? (rankMap[p.id] || 0) : 0;
@@ -498,7 +586,7 @@ function renderVenda() {
     const comboBadge = (p.combo_qtd && p.combo_preco)
       ? `<div class="pc-combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
     const doseBadge  = isDose
-      ? `<div class="pc-combo" style="color:var(--muted);background:var(--bg-sec);border-color:var(--border)">${p.dose_ml}ml/dose</div>` : '';
+      ? `<div class="pc-dose">${p.dose_ml}ml/dose</div>` : '';
     return `<div class="${classes}" data-id="${p.id}" ${onclick} style="animation-delay:${Math.min(index * 28, 140)}ms">
       ${rankBadge}${esgotadoBadge}${badge}
       <div class="pc-nome">${p.nome}</div>
@@ -511,6 +599,7 @@ function renderVenda() {
 }
 
 function renderEstoque() {
+  renderCatFiltrosEstoque();
   const l = document.getElementById('stock-list');
   document.getElementById('m-produtos').textContent = produtos.length;
   if (!produtos.length) {
@@ -525,9 +614,11 @@ function renderEstoque() {
 
   // Filtro de busca
   const termoEstoque = (document.getElementById('busca-estoque')?.value || '').trim().toLowerCase();
-  const listaEstoque = termoEstoque
+  let listaEstoque = termoEstoque
     ? sortedEstoque.filter(p => p.nome.toLowerCase().includes(termoEstoque) || (p.categoria || '').toLowerCase().includes(termoEstoque))
     : sortedEstoque;
+  // Filtro de categoria
+  if (categoriaFiltroEstoque) listaEstoque = listaEstoque.filter(p => (p.categoria || '') === categoriaFiltroEstoque);
 
   atualizarBadgeEstoque();
 
@@ -537,51 +628,6 @@ function renderEstoque() {
   }
 
   l.innerHTML = listaEstoque.map(p => {
-    if (editingId === p.id) {
-      const hasCombo = !!(p.combo_qtd && p.combo_preco);
-      const hasDose  = !!(p.dose_ml && p.garrafa_ml);
-      const dPorG    = hasDose ? Math.floor(Number(p.garrafa_ml) / Number(p.dose_ml)) : 0;
-      const dHint    = hasDose
-        ? `${dPorG} doses/garrafa${p.garrafa_preco ? ` · Custo/dose: ${fmt(Number(p.garrafa_preco)/dPorG)}` : ''}`
-        : 'Preencha os ml da garrafa e da dose';
-      return `<div class="stock-item editing">
-        <div class="stock-edit-header">
-          <span>Editando produto</span>
-        </div>
-        <div class="stock-edit-grid">
-          <input class="input input-sm" id="edit-nome-${p.id}" value="${p.nome}" placeholder="Nome" type="text" style="grid-column:1/-1" />
-          <input class="input input-sm" id="edit-preco-${p.id}" value="${fmtMoeda(p.preco)}" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
-          <input class="input input-sm" id="edit-custo-${p.id}" value="${fmtMoeda(p.custo)}" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
-          <input class="input input-sm" id="edit-cat-${p.id}" value="${p.categoria || ''}" placeholder="Categoria" type="text" list="cat-list" autocomplete="off" style="grid-column:1/-1" />
-          <input class="input input-sm" id="edit-min-stock-${p.id}"  value="${p.estoque_minimo       || ''}" placeholder="Estoque mínimo (alerta)" type="number" min="0" style="grid-column:1/-1" />
-          <input class="input input-sm" id="edit-fardo-qtd-${p.id}" value="${p.unidades_por_fardo || ''}" placeholder="Un. por fardo (ex: 24)"  type="number" min="2" style="grid-column:1/-1" />
-        </div>
-        <label class="combo-toggle-label">
-          <input type="checkbox" id="combo-check-${p.id}" ${hasCombo ? 'checked' : ''} onchange="toggleComboRow('${p.id}')" />
-          Ativar combo por quantidade
-        </label>
-        <div class="combo-row" id="combo-row-${p.id}" style="display:${hasCombo ? 'grid' : 'none'}">
-          <input class="input input-sm" id="edit-combo-qtd-${p.id}" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" value="${p.combo_qtd || ''}" />
-          <input class="input input-sm" id="edit-combo-preco-${p.id}" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" value="${p.combo_preco ? (Number(p.combo_preco) * p.combo_qtd).toFixed(2) : ''}" />
-        </div>
-        <label class="combo-toggle-label" style="margin-top:2px">
-          <input type="checkbox" id="dose-check-${p.id}" ${hasDose ? 'checked' : ''} onchange="toggleDoseRow('${p.id}')" />
-          Vender por dose (garrafa/ml)
-        </label>
-        <div class="dose-row" id="dose-row-${p.id}" style="display:${hasDose ? 'block' : 'none'}">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
-            <input class="input input-sm" id="edit-garrafa-ml-${p.id}" placeholder="ml garrafa (ex: 700)" type="number" min="1" value="${p.garrafa_ml || ''}" oninput="calcularDose('${p.id}')" />
-            <input class="input input-sm" id="edit-dose-ml-${p.id}" placeholder="ml/dose (ex: 50)" type="number" min="1" value="${p.dose_ml || ''}" oninput="calcularDose('${p.id}')" />
-          </div>
-          <input class="input input-sm" id="edit-garrafa-preco-${p.id}" placeholder="Preço da garrafa inteira" type="number" step="0.01" value="${p.garrafa_preco || ''}" oninput="calcularDose('${p.id}')" style="margin-bottom:0" />
-          <div id="dose-hint-${p.id}" class="dose-hint">${dHint}</div>
-        </div>
-        <div class="stock-edit-actions">
-          <button class="btn-save" onclick="salvarEdicao(${p.id})">✓ Salvar</button>
-          <button class="btn-cancel-inline" onclick="cancelarEdicao()">Cancelar</button>
-        </div>
-      </div>`;
-    }
     const hasDose       = !!(p.dose_ml && p.garrafa_ml);
     const dosesPorGar   = hasDose ? Math.floor(Number(p.garrafa_ml) / Number(p.dose_ml)) : 1;
     const unidade       = hasDose ? 'doses' : 'un.';
@@ -676,7 +722,7 @@ function renderReposicoes(rows) {
 }
 
 function abrirReposicao(id, modo = 'add') {
-  editingId = null;
+  fecharEditDrawer();
   if (reposicaoId === id && reposicaoModo === modo) {
     reposicaoId = null;
   } else {
@@ -718,15 +764,105 @@ async function confirmarReposicao(id) {
 }
 
 function editarProduto(id) {
-  reposicaoId = null;
-  editingId = id;
-  renderEstoque();
-  document.getElementById(`edit-nome-${id}`)?.focus();
+  abrirEditDrawer(id);
 }
 
 function cancelarEdicao() {
+  fecharEditDrawer();
+}
+
+function abrirEditDrawer(id) {
+  const p = produtos.find(x => x.id === id);
+  if (!p) return;
+  reposicaoId = null;
+  editingId   = id;
+  // Preenche os campos
+  document.getElementById('ed-nome').value            = p.nome;
+  document.getElementById('ed-cat').value             = p.categoria || '';
+  document.getElementById('ed-preco').value           = fmtMoeda(p.preco);
+  document.getElementById('ed-custo').value           = fmtMoeda(p.custo);
+  document.getElementById('ed-estoque-display').value = p.estoque;
+  document.getElementById('ed-min-stock').value       = p.estoque_minimo || '';
+  document.getElementById('ed-fardo-qtd').value       = p.unidades_por_fardo || '';
+  // Combo
+  const hasCombo = !!(p.combo_qtd && p.combo_preco);
+  document.getElementById('ed-combo-check').checked = hasCombo;
+  document.getElementById('combo-row-ed').style.display = hasCombo ? 'grid' : 'none';
+  document.getElementById('ed-combo-qtd').value   = hasCombo ? (p.combo_qtd  || '') : '';
+  document.getElementById('ed-combo-preco').value = hasCombo ? (Number(p.combo_preco) * p.combo_qtd).toFixed(2) : '';
+  // Dose
+  const hasDose = !!(p.dose_ml && p.garrafa_ml);
+  document.getElementById('ed-dose-check').checked = hasDose;
+  document.getElementById('dose-row-ed').style.display = hasDose ? 'block' : 'none';
+  document.getElementById('ed-garrafa-ml').value    = p.garrafa_ml    || '';
+  document.getElementById('ed-dose-ml').value       = p.dose_ml       || '';
+  document.getElementById('ed-garrafa-preco').value = p.garrafa_preco || '';
+  if (hasDose) calcularDose('ed');
+  else document.getElementById('dose-hint-ed').textContent = 'Preencha os ml da garrafa e da dose';
+  // Botão salvar: reset
+  const saveBtn = document.querySelector('#edit-drawer .btn-primary');
+  if (saveBtn) { saveBtn.textContent = '✓ Salvar alterações'; saveBtn.disabled = false; }
+  // Abre drawer
+  document.getElementById('edit-drawer-bg').classList.add('open');
+  document.getElementById('edit-drawer').classList.add('open');
+  setTimeout(() => document.getElementById('ed-nome').focus(), 80);
+}
+
+function fecharEditDrawer() {
+  document.getElementById('edit-drawer-bg').classList.remove('open');
+  document.getElementById('edit-drawer').classList.remove('open');
   editingId = null;
-  renderEstoque();
+}
+
+async function salvarEdicaoDrawer() {
+  const id = editingId;
+  if (!id) return;
+  const nome             = document.getElementById('ed-nome').value.trim();
+  const preco            = lerMoeda('ed-preco');
+  const custo            = lerMoeda('ed-custo');
+  const categoria        = (document.getElementById('ed-cat')?.value || '').trim();
+  const comboAtivo       = document.getElementById('ed-combo-check')?.checked;
+  const comboQtdVal      = parseInt(document.getElementById('ed-combo-qtd')?.value);
+  const comboPrecVal     = parseFloat(document.getElementById('ed-combo-preco')?.value);
+  const estoqueMinimo    = parseInt(document.getElementById('ed-min-stock')?.value)  || 0;
+  const unidadesPorFardo = parseInt(document.getElementById('ed-fardo-qtd')?.value)  || null;
+  const doseAtivo        = document.getElementById('ed-dose-check')?.checked;
+  const doseMlVal        = parseInt(document.getElementById('ed-dose-ml')?.value)    || null;
+  const garrafaMlVal     = parseInt(document.getElementById('ed-garrafa-ml')?.value) || null;
+  const garrafaPreco     = parseFloat(document.getElementById('ed-garrafa-preco')?.value) || null;
+  if (!nome || isNaN(preco)) { showToast('⚠ Preencha nome e preço', 'error-toast'); return; }
+  if (comboAtivo && (isNaN(comboQtdVal) || comboQtdVal < 2 || isNaN(comboPrecVal) || comboPrecVal <= 0)) {
+    showToast('⚠ Preencha quantidade mínima (≥2) e preço do combo', 'error-toast'); return;
+  }
+  if (doseAtivo && (!doseMlVal || !garrafaMlVal)) {
+    showToast('⚠ Preencha ml da garrafa e ml por dose', 'error-toast'); return;
+  }
+  const p      = produtos.find(x => x.id === id);
+  const saveBtn = document.querySelector('#edit-drawer .btn-primary');
+  if (saveBtn) { saveBtn.textContent = '…'; saveBtn.disabled = true; }
+  try {
+    const updated = await apiFetch(`/produtos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        nome, emoji: p.emoji, preco, custo, estoque: p.estoque,
+        estoque_minimo: estoqueMinimo, categoria, unidades_por_fardo: unidadesPorFardo,
+        combo_qtd:     comboAtivo ? comboQtdVal           : null,
+        combo_preco:   comboAtivo ? comboPrecVal / comboQtdVal : null,
+        dose_ml:       doseAtivo  ? doseMlVal      : null,
+        garrafa_ml:    doseAtivo  ? garrafaMlVal   : null,
+        garrafa_preco: doseAtivo  ? garrafaPreco   : null,
+      })
+    });
+    const i = produtos.findIndex(x => x.id === id);
+    if (i >= 0) produtos[i] = updated;
+    fecharEditDrawer();
+    renderEstoque();
+    renderVenda();
+    showToast('✓ ' + nome + ' atualizado!', 'green-toast');
+  } catch (e) {
+    if (saveBtn) { saveBtn.textContent = '✓ Salvar alterações'; saveBtn.disabled = false; }
+    showToast('Erro: ' + e.message, 'error-toast');
+  }
 }
 
 async function salvarEdicao(id) {
@@ -1122,6 +1258,25 @@ function fecharAddDrawer() {
   document.getElementById('add-drawer-bg')?.classList.remove('open');
 }
 
+/* Atualiza apenas badges e classes dos cards existentes (sem re-renderizar tudo) */
+function updateCarrinhoVendaCards() {
+  document.querySelectorAll('.produto-card[data-id]').forEach(card => {
+    const id   = Number(card.dataset.id);
+    const item = carrinho.find(c => c.id === id);
+    const p    = produtos.find(x => x.id === id);
+    const badge = card.querySelector('.pc-badge');
+    if (item && item.qty > 0) {
+      card.classList.add('in-cart');
+      if (badge) { badge.style.display = ''; badge.textContent = item.qty; }
+      const comboOn = p && p.combo_qtd && p.combo_preco && item.qty >= p.combo_qtd;
+      card.classList.toggle('combo-active', !!comboOn);
+    } else {
+      card.classList.remove('in-cart', 'combo-active');
+      if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
+    }
+  });
+}
+
 function renderCarrinho() {
   const clearBtn = document.getElementById('cart-bar-clear');
   if (clearBtn?.classList.contains('confirming')) {
@@ -1136,7 +1291,7 @@ function renderCarrinho() {
       renderCartSheet();
     }
   }
-  renderVenda();
+  updateCarrinhoVendaCards();
   atualizarCartBar();
 }
 
@@ -1227,7 +1382,10 @@ async function finalizarVenda() {
     await carregarResumo();
     showToast('✓ ' + fmt(total) + ' registrado!', 'green-toast');
     mostrarDesfazer(total);
-  } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
+  } catch (e) {
+    const isNetwork = e.message.includes('fetch') || e.message.includes('Failed') || e.message.includes('network');
+    showToast(isNetwork ? '⚠ Sem conexão — carrinho mantido, tente novamente' : 'Erro: ' + e.message, 'error-toast');
+  }
 }
 
 /* ── Animação de sucesso ──────────────────── */
@@ -1253,7 +1411,7 @@ function mostrarDesfazer(total) {
   document.getElementById('undo-msg').textContent = fmt(total) + ' registrado';
   bar.classList.add('show');
   clearTimeout(undoTimer);
-  undoTimer = setTimeout(() => { bar.classList.remove('show'); ultimaVendaId = null; }, 8000);
+  undoTimer = setTimeout(() => { bar.classList.remove('show'); ultimaVendaId = null; }, 12000);
 }
 
 async function desfazerUltimaVenda() {
@@ -1493,6 +1651,11 @@ function renderHistoricoLista() {
   if (filtroPagamento) {
     filtrado = filtrado.filter(venda => (venda.forma_pagamento || 'dinheiro') === filtroPagamento);
   }
+  // Filtro por operador
+  if (filtroOperador) {
+    filtrado = filtrado.filter(venda => venda.operador === filtroOperador);
+  }
+  atualizarSelectOperador();
 
   if (!filtrado.length) {
     l.innerHTML = '<div class="empty-state">Nenhuma venda encontrada</div>';
@@ -1624,28 +1787,45 @@ function confirmarQtyCustom() {
 }
 
 /* ── Fundo de Caixa ───────────────────────── */
-function carregarFundo() {
-  const val = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+let fundoCaixaAtual = 0;
+
+async function carregarFundo() {
+  try {
+    const data = await apiFetch('/admin/fundo');
+    fundoCaixaAtual = Number(data.fundo) || 0;
+  } catch {
+    // fallback para localStorage se API falhar
+    fundoCaixaAtual = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+  }
   const inp = document.getElementById('fundo-inp');
-  if (inp && !inp.matches(':focus')) inp.value = val > 0 ? fmtMoeda(val) : '';
+  if (inp && !inp.matches(':focus')) inp.value = fundoCaixaAtual > 0 ? fmtMoeda(fundoCaixaAtual) : '';
   atualizarFundoResultado();
 }
 
-function salvarFundo() {
+async function salvarFundo() {
   const val = lerMoeda('fundo-inp');
-  localStorage.setItem('fundo_caixa', val);
-  atualizarFundoResultado();
-  showToast('Fundo salvo!', 'green-toast');
+  const btn = document.querySelector('.fundo-save-btn');
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+  try {
+    await apiFetch('/admin/fundo', { method: 'POST', body: JSON.stringify({ fundo: val }) });
+    fundoCaixaAtual = val;
+    localStorage.setItem('fundo_caixa', val); // mantém backup local
+    atualizarFundoResultado();
+    showToast('✓ Fundo salvo!', 'green-toast');
+  } catch (e) {
+    showToast('Erro ao salvar fundo: ' + e.message, 'error-toast');
+  } finally {
+    if (btn) { btn.textContent = '✓ Salvar'; btn.disabled = false; }
+  }
 }
 
 function atualizarFundoResultado() {
   const el = document.getElementById('fundo-resultado');
   if (!el) return;
-  const fundo = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
-  if (fundo === 0 && dinheiroVendas === 0) { el.innerHTML = ''; return; }
-  const esperado = fundo + dinheiroVendas;
+  if (fundoCaixaAtual === 0 && dinheiroVendas === 0) { el.innerHTML = ''; return; }
+  const esperado = fundoCaixaAtual + dinheiroVendas;
   el.innerHTML = `
-    <div class="fc-row"><span>Fundo inicial</span><span>${fmt(fundo)}</span></div>
+    <div class="fc-row"><span>Fundo inicial</span><span>${fmt(fundoCaixaAtual)}</span></div>
     <div class="fc-row"><span>Vendas em dinheiro</span><span>${fmt(dinheiroVendas)}</span></div>
     <div class="fc-row fc-total"><span>Esperado no caixa</span><span>${fmt(esperado)}</span></div>`;
 }
@@ -1668,7 +1848,7 @@ async function compartilharWhatsApp() {
       ? `\n🗃 Fundo: ${fmt(fundoWpp)} → Esperado no caixa: ${fmt(fundoWpp + (pag.dinheiro || 0))}` : '';
 
     const texto = [
-      `🤠 *Caixa UNIFSP*`,
+      `🤠 *${eventoAtual?.nome || 'Caixa UNIFSP'}*`,
       ``,
       `📊 *${resumo.total_vendas}* vendas`,
       `💰 *${fmt(resumo.total_arrecadado)}* arrecadado`,
@@ -2011,9 +2191,12 @@ function handleWsMsg(data) {
       break;
     }
     case 'sync_railway_concluido': {
-      // Outro dispositivo fez sync — recarrega produtos para refletir estoque atualizado
       carregarProdutos();
       showToast('🔄 Estoque sincronizado com Railway', '');
+      break;
+    }
+    case 'evento_renomeado': {
+      if (msg.nome) atualizarNomeEvento(msg.nome);
       break;
     }
   }
@@ -2025,6 +2208,7 @@ function exportarCardapioPDF() {
   if (btn) { btn.textContent = '⏳ Gerando...'; btn.disabled = true; }
 
   const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
+  const eventoNome = eventoAtual?.nome || 'Caixa UNIFSP';
 
   const cats = {};
   [...produtos].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).forEach(p => {
@@ -2035,7 +2219,10 @@ function exportarCardapioPDF() {
   const catOrder = ['Bebidas', 'Comidas', 'Outros'];
   const catKeys = [...new Set([...catOrder, ...Object.keys(cats)])].filter(k => cats[k]);
 
-  const totalItens = Object.values(cats).reduce((s, arr) => s + arr.length, 0);
+  const ocultarEsgotadosPreview = document.getElementById('pdf-ocultar-esgotados')?.checked ?? false;
+  const totalItens = Object.values(cats).reduce((s, arr) => {
+    return s + (ocultarEsgotadosPreview ? arr.filter(p => p.estoque > 0).length : arr.length);
+  }, 0);
   // Paisagem A4: escala colunas e fontes para caber tudo numa página
   const numCols = totalItens <= 8  ? 4
                 : totalItens <= 16 ? 5
@@ -2046,23 +2233,29 @@ function exportarCardapioPDF() {
   const precoSz = numCols <= 4 ? '24px' : numCols <= 5 ? '21px' : numCols <= 6 ? '18px' : '16px';
   const padCard = numCols <= 5 ? '10px 12px' : '7px 10px';
 
+  const buildRow = p => {
+    const isDose   = !!(p.dose_ml && p.garrafa_ml);
+    const unidade  = isDose ? 'doses' : 'un.';
+    const esgotado = p.estoque === 0;
+    const comboTxt = (p.combo_qtd && p.combo_preco)
+      ? `<div class="combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+    const doseTxt  = isDose
+      ? `<div class="dose-tag">${p.dose_ml}ml · ${fmt(p.preco)}/dose</div>` : '';
+    return `<div class="item${esgotado ? ' esgotado' : ''}">
+      ${esgotado ? '<div class="esg-ribbon">Esgotado</div>' : ''}
+      <div class="item-nome">${p.nome}</div>
+      <div class="item-preco">${fmt(p.preco)}</div>
+      ${doseTxt}${comboTxt}
+    </div>`;
+  };
+
   const catHtml = catKeys.map(cat => {
-    const items = cats[cat];
-    const rows = items.map(p => {
-      const isDose   = !!(p.dose_ml && p.garrafa_ml);
-      const unidade  = isDose ? 'doses' : 'un.';
-      const esgotado = p.estoque === 0;
-      const comboTxt = (p.combo_qtd && p.combo_preco)
-        ? `<div class="combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
-      const doseTxt  = isDose
-        ? `<div class="dose-tag">${p.dose_ml}ml/dose</div>` : '';
-      return `<div class="item${esgotado ? ' esgotado' : ''}">
-        ${esgotado ? '<div class="esg-ribbon">Esgotado</div>' : ''}
-        <div class="item-nome">${p.nome}</div>
-        <div class="item-preco">${fmt(p.preco)}</div>
-        ${doseTxt}${comboTxt}
-      </div>`;
-    }).join('');
+    const allItems = cats[cat];
+    const available = allItems.filter(p => p.estoque > 0);
+    const esgotados = allItems.filter(p => p.estoque === 0);
+    const itensParaExibir = ocultarEsgotadosPreview ? available : [...available, ...esgotados];
+    if (itensParaExibir.length === 0) return ''; // pula categoria vazia
+    const rows = itensParaExibir.map(buildRow).join('');
     return `<div class="cat-block">
       <div class="cat-header"><span class="cat-title">${cat}</span><span class="cat-line"></span></div>
       <div class="grid">${rows}</div>
@@ -2073,7 +2266,7 @@ function exportarCardapioPDF() {
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Cardápio – Caixa UNIFSP</title>
+<title>Cardápio – ${eventoNome}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   @page{size:A4 landscape;margin:8mm 10mm}
@@ -2178,12 +2371,12 @@ function exportarCardapioPDF() {
 <div class="page-header">
   <div>
     <div class="page-title">Cardápio</div>
-    <div class="page-sub">Caixa UNIFSP</div>
+    <div class="page-sub">${eventoNome}</div>
   </div>
   <div class="page-date">Gerado em ${agora}</div>
 </div>
 <div class="content">${catHtml}</div>
-<div class="page-footer">Caixa UNIFSP · ${agora} · preços sujeitos a alteração</div>
+<div class="page-footer">${eventoNome} · ${agora} · preços sujeitos a alteração</div>
 </body>
 </html>`;
 
@@ -2203,27 +2396,33 @@ function exportarCardapioPDF() {
 
 /* ── QR Code Cardápio ────────────────────── */
 async function abrirQrCardapio() {
-  const overlay = document.getElementById('qr-overlay');
-  const wrap    = document.getElementById('qr-img-wrap');
-  const urlEl   = document.getElementById('qr-url');
+  const overlay  = document.getElementById('qr-overlay');
+  const wrap     = document.getElementById('qr-img-wrap');
+  const urlEl    = document.getElementById('qr-url');
+  const abrirBtn = document.getElementById('qr-abrir-link');
   if (!overlay) return;
-  overlay.style.display = 'flex';
+  overlay.classList.add('open');
   wrap.innerHTML = '<div style="color:var(--muted);padding:2rem">Gerando QR…</div>';
+  const cardapioUrl = `${location.protocol}//${location.host}/cardapio`;
+  if (urlEl)    urlEl.textContent = cardapioUrl;
+  if (abrirBtn) abrirBtn.href = cardapioUrl;
   try {
-    const res  = await fetch('/api/publico/cardapio-qr');
-    const svg  = await res.text();
+    const res   = await fetch('/api/publico/cardapio-qr');
+    const svg   = await res.text();
     wrap.innerHTML = svg;
     const svgEl = wrap.querySelector('svg');
-    if (svgEl) { svgEl.style.width = '220px'; svgEl.style.height = '220px'; svgEl.style.display = 'block'; svgEl.style.margin = '0 auto'; }
-    const cardapioUrl = `${location.protocol}//${location.host}/cardapio`;
-    urlEl.textContent = cardapioUrl;
+    if (svgEl) {
+      svgEl.style.width   = '220px';
+      svgEl.style.height  = '220px';
+      svgEl.style.display = 'block';
+      svgEl.style.margin  = '0 auto';
+    }
   } catch (e) {
     wrap.innerHTML = `<div style="color:var(--red);font-size:13px">Erro ao gerar QR: ${e.message}</div>`;
   }
 }
 function fecharQr() {
-  const overlay = document.getElementById('qr-overlay');
-  if (overlay) overlay.style.display = 'none';
+  document.getElementById('qr-overlay')?.classList.remove('open');
 }
 function baixarQr() {
   const svg = document.querySelector('#qr-img-wrap svg');
@@ -2234,6 +2433,17 @@ function baixarQr() {
   a.download = 'cardapio-qr.svg';
   a.click();
   URL.revokeObjectURL(a.href);
+  showToast('✅ QR Code salvo', 'cardapio-qr.svg');
+}
+async function copiarLinkCardapio() {
+  const url = document.getElementById('qr-url')?.textContent?.trim();
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('📋 Link copiado!', url);
+  } catch {
+    showToast('⚠️ Não foi possível copiar', 'Copie o endereço manualmente');
+  }
 }
 
 /* ── Init ─────────────────────────────────── */
@@ -2267,15 +2477,62 @@ async function abrirAdmin() {
   document.getElementById('btn-zerar').style.display = 'block';
   document.getElementById('admin-cnt-vendas').textContent = '…';
   document.getElementById('admin-cnt-repos').textContent = '…';
+  // Preenche o campo com o nome atual
+  const nomeInp = document.getElementById('admin-nome-inp');
+  if (nomeInp) nomeInp.value = eventoAtual?.nome || '';
+  // Limpa campos de senha
+  ['admin-senha-atual', 'admin-senha-nova', 'admin-senha-conf'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.type = 'password'; }
+  });
   try {
     const s = await apiFetch('/admin/status');
     document.getElementById('admin-cnt-vendas').textContent = s.vendas;
     document.getElementById('admin-cnt-repos').textContent = s.reposicoes;
-    // Mostra seção de sync só quando RAILWAY_URL está configurada no servidor
     document.getElementById('admin-sync-section').style.display = s.syncDisponivel ? 'block' : 'none';
   } catch (e) {
     document.getElementById('admin-cnt-vendas').textContent = 'erro';
     document.getElementById('admin-cnt-repos').textContent = 'erro';
+  }
+}
+
+async function salvarNomeEvento() {
+  const inp = document.getElementById('admin-nome-inp');
+  const btn = document.getElementById('btn-salvar-nome');
+  const nome = inp?.value.trim();
+  if (!nome) { showToast('⚠ Digite um nome para o evento', 'error-toast'); return; }
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const r = await apiFetch('/admin/evento-nome', { method: 'POST', body: JSON.stringify({ nome }) });
+    atualizarNomeEvento(r.nome);
+    showToast('✓ Nome do evento atualizado!', 'green-toast');
+  } catch (e) {
+    showToast('Erro: ' + e.message, 'error-toast');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar';
+  }
+}
+
+async function alterarSenha() {
+  const senhaAtual = document.getElementById('admin-senha-atual')?.value;
+  const novaSenha  = document.getElementById('admin-senha-nova')?.value;
+  const conf       = document.getElementById('admin-senha-conf')?.value;
+  if (!senhaAtual || !novaSenha || !conf) { showToast('⚠ Preencha todos os campos', 'error-toast'); return; }
+  if (novaSenha !== conf) { showToast('⚠ As senhas não coincidem', 'error-toast'); return; }
+  if (novaSenha.length < 4) { showToast('⚠ Mínimo de 4 caracteres', 'error-toast'); return; }
+  const btn = document.getElementById('btn-alterar-senha');
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    await apiFetch('/admin/senha', { method: 'POST', body: JSON.stringify({ senhaAtual, novaSenha }) });
+    ['admin-senha-atual', 'admin-senha-nova', 'admin-senha-conf'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.type = 'password'; }
+    });
+    showToast('✓ Senha alterada com sucesso!', 'green-toast');
+  } catch (e) {
+    showToast('Erro: ' + e.message, 'error-toast');
+  } finally {
+    btn.disabled = false; btn.textContent = '🔑 Alterar senha';
   }
 }
 

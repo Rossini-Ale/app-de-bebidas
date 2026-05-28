@@ -115,6 +115,7 @@ button { touch-action: manipulation; }
   white-space: nowrap;
 }
 .btn-logout { font-size: 16px; }
+.btn-logout.confirming { background: var(--red) !important; color: #fff !important; border-color: var(--red) !important; }
 .header h1 { font-size: 20px; font-weight: 800; color: var(--amber-d); }
 .status-ok  { font-size: 12px; color: var(--green);  margin-top: 2px; }
 .status-err { font-size: 12px; color: var(--red);    margin-top: 2px; }
@@ -526,6 +527,39 @@ button { touch-action: manipulation; }
   padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
 }
 #add-drawer-scroll .input { margin-bottom: 8px; }
+
+/* ── DRAWER EDITAR PRODUTO ───────────────── */
+#edit-drawer-bg {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 97;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s;
+}
+#edit-drawer-bg.open { opacity: 1; pointer-events: auto; }
+
+#edit-drawer {
+  position: fixed;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: calc(100% - 2rem); max-width: 868px;
+  background: var(--bg-card);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px rgba(0,0,0,.2);
+  z-index: 100;
+  display: flex; flex-direction: column;
+  max-height: 88vh;
+  transition: transform .32s cubic-bezier(.4,0,.2,1);
+}
+#edit-drawer.open { transform: translateX(-50%) translateY(0); }
+
+#edit-drawer-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 20px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom, 20px));
+}
+#edit-drawer-scroll .input { margin-bottom: 8px; }
 
 /* ── MÉTRICAS RELATÓRIO ──────────────────── */
 .rel-metrics-card {
@@ -1076,6 +1110,19 @@ button { touch-action: manipulation; }
 .login-fields { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; text-align: left; }
 .login-erro  { font-size: 13px; color: var(--red); min-height: 20px; margin-bottom: 8px; font-weight: 600; }
 
+/* Campo senha com botão mostrar/ocultar */
+.senha-wrap { position: relative; display: flex; }
+.senha-wrap .input { flex: 1; padding-right: 44px; }
+.btn-show-pass {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: 40px; display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer;
+  font-size: 17px; color: var(--muted);
+  border-radius: 0 var(--r) var(--r) 0;
+  transition: color .15s;
+}
+.btn-show-pass:hover { color: var(--text); }
+
 /* ── TOAST ───────────────────────────────── */
 .toast {
   position: fixed;
@@ -1432,6 +1479,16 @@ button { touch-action: manipulation; }
   margin-bottom: 4px; display: inline-block;
 }
 [data-theme="dark"] .pc-combo { background: rgba(5,150,105,.12); border-color: rgba(5,150,105,.25); }
+
+/* Badge dose nos cards de venda (sem inline styles) */
+.pc-dose {
+  font-size: 10px; font-weight: 700;
+  color: var(--muted);
+  background: var(--bg-sec); border: 1px solid var(--border);
+  border-radius: 5px; padding: 2px 6px;
+  margin-bottom: 4px; display: inline-block;
+}
+.produto-card.no-stock .pc-dose { opacity: .32; }
 .produto-card.combo-active { border-color: var(--green) !important; }
 .produto-card.combo-active .pc-combo { background: var(--green); color: #fff; border-color: var(--green); }
 
@@ -1506,6 +1563,8 @@ button { touch-action: manipulation; }
   padding: 24px 24px 40px;
   z-index: 151;
   box-shadow: 0 -4px 28px rgba(0,0,0,.15);
+  max-height: 85vh;
+  overflow-y: auto;
 }
 #admin-modal.open { display: block; }
 
@@ -1578,6 +1637,45 @@ button { touch-action: manipulation; }
   font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 .admin-btn-danger-confirm:active { opacity: .8; }
+
+/* Admin: editar nome do evento e senha */
+.admin-edit-row {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 4px;
+}
+.admin-edit-row .input { flex: 1; font-size: 14px; }
+.admin-btn-save {
+  padding: 10px 16px; background: var(--amber); color: #fff;
+  border: none; border-radius: var(--r);
+  font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  flex-shrink: 0; transition: opacity .12s; white-space: nowrap;
+}
+.admin-btn-save:active { opacity: .8; }
+.admin-btn-save:disabled { opacity: .5; cursor: not-allowed; }
+.admin-senha-fields { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+
+/* Filtro de operador no Histórico */
+#hist-op-filter { margin-bottom: 6px; }
+#hist-op-filter select {
+  width: 100%; padding: 9px 12px;
+  background: var(--bg-card); color: var(--text);
+  border: 1px solid var(--border-s); border-radius: var(--r);
+  font-size: 13px; font-family: inherit; cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+/* Filtro de categoria no Estoque */
+.cat-filter-wrap-est { position: relative; margin-bottom: 6px; }
+.cat-filter-wrap-est::after {
+  content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 32px;
+  background: linear-gradient(to left, var(--bg) 20%, transparent);
+  pointer-events: none; z-index: 1;
+}
+#cat-filter-estoque { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+#cat-filter-estoque::-webkit-scrollbar { display: none; }
 
 /* Card de sync Railway */
 .admin-sync-card {
@@ -1673,6 +1771,44 @@ button { touch-action: manipulation; }
 }
 .skel-line.w-70 { width: 70%; margin-bottom: 8px; }
 .skel-line.w-40 { width: 40%; }
+/* ── QR Cardápio modal ───────────────────── */
+#qr-overlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,.7);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+  opacity: 0; pointer-events: none;
+  transition: opacity .25s;
+}
+#qr-overlay.open { opacity: 1; pointer-events: auto; }
+.qr-modal {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 1.5rem;
+  max-width: 320px; width: 100%;
+  text-align: center;
+  box-shadow: 0 8px 40px rgba(0,0,0,.35);
+  transform: scale(.95);
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+#qr-overlay.open .qr-modal { transform: scale(1); }
+.qr-modal-title { font-size: 16px; font-weight: 700; margin-bottom: .25rem; }
+.qr-modal-sub   { font-size: 12px; color: var(--muted); margin-bottom: 1rem; }
+.qr-img-wrap    { margin-bottom: 1rem; }
+.qr-modal-url   { font-size: 11px; color: var(--muted); word-break: break-all; margin-bottom: 1rem; line-height: 1.5; }
+.qr-modal-row   { display: flex; gap: 8px; margin-bottom: 8px; }
+.qr-modal-row .btn-primary,
+.qr-modal-row .btn-secondary,
+.qr-modal-row a.btn-secondary { flex: 1; }
+
+/* Toggle "ocultar esgotados no PDF" */
+.pdf-toggle-label {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--muted); cursor: pointer;
+  user-select: none;
+}
+.pdf-toggle-label input[type="checkbox"] { accent-color: var(--amber); width: 14px; height: 14px; cursor: pointer; }
+
 .skel-list-item {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--rl); padding: 16px; margin-bottom: 8px;

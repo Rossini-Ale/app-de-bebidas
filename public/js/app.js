@@ -1981,32 +1981,44 @@ async function gerarPDF() {
   <div class="sb" style="border:1px solid #FECACA"><div class="sl" style="color:#DC2626">Vendas ao preço de custo</div><div class="sv" style="color:#DC2626">${nCustoPDF} · ${fmt(Number(resumo.arrecadado_custo))}</div></div>
 </div>` : '';
 
-    const fundo = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+    const fundo = fundoCaixaAtual || 0;
     const esperadoCaixa = fundo + (pag.dinheiro || 0);
     const fundoHtml = fundo > 0 ? `
-<h2 style="margin-bottom:8px">Fundo de caixa</h2>
-<div class="pay-summary" style="grid-template-columns:1fr 1fr 1fr;">
+<p class="section-title" style="margin-top:16px">Fundo de caixa</p>
+<div class="pay-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:20px">
   <div class="sb"><div class="sl">Fundo inicial</div><div class="sv">${fmt(fundo)}</div></div>
   <div class="sb"><div class="sl">Vendas em dinheiro</div><div class="sv">${fmt(pag.dinheiro || 0)}</div></div>
-  <div class="sb"><div class="sl">Esperado no caixa</div><div class="sv green">${fmt(esperadoCaixa)}</div></div>
+  <div class="sb highlight"><div class="sl">Esperado no caixa</div><div class="sv green">${fmt(esperadoCaixa)}</div></div>
 </div>` : '';
 
-    const linhas = itens.filter(i => Number(i.qtd_vendida) > 0).map(item => {
+    // Rank por qtd vendida
+    const itensFiltrados = itens.filter(i => Number(i.qtd_vendida) > 0)
+      .sort((a, b) => Number(b.qtd_vendida) - Number(a.qtd_vendida));
+    const rankMap = {};
+    itensFiltrados.slice(0, 3).forEach((item, i) => { rankMap[item.nome] = i + 1; });
+
+    // Barra proporcional de pagamentos
+    const totalPag    = (pag.dinheiro || 0) + (pag.pix || 0) + (pag.cartao || 0);
+    const pctDinheiro = totalPag > 0 ? Math.round(((pag.dinheiro || 0) / totalPag) * 100) : 0;
+    const pctPix      = totalPag > 0 ? Math.round(((pag.pix      || 0) / totalPag) * 100) : 0;
+    const pctCartao   = totalPag > 0 ? 100 - pctDinheiro - pctPix : 0;
+
+    const linhas = itensFiltrados.map(item => {
       const qtd        = Number(item.qtd_vendida);
       const qtdC       = Number(item.qtd_custo  || 0);
       const receita    = Number(item.receita);
       const custoTotal = Number(item.custo_total);
       const lucro      = Number(item.lucro);
-      const precoUnit  = qtd > 0 ? receita / qtd : 0;
       const custoUnit  = qtd > 0 ? custoTotal / qtd : 0;
-      const lucroUnit  = qtd > 0 ? lucro / qtd : 0;
+      const rankNum    = rankMap[item.nome];
+      const rankHtml   = rankNum === 1 ? `<span class="rank rank-1">🔥 #1</span>`
+                       : rankNum === 2 ? `<span class="rank rank-2">#2</span>`
+                       : rankNum === 3 ? `<span class="rank rank-3">#3</span>` : '';
       const qtdLabel   = qtdC > 0 ? `${qtd} <span style="color:#DC2626;font-size:10px">(${qtdC} custo)</span>` : qtd;
       return `<tr>
-        <td>${item.nome}</td>
+        <td>${rankHtml}${item.nome}</td>
         <td class="num">${qtdLabel}</td>
-        <td class="num">${fmt(precoUnit)}</td>
         <td class="num">${fmt(custoUnit)}</td>
-        <td class="num ${lucroUnit >= 0 ? 'green' : 'red'}">${fmt(lucroUnit)}</td>
         <td class="num">${fmt(receita)}</td>
         <td class="num">${fmt(custoTotal)}</td>
         <td class="num ${lucro >= 0 ? 'green' : 'red'}">${fmt(lucro)}</td>
@@ -2022,66 +2034,92 @@ async function gerarPDF() {
 <title>Relatório – ${nomeEvento}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;padding:28px 32px;font-size:14px}
-  h1{font-size:22px;font-weight:800;margin-bottom:3px}
-  .sub{color:#666;font-size:12px;margin-bottom:24px}
-  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
-  .pay-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:28px}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;font-size:14px}
+  .page-header{background:linear-gradient(135deg,#78350F 0%,#D97706 100%);color:#FEF3C7;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .page-title{font-size:22px;font-weight:900;letter-spacing:-.5px}
+  .page-sub{font-size:12px;opacity:.8;margin-top:2px}
+  .page-date{font-size:11px;opacity:.75;text-align:right}
+  .body-wrap{padding:0 24px 24px}
+  .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+  .pay-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
   .sb{background:#f5f5f5;border-radius:8px;padding:12px 14px}
+  .sb.highlight{background:#FEF3C7;border:1.5px solid #D97706}
   .sl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:4px;font-weight:700}
   .sv{font-size:19px;font-weight:800}
   .sv.green{color:#059669}
-  h2{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:10px}
+  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:8px}
+  .pay-bar-wrap{display:flex;border-radius:6px;overflow:hidden;height:18px;margin-bottom:6px}
+  .pay-bar-seg{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;white-space:nowrap}
+  .pay-bar-legend{display:flex;gap:16px;font-size:10px;color:#666;margin-bottom:20px}
+  .pay-bar-legend span{display:flex;align-items:center;gap:4px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
   table{width:100%;border-collapse:collapse}
-  thead tr{background:#f0f0f0}
-  th{text-align:left;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#666;border-bottom:2px solid #ddd;white-space:nowrap}
-  th.group{text-align:center;background:#e8e8e8;border-bottom:1px solid #ccc;font-size:10px;letter-spacing:.04em}
-  td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px}
+  thead th{text-align:left;padding:9px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#fff;background:#78350F;white-space:nowrap}
+  thead th.num{text-align:right}
+  td{padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;vertical-align:middle}
+  tr:nth-child(even) td{background:#fafafa}
   .num{text-align:right;font-variant-numeric:tabular-nums}
   .green{color:#059669;font-weight:700}
   .red{color:#dc2626;font-weight:700}
-  tfoot tr{background:#f8f8f8;font-weight:700}
-  tfoot td{border-top:2px solid #ccc;border-bottom:none;padding:8px 10px}
-  .sep{border-left:2px solid #ddd}
-  .footer{margin-top:28px;color:#aaa;font-size:11px;text-align:center}
-  @media print{body{padding:0}}
+  tfoot td{background:#FEF3C7;border-top:2px solid #D97706;font-weight:700;padding:9px 10px}
+  .rank{display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;margin-right:5px;vertical-align:middle}
+  .rank-1{background:#D97706;color:#fff}
+  .rank-2{background:#92400E;color:#FEF3C7}
+  .rank-3{background:#B45309;color:#FEF3C7}
+  .footer{margin-top:20px;color:#bbb;font-size:11px;text-align:center;border-top:1px solid #eee;padding-top:10px}
+  @media print{body{}}
 </style>
 </head>
 <body>
-<h1>${nomeEvento}</h1>
-<p class="sub">Relatório de vendas · gerado em ${agora}</p>
+<div class="page-header">
+  <div>
+    <div class="page-title">${nomeEvento}</div>
+    <div class="page-sub">Relatório de vendas</div>
+  </div>
+  <div class="page-date">Gerado em ${agora}</div>
+</div>
+<div class="body-wrap">
 <div class="summary">
   <div class="sb"><div class="sl">Vendas</div><div class="sv">${resumo.total_vendas}</div></div>
   <div class="sb"><div class="sl">Arrecadado</div><div class="sv">${fmt(resumo.total_arrecadado)}</div></div>
   <div class="sb"><div class="sl">Custo total</div><div class="sv">${fmt(totalCusto)}</div></div>
-  <div class="sb"><div class="sl">Lucro (${margem}%)</div><div class="sv green">${fmt(resumo.total_lucro)}</div></div>
+  <div class="sb highlight"><div class="sl">Lucro (${margem}%)</div><div class="sv green">${fmt(resumo.total_lucro)}</div></div>
 </div>
-<h2 style="margin-bottom:8px">Formas de pagamento</h2>
-<div class="pay-summary">
+<p class="section-title">Formas de pagamento</p>
+<div class="pay-grid">
   <div class="sb"><div class="sl">💵 Dinheiro</div><div class="sv">${fmt(pag.dinheiro || 0)}</div></div>
-  <div class="sb"><div class="sl">Pix</div><div class="sv">${fmt(pag.pix || 0)}</div></div>
+  <div class="sb"><div class="sl">🟣 Pix</div><div class="sv">${fmt(pag.pix || 0)}</div></div>
   <div class="sb"><div class="sl">💳 Cartão</div><div class="sv">${fmt(pag.cartao || 0)}</div></div>
+</div>
+<div class="pay-bar-wrap">
+  ${pctDinheiro > 0 ? `<div class="pay-bar-seg" style="width:${pctDinheiro}%;background:#059669">${pctDinheiro >= 8 ? pctDinheiro + '%' : ''}</div>` : ''}
+  ${pctPix      > 0 ? `<div class="pay-bar-seg" style="width:${pctPix}%;background:#6366F1">${pctPix >= 8 ? pctPix + '%' : ''}</div>` : ''}
+  ${pctCartao   > 0 ? `<div class="pay-bar-seg" style="width:${pctCartao}%;background:#D97706">${pctCartao >= 8 ? pctCartao + '%' : ''}</div>` : ''}
+</div>
+<div class="pay-bar-legend">
+  <span><span class="dot" style="background:#059669"></span>Dinheiro ${pctDinheiro}%</span>
+  <span><span class="dot" style="background:#6366F1"></span>Pix ${pctPix}%</span>
+  <span><span class="dot" style="background:#D97706"></span>Cartão ${pctCartao}%</span>
 </div>
 ${fundoHtml}
 ${custoSplitHtml}
-<h2>Por produto</h2>
+<p class="section-title">Por produto</p>
 <table>
   <thead>
     <tr>
-      <th rowspan="2">Produto</th>
-      <th rowspan="2" class="num">Qtd</th>
-      <th colspan="3" class="group sep">Por unidade</th>
-      <th colspan="3" class="group sep">Total</th>
-    </tr>
-    <tr>
-      <th class="num sep">Preço</th><th class="num">Custo</th><th class="num">Lucro</th>
-      <th class="num sep">Receita</th><th class="num">Custo</th><th class="num">Lucro</th>
+      <th>Produto</th>
+      <th class="num">Qtd vendida</th>
+      <th class="num">Custo/un.</th>
+      <th class="num">Receita</th>
+      <th class="num">Custo total</th>
+      <th class="num">Lucro</th>
     </tr>
   </thead>
-  <tbody>${linhas || '<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">Nenhuma venda registrada</td></tr>'}</tbody>
-  <tfoot><tr><td>Total</td><td class="num">${totalQtd}</td><td class="sep" colspan="3"></td><td class="num sep">${fmt(resumo.total_arrecadado)}</td><td class="num">${fmt(totalCusto)}</td><td class="num green">${fmt(resumo.total_lucro)}</td></tr></tfoot>
+  <tbody>${linhas || '<tr><td colspan="6" style="text-align:center;color:#999;padding:20px">Nenhuma venda registrada</td></tr>'}</tbody>
+  <tfoot><tr><td>Total</td><td class="num">${totalQtd}</td><td></td><td class="num">${fmt(resumo.total_arrecadado)}</td><td class="num">${fmt(totalCusto)}</td><td class="num green">${fmt(resumo.total_lucro)}</td></tr></tfoot>
 </table>
 <p class="footer">${nomeEvento} · ${agora}</p>
+</div>
 </body>
 </html>`;
 
@@ -2232,7 +2270,6 @@ function exportarCardapioPDF() {
   const nameSz  = numCols <= 4 ? '14px' : numCols <= 5 ? '13px' : numCols <= 6 ? '12px' : '11px';
   const precoSz = numCols <= 4 ? '24px' : numCols <= 5 ? '21px' : numCols <= 6 ? '18px' : '16px';
   const padCard = numCols <= 5 ? '10px 12px' : '7px 10px';
-
   const buildRow = p => {
     const isDose   = !!(p.dose_ml && p.garrafa_ml);
     const unidade  = isDose ? 'doses' : 'un.';
@@ -2242,7 +2279,7 @@ function exportarCardapioPDF() {
     const doseTxt  = isDose
       ? `<div class="dose-tag">${p.dose_ml}ml · ${fmt(p.preco)}/dose</div>` : '';
     return `<div class="item${esgotado ? ' esgotado' : ''}">
-      ${esgotado ? '<div class="esg-ribbon">Esgotado</div>' : ''}
+      ${esgotado ? '<div class="esg-overlay"><span>Esgotado</span></div>' : ''}
       <div class="item-nome">${p.nome}</div>
       <div class="item-preco">${fmt(p.preco)}</div>
       ${doseTxt}${comboTxt}
@@ -2319,8 +2356,9 @@ function exportarCardapioPDF() {
     padding:${padCard};
     background:#FFFDF7;
     position:relative;overflow:hidden;
+    box-shadow:0 1px 4px rgba(0,0,0,.08);
   }
-  .item.esgotado{opacity:.38;background:#F9F9F9;border-color:#E0E0E0}
+  .item.esgotado{background:#F5F5F5;border-color:#E0E0E0}
 
   .item-nome{
     font-size:${nameSz};font-weight:800;
@@ -2343,13 +2381,18 @@ function exportarCardapioPDF() {
     padding:1px 5px;margin-top:4px;margin-right:3px;
   }
 
-  /* Ribbon esgotado */
-  .esg-ribbon{
-    position:absolute;top:6px;right:-18px;
-    background:#DC2626;color:#fff;
-    font-size:7px;font-weight:800;
-    text-transform:uppercase;letter-spacing:.05em;
-    padding:2px 22px;transform:rotate(35deg);
+  /* Overlay esgotado */
+  .esg-overlay{
+    position:absolute;inset:0;
+    background:rgba(255,255,255,.78);
+    display:flex;align-items:center;justify-content:center;
+    border-radius:5px;
+  }
+  .esg-overlay span{
+    font-size:8px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.1em;
+    color:#DC2626;border:1.5px solid #DC2626;
+    border-radius:3px;padding:2px 7px;
   }
 
   /* Rodapé */
@@ -2370,8 +2413,8 @@ function exportarCardapioPDF() {
 <body>
 <div class="page-header">
   <div>
-    <div class="page-title">Cardápio</div>
-    <div class="page-sub">${eventoNome}</div>
+    <div class="page-title">${eventoNome}</div>
+    <div class="page-sub">Cardápio</div>
   </div>
   <div class="page-date">Gerado em ${agora}</div>
 </div>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cardápio – Caixa UNIFSP</title>
+  <title id="page-title">Cardápio</title>
   <style>
     *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -58,13 +58,23 @@
     .header-title { font-size: 24px; font-weight: 900; letter-spacing: -.4px; line-height: 1.1; }
     .header-sub   { font-size: 12px; opacity: .75; margin-top: 3px; letter-spacing: .02em; }
     .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-    .ts-badge {
+
+    /* WS badge integrado no header */
+    .ws-badge {
+      display: flex; align-items: center; gap: 5px;
       font-size: 11px; font-weight: 600;
       background: rgba(255,255,255,.2);
       border: 1px solid rgba(255,255,255,.3);
       border-radius: 20px; padding: 4px 10px;
-      white-space: nowrap;
+      white-space: nowrap; color: #FEF3C7;
     }
+    .ws-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: rgba(255,255,255,.5); flex-shrink: 0;
+      transition: background .3s;
+    }
+    .ws-dot.connected { background: #6EE7B7; }
+
     .btn-theme {
       background: rgba(255,255,255,.18);
       border: 1px solid rgba(255,255,255,.3);
@@ -79,18 +89,40 @@
     }
     .btn-theme:hover { background: rgba(255,255,255,.3); }
 
-    /* ── STATUS BAR ── */
-    .status-bar {
+    /* ── CATEGORY NAV (pill bar) ── */
+    .cat-nav-wrap {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 82px; /* abaixo do header */
+      z-index: 90;
+    }
+    .cat-nav {
       max-width: 860px; margin: 0 auto;
-      padding: .4rem 1rem;
-      font-size: 11px; color: var(--muted);
-      display: flex; align-items: center; gap: 6px;
+      padding: 8px 1rem;
+      display: flex; gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
-    .ws-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--muted); display: inline-block; flex-shrink: 0;
+    .cat-nav::-webkit-scrollbar { display: none; }
+    .cat-nav-pill {
+      flex-shrink: 0;
+      background: var(--bg-sec);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 13px;
+      font-size: 12px; font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background .12s, color .12s, border-color .12s;
+      white-space: nowrap;
     }
-    .ws-dot.connected { background: var(--green); }
+    .cat-nav-pill:hover,
+    .cat-nav-pill.active {
+      background: var(--amber);
+      border-color: var(--amber);
+      color: #fff;
+    }
 
     /* ── MAIN ── */
     main { max-width: 860px; margin: 0 auto; padding: 1rem 1rem 3rem; }
@@ -184,6 +216,16 @@
       display: inline-block; margin-top: 2px;
     }
     [data-theme="dark"] .pc-combo { background: rgba(5,150,105,.15); border-color: rgba(5,150,105,.3); }
+
+    /* Badge de dose — usa variáveis de cor, dark mode funciona */
+    .pc-dose {
+      font-size: 11px; font-weight: 700;
+      color: var(--muted);
+      background: var(--bg-sec); border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 8px;
+      display: inline-block; margin-top: 4px;
+    }
+
     .pc-stock.sem-estoque {
       font-size: 11px; color: var(--red); font-weight: 700;
       margin-top: 6px; letter-spacing: .03em;
@@ -215,18 +257,21 @@
     <div class="header-inner">
       <div>
         <div class="header-title">Cardápio</div>
-        <div class="header-sub">Caixa UNIFSP</div>
+        <div class="header-sub" id="header-sub">Carregando…</div>
       </div>
       <div class="header-right">
-        <span class="ts-badge" id="ts-badge">—</span>
+        <div class="ws-badge">
+          <span class="ws-dot" id="ws-dot"></span>
+          <span id="ws-label">Conectando</span>
+        </div>
         <button class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Alternar tema">🌙</button>
       </div>
     </div>
   </header>
 
-  <div class="status-bar">
-    <span class="ws-dot" id="ws-dot"></span>
-    <span id="ws-label">Conectando…</span>
+  <!-- pill nav, preenchida dinamicamente -->
+  <div class="cat-nav-wrap" id="cat-nav-wrap" style="display:none">
+    <nav class="cat-nav" id="cat-nav"></nav>
   </div>
 
   <main id="cardapio-content">
@@ -236,7 +281,7 @@
     </div>
   </main>
 
-  <footer>Cardápio atualizado em tempo real · Caixa UNIFSP</footer>
+  <footer id="page-footer">Cardápio atualizado em tempo real</footer>
 
   <script>
     /* ── Tema ── */
@@ -256,11 +301,64 @@
     /* ── Formatação ── */
     function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 
+    /* ── Nome do evento ── */
+    let nomeEvento = 'Cardápio';
+    async function carregarEvento() {
+      try {
+        const res = await fetch('/api/publico/evento');
+        const data = await res.json();
+        nomeEvento = data.nome || 'Cardápio';
+      } catch (_) {}
+      document.getElementById('header-sub').textContent = nomeEvento;
+      document.getElementById('page-title').textContent = `Cardápio – ${nomeEvento}`;
+      document.getElementById('page-footer').textContent = `Cardápio atualizado em tempo real · ${nomeEvento}`;
+    }
+
+    /* ── Category nav ── */
+    let catKeysGlobal = [];
+    function renderCatNav(catKeys) {
+      catKeysGlobal = catKeys;
+      const nav  = document.getElementById('cat-nav');
+      const wrap = document.getElementById('cat-nav-wrap');
+      if (catKeys.length <= 1) { wrap.style.display = 'none'; return; }
+      wrap.style.display = '';
+      nav.innerHTML = catKeys.map(cat =>
+        `<button class="cat-nav-pill" data-cat="${cat}" onclick="scrollTocat('${cat}')">${cat}</button>`
+      ).join('');
+    }
+
+    function scrollTocat(cat) {
+      const el = document.getElementById('cat-' + cat);
+      if (!el) return;
+      const offset = 82 + 44; // header + cat-nav height
+      const top = el.getBoundingClientRect().top + window.scrollY - offset - 8;
+      window.scrollTo({ top, behavior: 'smooth' });
+    }
+
+    // Observador de seções para highlight da pill ativa
+    let observer = null;
+    function setupObserver() {
+      if (observer) observer.disconnect();
+      const navWrap = document.getElementById('cat-nav-wrap');
+      const navVisible = navWrap && navWrap.style.display !== 'none';
+      if (!navVisible) return;
+      const offset = 82 + 44 + 20;
+      observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          const cat = entry.target.dataset.catSection;
+          const pill = document.querySelector(`.cat-nav-pill[data-cat="${cat}"]`);
+          if (pill) pill.classList.toggle('active', entry.isIntersecting);
+        });
+      }, { rootMargin: `-${offset}px 0px -60% 0px` });
+      document.querySelectorAll('.cat-section').forEach(el => observer.observe(el));
+    }
+
     /* ── Renderização ── */
     function renderCardapio(produtos) {
       const main = document.getElementById('cardapio-content');
       if (!produtos || !produtos.length) {
         main.innerHTML = '<div class="empty-state">Nenhum produto disponível no momento.</div>';
+        renderCatNav([]);
         return;
       }
 
@@ -271,6 +369,7 @@
         cats[cat].push(p);
       });
 
+      // Disponíveis primeiro, esgotados no fim; dentro de cada grupo: alfabético
       Object.keys(cats).forEach(cat => {
         cats[cat].sort((a, b) => {
           if (a.estoque === 0 && b.estoque > 0) return 1;
@@ -284,16 +383,23 @@
       const catKeys = [...catOrder, ...extraCats, '__sem_categoria__'].filter(k => cats[k]);
 
       const hasMultipleCats = catKeys.filter(k => k !== '__sem_categoria__').length > 0;
+      renderCatNav(catKeys.filter(k => k !== '__sem_categoria__'));
 
       let html = '';
       catKeys.forEach((cat, catIdx) => {
-        const items = cats[cat];
-        html += '<div class="cat-section">';
+        const items     = cats[cat];
+        const available = items.filter(p => p.estoque > 0).length;
+        const label     = cat === '__sem_categoria__' ? '' : cat;
+
+        html += `<div class="cat-section" id="cat-${label}" data-cat-section="${label}">`;
 
         if (hasMultipleCats && cat !== '__sem_categoria__') {
+          const countLabel = available === items.length
+            ? `${items.length} ${items.length === 1 ? 'item' : 'itens'}`
+            : `${available} disponíve${available === 1 ? 'l' : 'is'}`;
           html += `<div class="cat-header">
-            <span class="cat-title">${cat}</span>
-            <span class="cat-count">${items.length} ${items.length === 1 ? 'item' : 'itens'}</span>
+            <span class="cat-title">${label}</span>
+            <span class="cat-count">${countLabel}</span>
           </div>`;
         }
 
@@ -302,13 +408,15 @@
           const isDose    = !!(p.dose_ml && p.garrafa_ml);
           const unidade   = isDose ? 'doses' : 'un.';
           const esgotado  = p.estoque === 0;
-          const delay     = (catIdx * 0.04 + i * 0.05).toFixed(2);
+          // Teto de 0.3s para não atrasar demais em listas longas
+          const delay     = Math.min(catIdx * 0.04 + i * 0.05, 0.3).toFixed(2);
           const cardClass = esgotado ? 'produto-card esgotado' : 'produto-card';
           const stockHtml = esgotado ? '<div class="pc-stock sem-estoque">Esgotado</div>' : '';
           const comboHtml = (p.combo_qtd && p.combo_preco)
             ? `<div class="pc-combo">${p.combo_qtd} ${unidade} por ${fmt(Number(p.combo_preco) * p.combo_qtd)}</div>` : '';
+          // Dose com preço e classe CSS (sem inline styles, dark mode funciona)
           const doseHtml  = isDose
-            ? `<div class="pc-combo" style="color:#6B7280;background:#F3F4F6;border-color:#D1D5DB">${p.dose_ml}ml por dose</div>` : '';
+            ? `<div class="pc-dose">${p.dose_ml}ml · ${fmt(p.preco)}/dose</div>` : '';
           const ribbonHtml = esgotado ? '<div class="ribbon-esgotado">Esgotado</div>' : '';
 
           html += `<div class="${cardClass}" style="animation-delay:${delay}s">
@@ -323,12 +431,7 @@
       });
 
       main.innerHTML = html;
-    }
-
-    /* ── Timestamp ── */
-    function atualizarTimestamp() {
-      const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('ts-badge').textContent = 'Atualizado às ' + agora;
+      setupObserver();
     }
 
     /* ── Carregar cardápio ── */
@@ -338,7 +441,6 @@
         if (!res.ok) throw new Error('Erro ' + res.status);
         const produtos = await res.json();
         renderCardapio(produtos);
-        atualizarTimestamp();
       } catch (e) {
         document.getElementById('cardapio-content').innerHTML =
           `<div class="empty-state">Não foi possível carregar o cardápio.<br/><small>${e.message}</small></div>`;
@@ -362,12 +464,13 @@
       });
       ws.addEventListener('close', () => {
         document.getElementById('ws-dot').classList.remove('connected');
-        document.getElementById('ws-label').textContent = 'Reconectando…';
+        document.getElementById('ws-label').textContent = 'Reconectando';
         ws = null; setTimeout(conectarWS, 4000);
       });
       ws.addEventListener('error', () => document.getElementById('ws-dot').classList.remove('connected'));
     }
 
+    carregarEvento();
     carregarCardapio();
     conectarWS();
     setInterval(carregarCardapio, 30000);

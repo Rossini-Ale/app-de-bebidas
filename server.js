@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const session = require('express-session');
+const session      = require('express-session');
+const MySQLStore   = require('express-mysql-session')(session);
 const bcrypt = require('bcryptjs');
 const http = require('http');
 const { WebSocketServer } = require('ws');
@@ -12,6 +13,7 @@ const appEvents = require('./events');
 
 const produtosRouter = require('./routes/produtos');
 const vendasRouter   = require('./routes/vendas');
+const adminRouter    = require('./routes/admin');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -20,10 +22,25 @@ const SENHA_HASH = bcrypt.hashSync(process.env.APP_SENHA || 'unifsp2026', 10);
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+
+/* ── Sessões persistidas no MySQL ─────────────── */
+const sessionStore = new MySQLStore({
+  host:               process.env.DB_HOST     || 'localhost',
+  port:               process.env.DB_PORT     || 3306,
+  user:               process.env.DB_USER     || 'root',
+  password:           process.env.DB_PASSWORD || '',
+  database:           process.env.DB_NAME     || 'caixa_unifsp',
+  clearExpired:       true,   // apaga sessões expiradas automaticamente
+  checkExpirationInterval: 60 * 60 * 1000, // verifica a cada 1 hora
+  expiration:         12 * 60 * 60 * 1000, // sessão dura 12 horas
+  createDatabaseTable: true,  // cria tabela sessions se não existir
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'caixa-unifsp-secret-key',
   resave: false,
   saveUninitialized: false,
+  store: sessionStore,
   cookie: { maxAge: 12 * 60 * 60 * 1000 }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -32,18 +49,25 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.post('/api/auth/login', async (req, res) => {
   const { operador, senha } = req.body;
   if (!operador || !senha) return res.status(400).json({ error: 'Informe seu nome e a senha' });
-  if (!bcrypt.compareSync(senha, SENHA_HASH)) return res.status(401).json({ error: 'Senha incorreta' });
   try {
+    const [[ev]] = await db.query('SELECT nome, senha_hash FROM eventos WHERE id = 1');
+    const hashToCheck = ev?.senha_hash || SENHA_HASH;
+    if (!bcrypt.compareSync(senha, hashToCheck)) return res.status(401).json({ error: 'Senha incorreta' });
     req.session.eventoId   = 1;
-    req.session.eventoNome = 'Caixa UNIFSP';
+    req.session.eventoNome = ev?.nome || 'Caixa UNIFSP';
     req.session.operador   = operador.trim();
-    res.json({ ok: true, operador: req.session.operador });
+    res.json({ ok: true, operador: req.session.operador, eventoNome: req.session.eventoNome });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/auth/me', (req, res) => {
+app.get('/api/auth/me', async (req, res) => {
   if (!req.session.eventoId) return res.status(401).json({ error: 'Não autenticado' });
-  res.json({ operador: req.session.operador || 'Caixa' });
+  try {
+    const [[ev]] = await db.query('SELECT nome FROM eventos WHERE id = ?', [req.session.eventoId]);
+    res.json({ operador: req.session.operador || 'Caixa', eventoNome: ev?.nome || 'Caixa UNIFSP' });
+  } catch {
+    res.json({ operador: req.session.operador || 'Caixa', eventoNome: 'Caixa UNIFSP' });
+  }
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -60,8 +84,16 @@ function requireAuth(req, res, next) {
 
 app.use('/api/produtos', requireAuth, produtosRouter);
 app.use('/api/vendas',   requireAuth, vendasRouter);
+app.use('/api/admin',    requireAuth, adminRouter);
 
 /* ── Cardápio público (sem autenticação) ── */
+app.get('/api/publico/evento', async (_req, res) => {
+  try {
+    const [[ev]] = await db.query('SELECT nome FROM eventos WHERE id = 1');
+    res.json({ nome: ev?.nome || 'Cardápio' });
+  } catch (err) { res.json({ nome: 'Cardápio' }); }
+});
+
 app.get('/api/publico/produtos', async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -163,4 +195,13 @@ async function runMigrations() {
 
   /* ── Fardo ───────────────────────────────── */
   try { await db.query(`ALTER TABLE produtos ADD COLUMN unidades_por_fardo INT DEFAULT NULL`); } catch (_) {}
+
+  /* ── Evento: senha e fundo de caixa ─────── */
+  try { await db.query(`ALTER TABLE eventos ADD COLUMN senha_hash VARCHAR(255)`); } catch (_) {}
+  try { await db.query(`ALTER TABLE eventos ADD COLUMN fundo_caixa DECIMAL(10,2) NOT NULL DEFAULT 0`); } catch (_) {}
+  // Inicializa senha_hash no DB a partir do ENV (se ainda não foi definida)
+  const [[evCheck]] = await db.query('SELECT senha_hash FROM eventos WHERE id = 1');
+  if (!evCheck?.senha_hash) {
+    await db.query('UPDATE eventos SET senha_hash = ? WHERE id = 1', [SENHA_HASH]);
+  }
 }

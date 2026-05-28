@@ -21,8 +21,8 @@
       </div>
       <div class="header-actions">
         <button class="btn-refresh" id="btn-dark" onclick="toggleDarkMode()" title="Alternar tema">🌙</button>
-        <button class="btn-refresh" id="btn-qr-cardapio" onclick="abrirQrCardapio()" title="QR Code do Cardápio">⬛</button>
-        <button class="btn-refresh" onclick="location.reload()">↺</button>
+<button class="btn-refresh" onclick="location.reload()">↺</button>
+        <button class="btn-refresh" id="btn-admin" onclick="abrirAdmin()" title="Administração">⚙️</button>
         <button class="btn-refresh btn-logout" id="btn-logout" onclick="fazerLogout()" title="Sair">⎋</button>
       </div>
     </header>
@@ -57,7 +57,9 @@
         <input id="busca-produto" class="input search-inp" type="search" placeholder="Buscar produto…"
           oninput="renderVenda()" autocomplete="off" />
       </div>
-      <div id="cat-filter-venda" class="sort-bar" style="margin-bottom:6px"></div>
+      <div class="cat-filter-wrap">
+        <div id="cat-filter-venda" class="sort-bar"></div>
+      </div>
       <div id="sort-venda" class="sort-bar">
         <button class="sort-btn active" data-sort="vendido" onclick="setSortVenda('vendido')">🔥 Vendidos</button>
         <button class="sort-btn" data-sort="az" onclick="setSortVenda('az')">A-Z</button>
@@ -68,52 +70,22 @@
 
     <!-- ABA ESTOQUE -->
     <div id="tab-estoque" class="section">
-      <div class="card-form">
-        <h3>+ Adicionar produto</h3>
-        <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
-        <input id="new-cat" class="input" placeholder="Categoria (ex: Bebidas, Comidas…)" type="text" list="cat-list" autocomplete="off" style="margin-bottom:8px" />
-        <datalist id="cat-list">
-          <option value="Bebidas">
-          <option value="Comidas">
-          <option value="Outros">
-        </datalist>
-        <div class="form-row three">
-          <input id="new-price" class="input" placeholder="Preço de venda R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
-          <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
-          <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <input id="new-min-stock"  class="input" placeholder="Estoque mínimo (alerta)" type="number" min="0" inputmode="numeric" />
-          <input id="new-fardo-qtd" class="input" placeholder="Un. por fardo (ex: 24)" type="number" min="2" inputmode="numeric" oninput="atualizarPlaceholderQty()" />
-        </div>
-        <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
-        <label class="combo-toggle-label">
-          <input type="checkbox" id="new-combo-check" onchange="toggleComboRow('new')" />
-          Ativar combo por quantidade
-        </label>
-        <div class="combo-row" id="combo-row-new" style="display:none">
-          <input id="new-combo-qtd" class="input" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" />
-          <input id="new-combo-preco" class="input" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" />
-        </div>
-        <label class="combo-toggle-label" style="margin-top:4px">
-          <input type="checkbox" id="new-dose-check" onchange="toggleDoseRow('new')" />
-          Vender por dose (garrafa/ml)
-        </label>
-        <div class="dose-row" id="dose-row-new" style="display:none">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
-            <input id="new-garrafa-ml" class="input" placeholder="ml da garrafa (ex: 700)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
-            <input id="new-dose-ml" class="input" placeholder="ml por dose (ex: 50)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
-          </div>
-          <input id="new-garrafa-preco" class="input" placeholder="Preço da garrafa inteira (ex: 45.00)" type="number" step="0.01" inputmode="decimal" oninput="calcularDose('new')" />
-          <div id="dose-hint-new" class="dose-hint">Preencha os ml da garrafa e da dose</div>
-        </div>
-        <button class="btn-primary" onclick="addProduto()">Adicionar ao estoque</button>
-      </div>
-      <div class="metrics" style="grid-template-columns:1fr;margin-top:1rem">
+      <button class="btn-add-produto" onclick="abrirAddDrawer()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Adicionar produto
+      </button>
+      <div class="metrics" style="grid-template-columns:1fr;margin-top:.75rem">
         <div class="metric">
           <div class="label">Produtos cadastrados</div>
           <div class="value" id="m-produtos">—</div>
         </div>
+      </div>
+      <div class="search-wrap">
+        <input id="busca-estoque" class="input search-inp" type="search" placeholder="Buscar produto no estoque…"
+          oninput="renderEstoque()" autocomplete="off" />
+      </div>
+      <div class="cat-filter-wrap-est">
+        <div id="cat-filter-estoque" class="sort-bar"></div>
       </div>
       <div id="stock-alert-banner" class="stock-alert-banner" style="display:none">
         <span class="sab-icon">⚠</span>
@@ -125,43 +97,51 @@
         <button class="sort-btn" data-sort="vendido" onclick="setSortEstoque('vendido')">Vendidos</button>
       </div>
       <div id="stock-list"><div class="loading">Carregando...</div></div>
-      <p class="section-label" style="margin-top:1rem">Histórico de reposição</p>
-      <div id="reposicao-lista"></div>
+      <button class="repor-hist-toggle" onclick="toggleReposicaoHistorico()" id="btn-repor-hist">
+        <span>Histórico de reposição</span>
+        <span id="repor-hist-arrow" class="repor-hist-arrow">▾</span>
+      </button>
+      <div id="reposicao-lista" style="display:none"></div>
     </div>
 
     <!-- ABA RELATÓRIO -->
     <div id="tab-relatorio" class="section">
-      <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;">
-        <div class="metric">
-          <div class="label">Arrecadado</div>
-          <div class="value" id="r-total">—</div>
+      <div class="rel-metrics-card">
+        <p class="rel-metrics-label">Resumo do evento</p>
+        <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:0">
+          <div class="metric metric-incard">
+            <div class="label">Arrecadado</div>
+            <div class="value" id="r-total">—</div>
+          </div>
+          <div class="metric metric-incard">
+            <div class="label">Lucro</div>
+            <div class="value green" id="r-lucro">—</div>
+          </div>
+          <div class="metric metric-incard">
+            <div class="label">Margem</div>
+            <div class="value" id="r-margem">—</div>
+          </div>
         </div>
-        <div class="metric">
-          <div class="label">Lucro total</div>
-          <div class="value green" id="r-lucro">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">Margem</div>
-          <div class="value" id="r-margem">—</div>
-        </div>
-      </div>
-      <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;margin-top:.5rem">
-        <div class="metric">
-          <div class="label">💵 Dinheiro</div>
-          <div class="value" id="r-dinheiro">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">Pix</div>
-          <div class="value" id="r-pix">—</div>
-        </div>
-        <div class="metric">
-          <div class="label">💳 Cartão</div>
-          <div class="value" id="r-cartao">—</div>
+        <div class="rel-metrics-sep"></div>
+        <p class="rel-metrics-label">Pagamentos</p>
+        <div class="metrics" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:0">
+          <div class="metric metric-incard metric-sm">
+            <div class="label">💵 Dinheiro</div>
+            <div class="value" id="r-dinheiro">—</div>
+          </div>
+          <div class="metric metric-incard metric-sm">
+            <div class="label">Pix</div>
+            <div class="value" id="r-pix">—</div>
+          </div>
+          <div class="metric metric-incard metric-sm">
+            <div class="label">💳 Cartão</div>
+            <div class="value" id="r-cartao">—</div>
+          </div>
         </div>
       </div>
       <div id="custo-resumo"></div>
-      <div class="rel-actions">
-        <button class="btn-pdf" id="btn-gerar-pdf" onclick="gerarPDF()">📄 PDF</button>
+      <button class="btn-pdf-main" id="btn-gerar-pdf" onclick="gerarPDF()">📄 Exportar relatório PDF</button>
+      <div class="rel-actions" style="margin-top:8px">
         <button class="btn-whatsapp" onclick="compartilharWhatsApp()">📲 WhatsApp</button>
         <button class="btn-csv" onclick="exportarCSV()">⬇ CSV</button>
       </div>
@@ -169,6 +149,10 @@
         <button class="btn-cardapio" id="btn-exportar-cardapio" onclick="exportarCardapioPDF()">📋 Cardápio PDF</button>
         <button class="btn-cardapio" onclick="abrirQrCardapio()">⬛ QR Cardápio</button>
       </div>
+      <label class="pdf-toggle-label" style="margin-top:6px">
+        <input type="checkbox" id="pdf-ocultar-esgotados" />
+        Ocultar esgotados no PDF
+      </label>
       <p class="section-label" style="margin-top:1rem">Vendas por hora</p>
       <div class="grafico-horas" id="grafico-hora"></div>
 
@@ -214,6 +198,17 @@
       <div id="sort-historico" class="sort-bar">
         <button class="sort-btn active" data-sort="recente" onclick="setSortHistorico('recente')">Recente</button>
         <button class="sort-btn" data-sort="valor" onclick="setSortHistorico('valor')">Valor</button>
+      </div>
+      <div id="hist-pag-filter" class="sort-bar">
+        <button class="sort-btn active" data-pag="" onclick="setFiltroPagamento('')">Todos</button>
+        <button class="sort-btn" data-pag="dinheiro" onclick="setFiltroPagamento('dinheiro')">💵 Dinheiro</button>
+        <button class="sort-btn" data-pag="pix" onclick="setFiltroPagamento('pix')">Pix</button>
+        <button class="sort-btn" data-pag="cartao" onclick="setFiltroPagamento('cartao')">💳 Cartão</button>
+      </div>
+      <div id="hist-op-filter" style="display:none">
+        <select id="hist-op-select" onchange="setFiltroOperador(this.value)">
+          <option value="">Todos os operadores</option>
+        </select>
       </div>
       <div id="historico-lista"><div class="loading">Carregando...</div></div>
     </div>
@@ -272,11 +267,27 @@
     <button id="undo-btn" onclick="desfazerUltimaVenda()">↩ Desfazer</button>
   </div>
 
+  <!-- BACKDROP CARRINHO -->
+  <div id="cart-drawer-bg" onclick="fecharCartDrawer()"></div>
+  <!-- DRAWER CARRINHO -->
+  <div id="cart-drawer">
+    <div class="cart-drawer-handle"></div>
+    <div class="cart-drawer-header">
+      <span class="cart-drawer-title">Carrinho</span>
+      <span id="cart-drawer-cnt" class="cart-drawer-cnt"></span>
+      <button class="cart-drawer-close" onclick="fecharCartDrawer()">✕</button>
+    </div>
+    <div id="cart-sheet-items"></div>
+    <div class="cart-drawer-footer">
+      <div class="cart-drawer-total">
+        <span class="cart-drawer-total-label">Total</span>
+        <span id="cart-drawer-total-val">—</span>
+      </div>
+      <button class="cart-drawer-btn" onclick="fecharCartDrawer();abrirPagamento()">✓ Finalizar</button>
+    </div>
+  </div>
   <!-- BARRA FLUTUANTE DO CARRINHO -->
   <div id="cart-bar">
-    <div id="cart-sheet">
-      <div id="cart-sheet-items"></div>
-    </div>
     <div id="cart-bar-row">
       <button id="cart-bar-clear" onclick="limparCarrinhoConfirm()">Limpar</button>
       <button id="cart-bar-info" onclick="toggleCartSheet()"></button>
@@ -321,18 +332,23 @@
     <p class="qm-label">Quantidade</p>
     <p id="qm-nome" class="qm-nome"></p>
     <p id="qm-estoque" class="qm-estoque"></p>
-    <div class="qty-presets">
-      <button class="qty-preset-btn" data-qty="1"  onclick="confirmarQtyPicker(1)">1</button>
-      <button class="qty-preset-btn" data-qty="2"  onclick="confirmarQtyPicker(2)">2</button>
-      <button class="qty-preset-btn" data-qty="3"  onclick="confirmarQtyPicker(3)">3</button>
-      <button class="qty-preset-btn" data-qty="5"  onclick="confirmarQtyPicker(5)">5</button>
-      <button class="qty-preset-btn" data-qty="10" onclick="confirmarQtyPicker(10)">10</button>
+    <div class="qm-numpad-display"><span id="qm-display">0</span></div>
+    <div class="qm-numpad">
+      <button class="qm-num-btn" onclick="qmNumpad('1')">1</button>
+      <button class="qm-num-btn" onclick="qmNumpad('2')">2</button>
+      <button class="qm-num-btn" onclick="qmNumpad('3')">3</button>
+      <button class="qm-num-btn" onclick="qmNumpad('4')">4</button>
+      <button class="qm-num-btn" onclick="qmNumpad('5')">5</button>
+      <button class="qm-num-btn" onclick="qmNumpad('6')">6</button>
+      <button class="qm-num-btn" onclick="qmNumpad('7')">7</button>
+      <button class="qm-num-btn" onclick="qmNumpad('8')">8</button>
+      <button class="qm-num-btn" onclick="qmNumpad('9')">9</button>
+      <button class="qm-num-btn qm-clear-btn" onclick="qmNumpad('clear')">C</button>
+      <button class="qm-num-btn" onclick="qmNumpad('0')">0</button>
+      <button class="qm-num-btn qm-del-btn" onclick="qmNumpad('del')">⌫</button>
     </div>
-    <div class="qm-custom">
-      <input id="qty-custom-inp" class="qm-custom-input" type="number" min="1" placeholder="Outro…"
-        onkeydown="if(event.key==='Enter')confirmarQtyCustom()" />
-      <button class="qm-confirm" onclick="confirmarQtyCustom()">✓ Adicionar</button>
-    </div>
+    <button class="qm-confirm" onclick="confirmarQtyNumpad()">✓ Adicionar</button>
+    <button class="pm-cancel" style="margin-top:8px" onclick="fecharQtyPicker()">Cancelar</button>
   </div>
 
   <!-- ANIMAÇÃO DE SUCESSO -->
@@ -348,8 +364,11 @@
       <div class="login-fields">
         <input id="login-operador" class="input" type="text" placeholder="Seu nome"
           autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()" />
-        <input id="login-senha" class="input" type="password" placeholder="Senha"
-          onkeydown="if(event.key==='Enter')fazerLogin()" />
+        <div class="senha-wrap">
+          <input id="login-senha" class="input" type="password" placeholder="Senha"
+            onkeydown="if(event.key==='Enter')fazerLogin()" />
+          <button type="button" class="btn-show-pass" onclick="toggleMostrarSenha()" title="Mostrar/ocultar senha" tabindex="-1">👁</button>
+        </div>
       </div>
       <div id="login-erro" class="login-erro"></div>
       <button class="btn-primary" id="login-btn" onclick="fazerLogin()">Entrar</button>
@@ -373,16 +392,187 @@
   </datalist>
 
   <!-- QR CODE MODAL -->
-  <div id="qr-overlay" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:1rem" onclick="if(event.target===this)fecharQr()">
-    <div style="background:var(--bg-card);border-radius:16px;padding:1.5rem;max-width:320px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3)">
-      <h3 style="margin-bottom:.5rem;font-size:16px">QR Code – Cardápio</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:1rem">Escaneie para ver o cardápio</p>
-      <div id="qr-img-wrap" style="margin-bottom:1rem"></div>
-      <p id="qr-url" style="font-size:11px;color:var(--muted);word-break:break-all;margin-bottom:1rem"></p>
-      <div style="display:flex;gap:8px;justify-content:center">
-        <button class="btn-primary" style="flex:1" onclick="baixarQr()">⬇ Salvar imagem</button>
-        <button class="btn-secondary" style="flex:1" onclick="fecharQr()">Fechar</button>
+  <div id="qr-overlay" onclick="if(event.target===this)fecharQr()">
+    <div class="qr-modal">
+      <h3 class="qr-modal-title">QR Code – Cardápio</h3>
+      <p class="qr-modal-sub">Escaneie para ver o cardápio</p>
+      <div id="qr-img-wrap" class="qr-img-wrap"></div>
+      <p id="qr-url" class="qr-modal-url"></p>
+      <div class="qr-modal-row">
+        <button class="btn-primary" onclick="copiarLinkCardapio()">📋 Copiar link</button>
+        <a id="qr-abrir-link" class="btn-secondary" href="#" target="_blank" rel="noopener" style="flex:1;display:flex;align-items:center;justify-content:center;text-decoration:none">↗ Abrir</a>
       </div>
+      <div class="qr-modal-row">
+        <button class="btn-secondary" onclick="baixarQr()">⬇ Salvar SVG</button>
+        <button class="btn-secondary" onclick="fecharQr()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ADMINISTRAÇÃO -->
+  <div id="admin-overlay" onclick="fecharAdmin()"></div>
+  <div id="admin-modal">
+    <div class="admin-modal-header">
+      <span class="admin-modal-title">⚙️ Administração</span>
+      <button class="admin-modal-close" onclick="fecharAdmin()">✕</button>
+    </div>
+
+    <!-- Seção Sync Railway (só aparece quando RAILWAY_URL está configurada) -->
+    <div id="admin-sync-section" style="display:none">
+      <p class="admin-section-label" style="margin-top:16px">Backup do Railway</p>
+      <div class="admin-sync-card">
+        <div class="admin-sync-info">
+          <span class="admin-sync-icon">📡</span>
+          <div>
+            <span class="admin-sync-title">Sincronizar estoque com Railway</span>
+            <span class="admin-sync-sub" id="admin-sync-ultimo">Nunca sincronizado</span>
+          </div>
+        </div>
+        <button class="admin-btn-sync" id="btn-sync" onclick="sincronizarRailway()">
+          Sync
+        </button>
+      </div>
+      <p class="admin-hint" style="margin-top:6px">Use se a internet estiver falhando. Atualiza o estoque local com o estado atual do Railway.</p>
+    </div>
+
+    <p class="admin-section-label" style="margin-top:16px">Nome do evento</p>
+    <div class="admin-edit-row">
+      <input id="admin-nome-inp" class="input" type="text" placeholder="Nome do evento" maxlength="60" />
+      <button class="admin-btn-save" id="btn-salvar-nome" onclick="salvarNomeEvento()">Salvar</button>
+    </div>
+    <p class="admin-hint" style="margin-top:4px;text-align:left">Aparece no cabeçalho, PDF e cardápio público.</p>
+
+    <p class="admin-section-label" style="margin-top:20px">Alterar senha</p>
+    <div class="admin-senha-fields">
+      <div class="senha-wrap">
+        <input id="admin-senha-atual" class="input" type="password" placeholder="Senha atual" autocomplete="current-password" />
+        <button type="button" class="btn-show-pass" onclick="toggleMostrarSenhaAdmin('admin-senha-atual')" tabindex="-1">👁</button>
+      </div>
+      <div class="senha-wrap">
+        <input id="admin-senha-nova" class="input" type="password" placeholder="Nova senha (mín. 4 caracteres)" autocomplete="new-password" />
+        <button type="button" class="btn-show-pass" onclick="toggleMostrarSenhaAdmin('admin-senha-nova')" tabindex="-1">👁</button>
+      </div>
+      <div class="senha-wrap">
+        <input id="admin-senha-conf" class="input" type="password" placeholder="Confirmar nova senha" autocomplete="new-password" />
+        <button type="button" class="btn-show-pass" onclick="toggleMostrarSenhaAdmin('admin-senha-conf')" tabindex="-1">👁</button>
+      </div>
+    </div>
+    <button class="admin-btn-save" id="btn-alterar-senha" onclick="alterarSenha()" style="width:100%">🔑 Alterar senha</button>
+
+    <p class="admin-section-label" style="margin-top:20px">Evento</p>
+    <div class="admin-status-card" id="admin-status-card">
+      <div class="admin-status-row">
+        <span>Vendas registradas</span>
+        <span class="admin-status-val" id="admin-cnt-vendas">—</span>
+      </div>
+      <div class="admin-status-row">
+        <span>Reposições registradas</span>
+        <span class="admin-status-val" id="admin-cnt-repos">—</span>
+      </div>
+    </div>
+
+    <div id="admin-zerar-confirm" style="display:none">
+      <p class="admin-confirm-msg">⚠️ Isso vai apagar <strong>todas as vendas e reposições</strong>.<br>Os produtos e o estoque atual serão mantidos.<br><br>Tem certeza?</p>
+      <div class="admin-confirm-btns">
+        <button class="admin-btn-cancel" onclick="cancelarZerar()">Cancelar</button>
+        <button class="admin-btn-danger-confirm" id="btn-confirmar-zerar" onclick="confirmarZerar()">Sim, zerar histórico</button>
+      </div>
+    </div>
+
+    <button class="admin-btn-danger" id="btn-zerar" onclick="pedirConfirmacaoZerar()">
+      🔄 Preparar para novo evento
+    </button>
+    <p class="admin-hint">Apaga vendas e reposições. Mantém produtos e estoque.</p>
+  </div>
+
+  <!-- BACKDROP ADD PRODUTO -->
+  <div id="add-drawer-bg" onclick="fecharAddDrawer()"></div>
+  <!-- DRAWER ADD PRODUTO -->
+  <div id="add-drawer">
+    <div class="cart-drawer-handle"></div>
+    <div class="cart-drawer-header">
+      <span class="cart-drawer-title">Adicionar produto</span>
+      <button class="cart-drawer-close" onclick="fecharAddDrawer()">✕</button>
+    </div>
+    <div id="add-drawer-scroll">
+      <input id="new-name" class="input" placeholder="Nome do produto" type="text" style="margin-bottom:8px" />
+      <input id="new-cat" class="input" placeholder="Categoria (ex: Bebidas, Comidas…)" type="text" list="cat-list" autocomplete="off" style="margin-bottom:8px" />
+      <div class="form-row three">
+        <input id="new-price" class="input" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
+        <input id="new-cost" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this);atualizarMargem()" />
+        <input id="new-qty" class="input" placeholder="Estoque" type="number" min="0" inputmode="numeric" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input id="new-min-stock"  class="input" placeholder="Estoque mínimo (alerta)" type="number" min="0" inputmode="numeric" />
+        <input id="new-fardo-qtd" class="input" placeholder="Un. por fardo (ex: 24)" type="number" min="2" inputmode="numeric" oninput="atualizarPlaceholderQty()" />
+      </div>
+      <div class="margin-hint" id="margin-hint" style="margin-bottom:8px">Margem: —</div>
+      <label class="combo-toggle-label">
+        <input type="checkbox" id="new-combo-check" onchange="toggleComboRow('new')" />
+        Ativar combo por quantidade
+      </label>
+      <div class="combo-row" id="combo-row-new" style="display:none">
+        <input id="new-combo-qtd" class="input" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" />
+        <input id="new-combo-preco" class="input" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" />
+      </div>
+      <label class="combo-toggle-label" style="margin-top:4px">
+        <input type="checkbox" id="new-dose-check" onchange="toggleDoseRow('new')" />
+        Vender por dose (garrafa/ml)
+      </label>
+      <div class="dose-row" id="dose-row-new" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+          <input id="new-garrafa-ml" class="input" placeholder="ml da garrafa (ex: 700)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
+          <input id="new-dose-ml" class="input" placeholder="ml por dose (ex: 50)" type="number" min="1" inputmode="numeric" oninput="calcularDose('new')" />
+        </div>
+        <input id="new-garrafa-preco" class="input" placeholder="Preço da garrafa inteira (ex: 45.00)" type="number" step="0.01" inputmode="decimal" oninput="calcularDose('new')" />
+        <div id="dose-hint-new" class="dose-hint">Preencha os ml da garrafa e da dose</div>
+      </div>
+      <button class="btn-primary" style="margin-bottom:4px" onclick="addProduto()">✓ Adicionar ao estoque</button>
+    </div>
+  </div>
+
+  <!-- BACKDROP EDITAR PRODUTO -->
+  <div id="edit-drawer-bg" onclick="fecharEditDrawer()"></div>
+  <!-- DRAWER EDITAR PRODUTO -->
+  <div id="edit-drawer">
+    <div class="cart-drawer-handle"></div>
+    <div class="cart-drawer-header">
+      <span class="cart-drawer-title">Editar produto</span>
+      <button class="cart-drawer-close" onclick="fecharEditDrawer()">✕</button>
+    </div>
+    <div id="edit-drawer-scroll">
+      <input id="ed-nome" class="input" placeholder="Nome do produto" type="text" />
+      <input id="ed-cat" class="input" placeholder="Categoria (ex: Bebidas, Comidas…)" type="text" list="cat-list" autocomplete="off" />
+      <div class="form-row three">
+        <input id="ed-preco" class="input" placeholder="Preço R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
+        <input id="ed-custo" class="input" placeholder="Custo R$" type="text" inputmode="numeric" oninput="mascaraMoedaInline(this)" />
+        <input id="ed-estoque-display" class="input" placeholder="Estoque atual" type="number" min="0" inputmode="numeric" disabled />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input id="ed-min-stock" class="input" placeholder="Estoque mínimo (alerta)" type="number" min="0" inputmode="numeric" />
+        <input id="ed-fardo-qtd" class="input" placeholder="Un. por fardo (ex: 24)" type="number" min="2" inputmode="numeric" />
+      </div>
+      <label class="combo-toggle-label">
+        <input type="checkbox" id="ed-combo-check" onchange="toggleComboRow('ed')" />
+        Ativar combo por quantidade
+      </label>
+      <div class="combo-row" id="combo-row-ed" style="display:none">
+        <input id="ed-combo-qtd" class="input" placeholder="Qtd mínima (ex: 3)" type="number" min="2" inputmode="numeric" />
+        <input id="ed-combo-preco" class="input" placeholder="Total do combo (ex: 15.00)" type="number" step="0.01" min="0.01" inputmode="decimal" />
+      </div>
+      <label class="combo-toggle-label" style="margin-top:4px">
+        <input type="checkbox" id="ed-dose-check" onchange="toggleDoseRow('ed')" />
+        Vender por dose (garrafa/ml)
+      </label>
+      <div class="dose-row" id="dose-row-ed" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+          <input id="ed-garrafa-ml" class="input" placeholder="ml da garrafa (ex: 700)" type="number" min="1" inputmode="numeric" oninput="calcularDose('ed')" />
+          <input id="ed-dose-ml" class="input" placeholder="ml por dose (ex: 50)" type="number" min="1" inputmode="numeric" oninput="calcularDose('ed')" />
+        </div>
+        <input id="ed-garrafa-preco" class="input" placeholder="Preço da garrafa inteira (ex: 45.00)" type="number" step="0.01" inputmode="decimal" oninput="calcularDose('ed')" />
+        <div id="dose-hint-ed" class="dose-hint">Preencha os ml da garrafa e da dose</div>
+      </div>
+      <button class="btn-primary" style="margin-bottom:4px" onclick="salvarEdicaoDrawer()">✓ Salvar alterações</button>
     </div>
   </div>
 

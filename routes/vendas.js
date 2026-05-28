@@ -84,7 +84,7 @@ router.get('/por-operador', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { itens, forma_pagamento = 'dinheiro', ao_custo = false } = req.body;
+  const { itens, forma_pagamento = 'dinheiro', ao_custo = false, observacao = null } = req.body;
   if (!itens || itens.length === 0)
     return res.status(400).json({ error: 'Nenhum item enviado' });
 
@@ -110,8 +110,8 @@ router.post('/', async (req, res) => {
     }
 
     const [vendaResult] = await conn.query(
-      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador, ao_custo ? 1 : 0]
+      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador, ao_custo ? 1 : 0, observacao || null]
     );
 
     for (const item of itensFinal) {

@@ -196,6 +196,9 @@ async function runMigrations() {
   /* ── Fardo ───────────────────────────────── */
   try { await db.query(`ALTER TABLE produtos ADD COLUMN unidades_por_fardo INT DEFAULT NULL`); } catch (_) {}
 
+  /* ── Observação na venda ─────────────────── */
+  try { await db.query(`ALTER TABLE vendas ADD COLUMN observacao VARCHAR(200) DEFAULT NULL`); } catch (_) {}
+
   /* ── Evento: senha e fundo de caixa ─────── */
   try { await db.query(`ALTER TABLE eventos ADD COLUMN senha_hash VARCHAR(255)`); } catch (_) {}
   try { await db.query(`ALTER TABLE eventos ADD COLUMN fundo_caixa DECIMAL(10,2) NOT NULL DEFAULT 0`); } catch (_) {}

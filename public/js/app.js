@@ -445,6 +445,7 @@ async function fazerLogout() {
 async function carregarTudo() {
   try {
     await Promise.all([carregarProdutos(), carregarResumo()]);
+    restaurarCarrinhoSession();
     apiFetch('/vendas/relatorio').then(itens => {
       itens.forEach(i => { vendidoMap[i.id] = Number(i.qtd_vendida); });
       if (sortVenda === 'vendido') renderVenda();
@@ -1047,6 +1048,33 @@ function setQtyCarrinho(id, qty) {
   renderCarrinho();
 }
 
+/* ── SessionStorage do carrinho ───────────── */
+function salvarCarrinhoSession() {
+  try {
+    if (carrinho.length) sessionStorage.setItem('carrinho', JSON.stringify(carrinho));
+    else sessionStorage.removeItem('carrinho');
+  } catch (_) {}
+}
+
+function restaurarCarrinhoSession() {
+  try {
+    const saved = sessionStorage.getItem('carrinho');
+    if (!saved) return;
+    const parsed = JSON.parse(saved);
+    const validos = parsed.filter(c => {
+      const p = produtos.find(x => x.id === c.id);
+      return p && p.estoque > 0 && c.qty > 0;
+    }).map(c => {
+      const p = produtos.find(x => x.id === c.id);
+      return { ...c, qty: Math.min(c.qty, p.estoque) };
+    });
+    if (!validos.length) return;
+    carrinho = validos;
+    renderCarrinho();
+    showToast(`Carrinho restaurado (${validos.length} ite${validos.length > 1 ? 'ns' : 'm'})`, '');
+  } catch (_) {}
+}
+
 function addCarrinho(id) {
   const p = produtos.find(x => x.id === id);
   if (!p || p.estoque === 0) return;
@@ -1293,6 +1321,7 @@ function renderCarrinho() {
   }
   updateCarrinhoVendaCards();
   atualizarCartBar();
+  salvarCarrinhoSession();
 }
 
 /* ── Pagamento ────────────────────────────── */
@@ -1312,6 +1341,7 @@ function abrirPagamento() {
   atualizarModalCusto();
   document.getElementById('pm-recebido').value = '';
   document.getElementById('pm-troco').textContent = '';
+  document.getElementById('pm-obs').value = '';
   selecionarPagamento('dinheiro');
   document.getElementById('pay-overlay').classList.add('open');
   document.getElementById('pay-modal').classList.add('open');
@@ -1370,8 +1400,9 @@ async function finalizarVenda() {
   if (!carrinho.length) return;
   const total = totalCarrinho();
   const itens = carrinho.map(c => ({ produto_id: c.id, quantidade: c.qty }));
+  const observacao = document.getElementById('pm-obs')?.value.trim() || null;
   try {
-    const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento, operador: operadorAtual, ao_custo: venderAoCusto }) });
+    const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento, operador: operadorAtual, ao_custo: venderAoCusto, observacao }) });
     venderAoCusto = false;
     vibrar([40, 20, 40]);
     mostrarSuccessAnim();
@@ -1708,6 +1739,7 @@ function renderHistoricoLista() {
       <span class="hist-num">#${num}</span>
       <div class="hist-info">
         <div class="hist-desc">${venda.descricao}</div>
+        ${venda.observacao ? `<div class="hist-obs">💬 ${venda.observacao}</div>` : ''}
         <div class="hist-hora">${fmtDataHora(venda.criado_em)}</div>
       </div>
       <div class="hist-right">
@@ -1747,6 +1779,7 @@ function abrirQtyPicker(id) {
   if (display) display.textContent = '0';
   document.getElementById('qty-overlay').classList.add('open');
   document.getElementById('qty-modal').classList.add('open');
+  document.addEventListener('keydown', qmHandleKey);
 }
 
 function qmNumpad(key) {
@@ -1768,8 +1801,17 @@ function confirmarQtyNumpad() {
   else fecharQtyPicker();
 }
 
+function qmHandleKey(e) {
+  if (e.key >= '0' && e.key <= '9') { e.preventDefault(); qmNumpad(e.key); }
+  else if (e.key === 'Backspace')    { e.preventDefault(); qmNumpad('del'); }
+  else if (e.key === 'Delete' || e.key === 'c' || e.key === 'C') qmNumpad('clear');
+  else if (e.key === 'Enter')  confirmarQtyNumpad();
+  else if (e.key === 'Escape') fecharQtyPicker();
+}
+
 function fecharQtyPicker() {
   qtyPickerId = null;
+  document.removeEventListener('keydown', qmHandleKey);
   document.getElementById('qty-overlay').classList.remove('open');
   document.getElementById('qty-modal').classList.remove('open');
 }
@@ -1843,7 +1885,7 @@ async function compartilharWhatsApp() {
       pag.pix      > 0 ? `📱 Pix: ${fmt(pag.pix)}`           : '',
       pag.cartao   > 0 ? `💳 Cartão: ${fmt(pag.cartao)}`      : '',
     ].filter(Boolean).join('\n');
-    const fundoWpp = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+    const fundoWpp = fundoCaixaAtual || 0;
     const linhaFundo = fundoWpp > 0
       ? `\n🗃 Fundo: ${fmt(fundoWpp)} → Esperado no caixa: ${fmt(fundoWpp + (pag.dinheiro || 0))}` : '';
 

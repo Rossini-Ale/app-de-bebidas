@@ -2758,10 +2758,11 @@ async function exportarParaRailway() {
       : '';
     document.getElementById('admin-export-ultimo').textContent =
       `${agora} — ${r.produtosEnviados} produtos, ${r.vendasEnviadas} vendas novas${jaNoRailway}${railwayTotal}`;
+    const erroVenda = r.primeiroErro ? ` | Erro: ${r.primeiroErro}` : '';
     const msg = r.vendasIgnoradas > 0 && r.vendasEnviadas === 0
-      ? `✅ ${r.produtosEnviados} produtos enviados. Vendas já estavam no Railway (${r.vendasIgnoradas}).${railwayTotal}`
-      : `✅ Exportado! ${r.produtosEnviados} produtos e ${r.vendasEnviadas} vendas enviados.${railwayTotal}`;
-    showToast(msg, 'green-toast');
+      ? `✅ ${r.produtosEnviados} produtos. ${r.vendasIgnoradas} vendas já no Railway.${railwayTotal}${erroVenda}`
+      : `✅ Exportado! ${r.produtosEnviados} produtos e ${r.vendasEnviadas} vendas.${railwayTotal}`;
+    showToast(msg, r.primeiroErro ? 'error-toast' : 'green-toast');
   } catch (e) {
     showToast('❌ Exportação falhou: ' + e.message, 'error-toast');
   } finally {

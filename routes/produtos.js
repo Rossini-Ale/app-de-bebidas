@@ -15,38 +15,46 @@ router.post('/sync-import', async (req, res) => {
   const lista = req.body;
   if (!Array.isArray(lista)) return res.status(400).json({ error: 'Esperado array de produtos' });
 
-  const [existentes] = await db.query('SELECT id, nome FROM produtos WHERE evento_id = ?', [req.eventoId]);
-  const porNome = {};
-  existentes.forEach(p => { porNome[p.nome.toLowerCase()] = p.id; });
+  try {
+    const [existentes] = await db.query('SELECT id, nome FROM produtos WHERE evento_id = ?', [req.eventoId]);
+    const porNome = {};
+    existentes.forEach(p => { porNome[p.nome.toLowerCase()] = p.id; });
 
-  let atualizados = 0, inseridos = 0;
-  for (const p of lista) {
-    const key = p.nome?.toLowerCase();
-    if (!key) continue;
-    const vals = [
-      p.emoji || '🍺', p.preco || 0, p.custo || 0, p.estoque || 0, p.estoque_minimo || 0,
-      p.categoria || '', p.combo_qtd ?? null, p.combo_preco ?? null,
-      p.dose_ml ?? null, p.garrafa_ml ?? null, p.garrafa_preco ?? null, p.unidades_por_fardo ?? null,
-    ];
-    if (porNome[key]) {
-      await db.query(
-        `UPDATE produtos SET emoji=?,preco=?,custo=?,estoque=?,estoque_minimo=?,categoria=?,
-         combo_qtd=?,combo_preco=?,dose_ml=?,garrafa_ml=?,garrafa_preco=?,unidades_por_fardo=?
-         WHERE id=?`,
-        [...vals, porNome[key]]
-      );
-      atualizados++;
-    } else {
-      await db.query(
-        `INSERT INTO produtos (nome,emoji,preco,custo,estoque,estoque_minimo,evento_id,categoria,
-         combo_qtd,combo_preco,dose_ml,garrafa_ml,garrafa_preco,unidades_por_fardo)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [p.nome, ...vals, req.eventoId]
-      );
-      inseridos++;
+    let atualizados = 0, inseridos = 0;
+    for (const p of lista) {
+      const key = p.nome?.toLowerCase();
+      if (!key) continue;
+      if (porNome[key]) {
+        await db.query(
+          `UPDATE produtos SET emoji=?,preco=?,custo=?,estoque=?,estoque_minimo=?,categoria=?,
+           combo_qtd=?,combo_preco=?,dose_ml=?,garrafa_ml=?,garrafa_preco=?,unidades_por_fardo=?
+           WHERE id=?`,
+          [
+            p.emoji || '🍺', p.preco || 0, p.custo || 0, p.estoque || 0, p.estoque_minimo || 0,
+            p.categoria || '', p.combo_qtd ?? null, p.combo_preco ?? null,
+            p.dose_ml ?? null, p.garrafa_ml ?? null, p.garrafa_preco ?? null, p.unidades_por_fardo ?? null,
+            porNome[key],
+          ]
+        );
+        atualizados++;
+      } else {
+        await db.query(
+          `INSERT INTO produtos
+             (nome, emoji, preco, custo, estoque, estoque_minimo, categoria,
+              combo_qtd, combo_preco, dose_ml, garrafa_ml, garrafa_preco, unidades_por_fardo, evento_id)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [
+            p.nome, p.emoji || '🍺', p.preco || 0, p.custo || 0, p.estoque || 0, p.estoque_minimo || 0,
+            p.categoria || '', p.combo_qtd ?? null, p.combo_preco ?? null,
+            p.dose_ml ?? null, p.garrafa_ml ?? null, p.garrafa_preco ?? null, p.unidades_por_fardo ?? null,
+            req.eventoId,
+          ]
+        );
+        inseridos++;
+      }
     }
-  }
-  res.json({ ok: true, atualizados, inseridos });
+    res.json({ ok: true, atualizados, inseridos });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/', async (req, res) => {

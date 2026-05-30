@@ -131,7 +131,13 @@ router.post('/sync-import', async (req, res) => {
   const nomePorId = {};
   prods.forEach(p => { nomePorId[p.nome.toLowerCase()] = p.id; });
 
-  let importadas = 0, ignoradas = 0;
+  let importadas = 0, ignoradas = 0, primeiroErro = null;
+
+  // Helper: converte qualquer formato de data para 'YYYY-MM-DD HH:MM:SS' que MySQL aceita
+  function toMysqlDate(val) {
+    if (!val) return null;
+    try { return new Date(val).toISOString().slice(0, 19).replace('T', ' '); } catch (_) { return null; }
+  }
 
   for (const v of vendas) {
     if (!v.sync_key) { ignoradas++; continue; }
@@ -145,7 +151,8 @@ router.post('/sync-import', async (req, res) => {
         `INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo, observacao, sync_key, criado_em)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [v.total, v.itens_count, v.descricao, v.forma_pagamento, req.eventoId,
-         v.operador || 'Sync', v.ao_custo ? 1 : 0, v.observacao || null, v.sync_key, v.criado_em]
+         v.operador || 'Sync', v.ao_custo ? 1 : 0, v.observacao || null, v.sync_key,
+         toMysqlDate(v.criado_em)]
       );
       for (const item of (v.itens || [])) {
         const prodId = nomePorId[item.nome?.toLowerCase()];
@@ -157,14 +164,15 @@ router.post('/sync-import', async (req, res) => {
       }
       await conn.commit();
       importadas++;
-    } catch (_) {
+    } catch (err) {
       await conn.rollback();
       ignoradas++;
+      if (!primeiroErro) primeiroErro = err.message;
     } finally {
       conn.release();
     }
   }
-  res.json({ ok: true, importadas, ignoradas });
+  res.json({ ok: true, importadas, ignoradas, primeiroErro });
 });
 
 router.post('/', async (req, res) => {

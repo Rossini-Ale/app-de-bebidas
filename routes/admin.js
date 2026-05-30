@@ -176,32 +176,40 @@ router.post('/sync-railway', async (req, res) => {
       });
     }
 
-    // 5. Empurrar vendas locais → Railway
+    // 5. Empurrar vendas locais → Railway (tolerante: Railway pode não ter o endpoint ainda)
     let vendasEnviadas = 0, vendasIgnoradasEnvio = 0;
     const vendasArray = Object.values(vendasMap);
 
     if (vendasArray.length > 0) {
-      const syncVendasRes = await fetch(`${railwayUrl}/api/vendas/sync-import`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'Cookie': cookieHeader },
-        body:    JSON.stringify(vendasArray),
-      });
-      if (syncVendasRes.ok) {
-        const syncData      = await syncVendasRes.json();
-        vendasEnviadas      = syncData.importadas || 0;
-        vendasIgnoradasEnvio = syncData.ignoradas  || 0;
-      }
+      try {
+        const syncVendasRes = await fetch(`${railwayUrl}/api/vendas/sync-import`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'Cookie': cookieHeader },
+          body:    JSON.stringify(vendasArray),
+        });
+        const ct = syncVendasRes.headers.get('content-type') || '';
+        if (syncVendasRes.ok && ct.includes('application/json')) {
+          const syncData       = await syncVendasRes.json();
+          vendasEnviadas       = syncData.importadas || 0;
+          vendasIgnoradasEnvio = syncData.ignoradas  || 0;
+        }
+      } catch (_) { /* Railway sem suporte a vendas — ignora */ }
     }
 
-    // 6. Puxar vendas do Railway → local
+    // 6. Puxar vendas do Railway → local (tolerante)
     let vendasRecebidas = 0, vendasIgnoradasRecebimento = 0;
-    const exportRes = await fetch(`${railwayUrl}/api/vendas/sync-export`, {
-      headers: { 'Cookie': cookieHeader },
-    });
+    let railwayVendas = [];
+    try {
+      const exportRes = await fetch(`${railwayUrl}/api/vendas/sync-export`, {
+        headers: { 'Cookie': cookieHeader },
+      });
+      const ct = exportRes.headers.get('content-type') || '';
+      if (exportRes.ok && ct.includes('application/json')) {
+        railwayVendas = await exportRes.json();
+      }
+    } catch (_) { /* Railway sem suporte a vendas — ignora */ }
 
-    if (exportRes.ok) {
-      const railwayVendas = await exportRes.json();
-
+    if (railwayVendas.length > 0) {
       // Mapa nome → id dos produtos locais
       const [localProds] = await db.query('SELECT id, nome FROM produtos WHERE evento_id = ?', [req.eventoId]);
       const nomePorIdLocal = {};

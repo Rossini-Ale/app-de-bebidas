@@ -32,11 +32,17 @@ router.get('/resumo', async (req, res) => {
       WHERE v.evento_id = ?
     `, [req.eventoId]);
     const [porPag] = await db.query(
-      `SELECT forma_pagamento, COALESCE(SUM(total),0) as total FROM vendas WHERE evento_id = ? GROUP BY forma_pagamento`,
+      `SELECT forma_pagamento,
+        COALESCE(SUM(total),0) as total,
+        COALESCE(SUM(CASE WHEN valor_recebido IS NOT NULL THEN valor_recebido ELSE total END),0) as total_recebido
+       FROM vendas WHERE evento_id = ? GROUP BY forma_pagamento`,
       [req.eventoId]
     );
-    const pagamentos = { dinheiro: 0, pix: 0, cartao: 0 };
-    porPag.forEach(row => { if (row.forma_pagamento in pagamentos) pagamentos[row.forma_pagamento] = Number(row.total); });
+    const pagamentos = { dinheiro: 0, pix: 0, cartao: 0, dinheiro_recebido: 0 };
+    porPag.forEach(row => {
+      if (row.forma_pagamento in pagamentos) pagamentos[row.forma_pagamento] = Number(row.total);
+      if (row.forma_pagamento === 'dinheiro') pagamentos.dinheiro_recebido = Number(row.total_recebido);
+    });
     res.json({ ...r, pagamentos });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -162,7 +168,7 @@ router.post('/sync-import', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { itens, forma_pagamento = 'dinheiro', ao_custo = false, observacao = null } = req.body;
+  const { itens, forma_pagamento = 'dinheiro', ao_custo = false, observacao = null, valor_recebido = null } = req.body;
   if (!itens || itens.length === 0)
     return res.status(400).json({ error: 'Nenhum item enviado' });
 
@@ -188,9 +194,10 @@ router.post('/', async (req, res) => {
     }
 
     const syncKey = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const recebido = (forma_pagamento === 'dinheiro' && valor_recebido > total) ? valor_recebido : null;
     const [vendaResult] = await conn.query(
-      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo, observacao, sync_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador, ao_custo ? 1 : 0, observacao || null, syncKey]
+      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo, observacao, sync_key, valor_recebido) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador, ao_custo ? 1 : 0, observacao || null, syncKey, recebido]
     );
 
     for (const item of itensFinal) {

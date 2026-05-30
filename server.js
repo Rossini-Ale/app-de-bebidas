@@ -196,7 +196,8 @@ async function runMigrations() {
   /* ── Fardo ───────────────────────────────── */
   try { await db.query(`ALTER TABLE produtos ADD COLUMN unidades_por_fardo INT DEFAULT NULL`); } catch (_) {}
 
-  /* ── Observação e sync key na venda ─────── */
+  /* ── Observação, sync key e valor recebido ─ */
+  try { await db.query(`ALTER TABLE vendas ADD COLUMN valor_recebido DECIMAL(10,2) DEFAULT NULL`); } catch (_) {}
   try { await db.query(`ALTER TABLE vendas ADD COLUMN observacao VARCHAR(200) DEFAULT NULL`); } catch (_) {}
   try { await db.query(`ALTER TABLE vendas ADD COLUMN sync_key VARCHAR(64) DEFAULT NULL`); } catch (_) {}
   try { await db.query(`UPDATE vendas SET sync_key = CONCAT('legacy-', id) WHERE sync_key IS NULL`); } catch (_) {}

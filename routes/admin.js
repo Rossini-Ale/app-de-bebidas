@@ -19,6 +19,30 @@ router.get('/status', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+/* POST /api/admin/recalcular-estoque — desconta do estoque atual tudo que já foi vendido */
+router.post('/recalcular-estoque', async (req, res) => {
+  try {
+    const [vendidos] = await db.query(`
+      SELECT vi.produto_id, SUM(vi.quantidade) AS total_vendido
+      FROM venda_itens vi
+      JOIN vendas v ON vi.venda_id = v.id
+      WHERE v.evento_id = ?
+      GROUP BY vi.produto_id
+    `, [req.eventoId]);
+
+    let atualizados = 0;
+    for (const { produto_id, total_vendido } of vendidos) {
+      await db.query(
+        'UPDATE produtos SET estoque = GREATEST(0, estoque - ?) WHERE id = ? AND evento_id = ?',
+        [total_vendido, produto_id, req.eventoId]
+      );
+      atualizados++;
+    }
+    appEvents.emit('broadcast', { type: 'sync_railway_concluido' });
+    res.json({ ok: true, atualizados });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 /* POST /api/admin/reverter-sync — restaura estoque ao estado antes do último sync */
 router.post('/reverter-sync', async (req, res) => {
   try {

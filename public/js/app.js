@@ -351,6 +351,32 @@ async function salvarObservacao(id) {
   } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
 }
 
+async function recalcularEstoque() {
+  const btn = document.getElementById('btn-recalcular');
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    btn.textContent = '⚠ Confirmar? Desconta TODAS as vendas do estoque atual';
+    btn._timer = setTimeout(() => {
+      btn.classList.remove('confirming');
+      btn.textContent = '📊 Recalcular estoque pelas vendas';
+    }, 4000);
+    return;
+  }
+  clearTimeout(btn._timer);
+  btn.classList.remove('confirming');
+  btn.disabled = true; btn.textContent = '⏳ Recalculando…';
+  try {
+    const r = await apiFetch('/admin/recalcular-estoque', { method: 'POST' });
+    await carregarProdutos();
+    showToast(`✅ Estoque recalculado! ${r.atualizados} produtos ajustados.`, 'green-toast');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error-toast');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📊 Recalcular estoque pelas vendas';
+  }
+}
+
 async function reverterSync() {
   const btn = document.getElementById('btn-reverter-sync');
   if (!btn.classList.contains('confirming')) {

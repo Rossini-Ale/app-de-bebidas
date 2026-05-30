@@ -148,10 +148,114 @@ router.post('/sync-railway', async (req, res) => {
       }
     }
 
-    // 4. Notificar todos os dispositivos conectados
+    // 4. Buscar vendas locais com seus itens (nome do produto para mapeamento no Railway)
+    const [vendaRows] = await db.query(`
+      SELECT v.id, v.total, v.itens_count, v.descricao, v.forma_pagamento,
+             v.operador, v.ao_custo, v.observacao, v.sync_key, v.criado_em,
+             vi.quantidade, vi.preco_unitario, p.nome AS produto_nome
+      FROM vendas v
+      JOIN venda_itens vi ON vi.venda_id = v.id
+      JOIN produtos p    ON vi.produto_id = p.id
+      WHERE v.evento_id = ? AND v.sync_key IS NOT NULL
+      ORDER BY v.id, vi.id
+    `, [req.eventoId]);
+
+    // Agrupa por venda
+    const vendasMap = {};
+    for (const row of vendaRows) {
+      if (!vendasMap[row.id]) {
+        vendasMap[row.id] = {
+          total: row.total, itens_count: row.itens_count, descricao: row.descricao,
+          forma_pagamento: row.forma_pagamento, operador: row.operador,
+          ao_custo: row.ao_custo, observacao: row.observacao,
+          sync_key: row.sync_key, criado_em: row.criado_em, itens: []
+        };
+      }
+      vendasMap[row.id].itens.push({
+        nome: row.produto_nome, quantidade: row.quantidade, preco_unitario: row.preco_unitario
+      });
+    }
+
+    // 5. Empurrar vendas locais → Railway (tolerante: Railway pode não ter o endpoint ainda)
+    let vendasEnviadas = 0, vendasIgnoradasEnvio = 0;
+    const vendasArray = Object.values(vendasMap);
+
+    if (vendasArray.length > 0) {
+      try {
+        const syncVendasRes = await fetch(`${railwayUrl}/api/vendas/sync-import`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json', 'Cookie': cookieHeader },
+          body:    JSON.stringify(vendasArray),
+        });
+        const ct = syncVendasRes.headers.get('content-type') || '';
+        if (syncVendasRes.ok && ct.includes('application/json')) {
+          const syncData       = await syncVendasRes.json();
+          vendasEnviadas       = syncData.importadas || 0;
+          vendasIgnoradasEnvio = syncData.ignoradas  || 0;
+        }
+      } catch (_) { /* Railway sem suporte a vendas — ignora */ }
+    }
+
+    // 6. Puxar vendas do Railway → local (tolerante)
+    let vendasRecebidas = 0, vendasIgnoradasRecebimento = 0;
+    let railwayVendas = [];
+    try {
+      const exportRes = await fetch(`${railwayUrl}/api/vendas/sync-export`, {
+        headers: { 'Cookie': cookieHeader },
+      });
+      const ct = exportRes.headers.get('content-type') || '';
+      if (exportRes.ok && ct.includes('application/json')) {
+        railwayVendas = await exportRes.json();
+      }
+    } catch (_) { /* Railway sem suporte a vendas — ignora */ }
+
+    if (railwayVendas.length > 0) {
+      // Mapa nome → id dos produtos locais
+      const [localProds] = await db.query('SELECT id, nome FROM produtos WHERE evento_id = ?', [req.eventoId]);
+      const nomePorIdLocal = {};
+      localProds.forEach(p => { nomePorIdLocal[p.nome.toLowerCase()] = p.id; });
+
+      for (const v of railwayVendas) {
+        if (!v.sync_key) { vendasIgnoradasRecebimento++; continue; }
+        const [[existe]] = await db.query('SELECT id FROM vendas WHERE sync_key = ?', [v.sync_key]);
+        if (existe) { vendasIgnoradasRecebimento++; continue; }
+
+        const conn = await db.getConnection();
+        try {
+          await conn.beginTransaction();
+          const [result] = await conn.query(
+            `INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo, observacao, sync_key, criado_em)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [v.total, v.itens_count, v.descricao, v.forma_pagamento, req.eventoId,
+             v.operador || 'Railway', v.ao_custo ? 1 : 0, v.observacao || null, v.sync_key, v.criado_em]
+          );
+          for (const item of (v.itens || [])) {
+            const prodId = nomePorIdLocal[item.nome?.toLowerCase()];
+            if (!prodId) continue;
+            await conn.query(
+              'INSERT INTO venda_itens (venda_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)',
+              [result.insertId, prodId, item.quantidade, item.preco_unitario]
+            );
+          }
+          await conn.commit();
+          vendasRecebidas++;
+        } catch (_) {
+          await conn.rollback();
+          vendasIgnoradasRecebimento++;
+        } finally {
+          conn.release();
+        }
+      }
+    }
+
+    // 7. Notificar todos os dispositivos conectados
     appEvents.emit('broadcast', { type: 'sync_railway_concluido' });
 
-    res.json({ ok: true, atualizados, inseridos, total: remoteProdutos.length });
+    res.json({
+      ok: true,
+      atualizados, inseridos, total: remoteProdutos.length,
+      vendasEnviadas, vendasRecebidas,
+    });
   } catch (err) {
     // Erro de rede (internet caiu) → mensagem amigável
     if (err.cause?.code === 'ECONNREFUSED' || err.message.includes('fetch')) {

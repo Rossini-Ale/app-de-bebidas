@@ -5,7 +5,7 @@ let sortVenda = 'vendido', sortEstoque = 'az', sortRelatorio = 'vendido', sortHi
 let histPagina = 1;
 const HIST_POR_PAG = 20;
 let vendidoMap = {}, relatorioItens = null, historicoVendas = null;
-let dinheiroVendas = 0, wakeLock = null, reposicaoId = null, reposicaoModo = 'add';
+let dinheiroVendas = 0, dinheiroRecebido = 0, wakeLock = null, reposicaoId = null, reposicaoModo = 'add';
 let eventoAtual = null, operadorAtual = 'Caixa', venderAoCusto = false;
 let categoriaFiltro = '';
 let categoriaFiltroEstoque = '';
@@ -445,6 +445,7 @@ async function fazerLogout() {
 async function carregarTudo() {
   try {
     await Promise.all([carregarProdutos(), carregarResumo()]);
+    restaurarCarrinhoSession();
     apiFetch('/vendas/relatorio').then(itens => {
       itens.forEach(i => { vendidoMap[i.id] = Number(i.qtd_vendida); });
       if (sortVenda === 'vendido') renderVenda();
@@ -1047,6 +1048,33 @@ function setQtyCarrinho(id, qty) {
   renderCarrinho();
 }
 
+/* ── SessionStorage do carrinho ───────────── */
+function salvarCarrinhoSession() {
+  try {
+    if (carrinho.length) sessionStorage.setItem('carrinho', JSON.stringify(carrinho));
+    else sessionStorage.removeItem('carrinho');
+  } catch (_) {}
+}
+
+function restaurarCarrinhoSession() {
+  try {
+    const saved = sessionStorage.getItem('carrinho');
+    if (!saved) return;
+    const parsed = JSON.parse(saved);
+    const validos = parsed.filter(c => {
+      const p = produtos.find(x => x.id === c.id);
+      return p && p.estoque > 0 && c.qty > 0;
+    }).map(c => {
+      const p = produtos.find(x => x.id === c.id);
+      return { ...c, qty: Math.min(c.qty, p.estoque) };
+    });
+    if (!validos.length) return;
+    carrinho = validos;
+    renderCarrinho();
+    showToast(`Carrinho restaurado (${validos.length} ite${validos.length > 1 ? 'ns' : 'm'})`, '');
+  } catch (_) {}
+}
+
 function addCarrinho(id) {
   const p = produtos.find(x => x.id === id);
   if (!p || p.estoque === 0) return;
@@ -1293,6 +1321,7 @@ function renderCarrinho() {
   }
   updateCarrinhoVendaCards();
   atualizarCartBar();
+  salvarCarrinhoSession();
 }
 
 /* ── Pagamento ────────────────────────────── */
@@ -1312,6 +1341,7 @@ function abrirPagamento() {
   atualizarModalCusto();
   document.getElementById('pm-recebido').value = '';
   document.getElementById('pm-troco').textContent = '';
+  document.getElementById('pm-obs').value = '';
   selecionarPagamento('dinheiro');
   document.getElementById('pay-overlay').classList.add('open');
   document.getElementById('pay-modal').classList.add('open');
@@ -1370,8 +1400,11 @@ async function finalizarVenda() {
   if (!carrinho.length) return;
   const total = totalCarrinho();
   const itens = carrinho.map(c => ({ produto_id: c.id, quantidade: c.qty }));
+  const observacao     = document.getElementById('pm-obs')?.value.trim() || null;
+  const valorRecebidoRaw = lerMoeda('pm-recebido');
+  const valor_recebido   = (metodoPagamento === 'dinheiro' && valorRecebidoRaw > total) ? valorRecebidoRaw : null;
   try {
-    const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento, operador: operadorAtual, ao_custo: venderAoCusto }) });
+    const venda = await apiFetch('/vendas', { method: 'POST', body: JSON.stringify({ itens, forma_pagamento: metodoPagamento, operador: operadorAtual, ao_custo: venderAoCusto, observacao, valor_recebido }) });
     venderAoCusto = false;
     vibrar([40, 20, 40]);
     mostrarSuccessAnim();
@@ -1465,7 +1498,8 @@ async function carregarRelatorio() {
     else
       document.getElementById('r-margem').textContent = '—';
     const pag = resumo.pagamentos || {};
-    dinheiroVendas = Number(pag.dinheiro) || 0;
+    dinheiroVendas   = Number(pag.dinheiro)          || 0;
+    dinheiroRecebido = Number(pag.dinheiro_recebido) || dinheiroVendas;
     countUp(document.getElementById('r-dinheiro'), pag.dinheiro || 0, fmtShort);
     countUp(document.getElementById('r-pix'),      pag.pix      || 0, fmtShort);
     countUp(document.getElementById('r-cartao'),   pag.cartao   || 0, fmtShort);
@@ -1708,6 +1742,7 @@ function renderHistoricoLista() {
       <span class="hist-num">#${num}</span>
       <div class="hist-info">
         <div class="hist-desc">${venda.descricao}</div>
+        ${venda.observacao ? `<div class="hist-obs">💬 ${venda.observacao}</div>` : ''}
         <div class="hist-hora">${fmtDataHora(venda.criado_em)}</div>
       </div>
       <div class="hist-right">
@@ -1747,6 +1782,7 @@ function abrirQtyPicker(id) {
   if (display) display.textContent = '0';
   document.getElementById('qty-overlay').classList.add('open');
   document.getElementById('qty-modal').classList.add('open');
+  document.addEventListener('keydown', qmHandleKey);
 }
 
 function qmNumpad(key) {
@@ -1768,8 +1804,17 @@ function confirmarQtyNumpad() {
   else fecharQtyPicker();
 }
 
+function qmHandleKey(e) {
+  if (e.key >= '0' && e.key <= '9') { e.preventDefault(); qmNumpad(e.key); }
+  else if (e.key === 'Backspace')    { e.preventDefault(); qmNumpad('del'); }
+  else if (e.key === 'Delete' || e.key === 'c' || e.key === 'C') qmNumpad('clear');
+  else if (e.key === 'Enter')  confirmarQtyNumpad();
+  else if (e.key === 'Escape') fecharQtyPicker();
+}
+
 function fecharQtyPicker() {
   qtyPickerId = null;
+  document.removeEventListener('keydown', qmHandleKey);
   document.getElementById('qty-overlay').classList.remove('open');
   document.getElementById('qty-modal').classList.remove('open');
 }
@@ -1823,10 +1868,15 @@ function atualizarFundoResultado() {
   const el = document.getElementById('fundo-resultado');
   if (!el) return;
   if (fundoCaixaAtual === 0 && dinheiroVendas === 0) { el.innerHTML = ''; return; }
+  const troco   = dinheiroRecebido > dinheiroVendas ? dinheiroRecebido - dinheiroVendas : 0;
   const esperado = fundoCaixaAtual + dinheiroVendas;
+  const linhasDinheiro = troco > 0
+    ? `<div class="fc-row"><span>Recebido em dinheiro</span><span>${fmt(dinheiroRecebido)}</span></div>
+       <div class="fc-row fc-deduct"><span>Troco dado</span><span>− ${fmt(troco)}</span></div>`
+    : `<div class="fc-row"><span>Vendas em dinheiro</span><span>${fmt(dinheiroVendas)}</span></div>`;
   el.innerHTML = `
     <div class="fc-row"><span>Fundo inicial</span><span>${fmt(fundoCaixaAtual)}</span></div>
-    <div class="fc-row"><span>Vendas em dinheiro</span><span>${fmt(dinheiroVendas)}</span></div>
+    ${linhasDinheiro}
     <div class="fc-row fc-total"><span>Esperado no caixa</span><span>${fmt(esperado)}</span></div>`;
 }
 
@@ -1843,9 +1893,10 @@ async function compartilharWhatsApp() {
       pag.pix      > 0 ? `📱 Pix: ${fmt(pag.pix)}`           : '',
       pag.cartao   > 0 ? `💳 Cartão: ${fmt(pag.cartao)}`      : '',
     ].filter(Boolean).join('\n');
-    const fundoWpp = parseFloat(localStorage.getItem('fundo_caixa') || '0') || 0;
+    const fundoWpp = fundoCaixaAtual || 0;
+    const trocoWpp   = (pag.dinheiro_recebido || 0) > (pag.dinheiro || 0) ? (pag.dinheiro_recebido || 0) - (pag.dinheiro || 0) : 0;
     const linhaFundo = fundoWpp > 0
-      ? `\n🗃 Fundo: ${fmt(fundoWpp)} → Esperado no caixa: ${fmt(fundoWpp + (pag.dinheiro || 0))}` : '';
+      ? `\n🗃 Fundo: ${fmt(fundoWpp)}${trocoWpp > 0 ? ` · Troco dado: ${fmt(trocoWpp)}` : ''} → Esperado no caixa: ${fmt(fundoWpp + (pag.dinheiro || 0))}` : '';
 
     const texto = [
       `🤠 *${eventoAtual?.nome || 'Caixa UNIFSP'}*`,
@@ -1982,12 +2033,16 @@ async function gerarPDF() {
 </div>` : '';
 
     const fundo = fundoCaixaAtual || 0;
-    const esperadoCaixa = fundo + (pag.dinheiro || 0);
+    const trocoTotal     = (pag.dinheiro_recebido || 0) > (pag.dinheiro || 0) ? (pag.dinheiro_recebido || 0) - (pag.dinheiro || 0) : 0;
+    const esperadoCaixa  = fundo + (pag.dinheiro || 0);
     const fundoHtml = fundo > 0 ? `
 <p class="section-title" style="margin-top:16px">Fundo de caixa</p>
-<div class="pay-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:20px">
+<div class="pay-grid" style="grid-template-columns:${trocoTotal > 0 ? 'repeat(4,1fr)' : '1fr 1fr 1fr'};margin-bottom:20px">
   <div class="sb"><div class="sl">Fundo inicial</div><div class="sv">${fmt(fundo)}</div></div>
-  <div class="sb"><div class="sl">Vendas em dinheiro</div><div class="sv">${fmt(pag.dinheiro || 0)}</div></div>
+  ${trocoTotal > 0
+    ? `<div class="sb"><div class="sl">Recebido</div><div class="sv">${fmt(pag.dinheiro_recebido || 0)}</div></div>
+       <div class="sb" style="border:1px solid #FECACA"><div class="sl" style="color:#DC2626">Troco dado</div><div class="sv" style="color:#DC2626">− ${fmt(trocoTotal)}</div></div>`
+    : `<div class="sb"><div class="sl">Vendas em dinheiro</div><div class="sv">${fmt(pag.dinheiro || 0)}</div></div>`}
   <div class="sb highlight"><div class="sl">Esperado no caixa</div><div class="sv green">${fmt(esperadoCaixa)}</div></div>
 </div>` : '';
 

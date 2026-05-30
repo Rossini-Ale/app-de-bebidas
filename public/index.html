@@ -204,6 +204,7 @@
         <button class="sort-btn" data-pag="dinheiro" onclick="setFiltroPagamento('dinheiro')">💵 Dinheiro</button>
         <button class="sort-btn" data-pag="pix" onclick="setFiltroPagamento('pix')">Pix</button>
         <button class="sort-btn" data-pag="cartao" onclick="setFiltroPagamento('cartao')">💳 Cartão</button>
+        <button class="sort-btn" id="btn-filtro-obs" onclick="toggleFiltroObs()">📝 Com obs.</button>
       </div>
       <div id="hist-op-filter" style="display:none">
         <select id="hist-op-select" onchange="setFiltroOperador(this.value)">
@@ -433,7 +434,19 @@
           Sync
         </button>
       </div>
-      <p class="admin-hint" style="margin-top:6px">Use se a internet estiver falhando. Atualiza o estoque local com o estado atual do Railway.</p>
+      <div class="admin-sync-card" style="margin-top:8px">
+        <div class="admin-sync-info">
+          <span class="admin-sync-icon">📤</span>
+          <div>
+            <span class="admin-sync-title">Exportar banco local → Railway</span>
+            <span class="admin-sync-sub" id="admin-export-ultimo">Nunca exportado</span>
+          </div>
+        </div>
+        <button class="admin-btn-sync" id="btn-exportar" onclick="exportarParaRailway()">
+          Enviar
+        </button>
+      </div>
+      <p class="admin-hint" style="margin-top:6px">Envia todos os produtos e vendas locais para o Railway.</p>
     </div>
 
     <p class="admin-section-label" style="margin-top:16px">Nome do evento</p>

@@ -290,10 +290,13 @@ router.post('/exportar-railway', async (req, res) => {
         body: JSON.stringify(localProdutos),
       });
       const ct = r.headers.get('content-type') || '';
-      if (r.ok && ct.includes('application/json')) {
-        const d = await r.json();
-        produtosEnviados = (d.atualizados || 0) + (d.inseridos || 0);
+      if (!r.ok || !ct.includes('application/json')) {
+        const body = await r.text().catch(() => '');
+        return res.status(502).json({ error: `Railway rejeitou produtos (${r.status}): ${body.slice(0, 120)}` });
       }
+      const d = await r.json();
+      if (!d.ok) return res.status(502).json({ error: 'Railway recusou produtos: ' + (d.error || JSON.stringify(d)) });
+      produtosEnviados = (d.atualizados || 0) + (d.inseridos || 0);
     }
 
     // 3. Vendas locais → Railway
@@ -330,10 +333,12 @@ router.post('/exportar-railway', async (req, res) => {
         body: JSON.stringify(vendasArray),
       });
       const ct = r.headers.get('content-type') || '';
-      if (r.ok && ct.includes('application/json')) {
-        const d = await r.json();
-        vendasEnviadas = d.importadas || 0;
+      if (!r.ok || !ct.includes('application/json')) {
+        const body = await r.text().catch(() => '');
+        return res.status(502).json({ error: `Railway rejeitou vendas (${r.status}): ${body.slice(0, 120)}` });
       }
+      const d = await r.json();
+      vendasEnviadas = d.importadas || 0;
     }
 
     res.json({ ok: true, produtosEnviados, vendasEnviadas, totalVendas: vendasArray.length });

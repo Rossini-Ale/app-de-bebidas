@@ -220,6 +220,16 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.patch('/:id/observacao', async (req, res) => {
+  const { observacao } = req.body;
+  try {
+    const [[v]] = await db.query('SELECT id FROM vendas WHERE id = ? AND evento_id = ?', [req.params.id, req.eventoId]);
+    if (!v) return res.status(404).json({ error: 'Venda não encontrada' });
+    await db.query('UPDATE vendas SET observacao = ? WHERE id = ?', [observacao?.trim() || null, req.params.id]);
+    res.json({ ok: true, observacao: observacao?.trim() || null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.delete('/:id', async (req, res) => {
   const conn = await db.getConnection();
   try {

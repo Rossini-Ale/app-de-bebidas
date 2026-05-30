@@ -899,7 +899,17 @@ button { touch-action: manipulation; }
 .hist-num { font-size: 11px; background: var(--bg-sec); color: var(--muted); border-radius: 5px; padding: 3px 8px; flex-shrink: 0; margin-top: 2px; font-weight: 700; }
 .hist-info { flex: 1; min-width: 0; }
 .hist-desc { font-size: 13px; font-weight: 600; }
-.hist-obs  { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 2px; }
+.hist-obs  { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 2px; cursor: pointer; }
+.hist-obs-edit-row { display:none; align-items:center; gap:4px; margin-top:4px; }
+.hist-obs-edit-row.show { display:flex; }
+.hist-obs-inp { flex:1; font-size:12px; padding:4px 8px; border:1px solid var(--border-s); border-radius:6px; background:var(--bg-sec); color:var(--text); font-family:inherit; }
+.hist-obs-save   { background:var(--green); color:#fff; border:none; border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; font-family:inherit; }
+.hist-obs-cancel { background:var(--bg-sec); color:var(--muted); border:1px solid var(--border-s); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; font-family:inherit; }
+.hist-edit-obs-btn { background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:2px 4px; opacity:.6; }
+.hist-edit-obs-btn:hover { opacity:1; }
+.admin-btn-revert { width:100%; padding:13px; margin-top:8px; background:var(--amber); color:#fff; border:none; border-radius:var(--r); font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .12s; }
+.admin-btn-revert:active { opacity:.8; }
+.admin-btn-revert.confirming { background:var(--amber-d); }
 .hist-hora { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .hist-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
 .hist-total { font-size: 15px; font-weight: 700; color: var(--amber); }

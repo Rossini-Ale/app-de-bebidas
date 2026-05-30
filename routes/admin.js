@@ -9,11 +9,28 @@ router.get('/status', async (req, res) => {
   try {
     const [[{ vendas }]]     = await db.query('SELECT COUNT(*) as vendas FROM vendas WHERE evento_id = ?', [req.eventoId]);
     const [[{ reposicoes }]] = await db.query('SELECT COUNT(*) as reposicoes FROM reposicoes WHERE evento_id = ?', [req.eventoId]);
+    const [[ev]] = await db.query('SELECT sync_snapshot FROM eventos WHERE id = ?', [req.eventoId]);
     res.json({
       vendas:         Number(vendas),
       reposicoes:     Number(reposicoes),
-      syncDisponivel: !!(process.env.RAILWAY_URL),   // só true quando RAILWAY_URL está no .env
+      syncDisponivel: !!(process.env.RAILWAY_URL),
+      temSnapshot:    !!(ev?.sync_snapshot),
     });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* POST /api/admin/reverter-sync — restaura estoque ao estado antes do último sync */
+router.post('/reverter-sync', async (req, res) => {
+  try {
+    const [[ev]] = await db.query('SELECT sync_snapshot FROM eventos WHERE id = ?', [req.eventoId]);
+    if (!ev?.sync_snapshot) return res.status(404).json({ error: 'Nenhum snapshot disponível. Faça um sync primeiro.' });
+    const snapshot = JSON.parse(ev.sync_snapshot);
+    for (const { id, estoque } of snapshot) {
+      await db.query('UPDATE produtos SET estoque = ? WHERE id = ? AND evento_id = ?', [estoque, id, req.eventoId]);
+    }
+    await db.query('UPDATE eventos SET sync_snapshot = NULL WHERE id = ?', [req.eventoId]);
+    appEvents.emit('broadcast', { type: 'sync_railway_concluido' });
+    res.json({ ok: true, revertidos: snapshot.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -82,7 +99,12 @@ router.post('/sync-railway', async (req, res) => {
 
     const remoteProdutos = await prodRes.json();
 
-    // 3. Buscar produtos locais para comparar por nome
+    // 3. Salvar snapshot do estoque atual antes de sobrescrever
+    const [snapProdutos] = await db.query('SELECT id, estoque FROM produtos WHERE evento_id = ?', [req.eventoId]);
+    const snapshot = JSON.stringify(snapProdutos.map(p => ({ id: Number(p.id), estoque: Number(p.estoque) })));
+    await db.query('UPDATE eventos SET sync_snapshot = ? WHERE id = ?', [snapshot, req.eventoId]);
+
+    // 4. Buscar produtos locais para comparar por nome
     const [localProdutos] = await db.query(
       'SELECT id, nome FROM produtos WHERE evento_id = ?', [req.eventoId]
     );

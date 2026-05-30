@@ -196,6 +196,9 @@ async function runMigrations() {
   /* ── Fardo ───────────────────────────────── */
   try { await db.query(`ALTER TABLE produtos ADD COLUMN unidades_por_fardo INT DEFAULT NULL`); } catch (_) {}
 
+  /* ── Snapshot de sync (para reverter estoque) */
+  try { await db.query(`ALTER TABLE eventos ADD COLUMN sync_snapshot TEXT DEFAULT NULL`); } catch (_) {}
+
   /* ── Observação, sync key e valor recebido ─ */
   try { await db.query(`ALTER TABLE vendas ADD COLUMN valor_recebido DECIMAL(10,2) DEFAULT NULL`); } catch (_) {}
   try { await db.query(`ALTER TABLE vendas ADD COLUMN observacao VARCHAR(200) DEFAULT NULL`); } catch (_) {}

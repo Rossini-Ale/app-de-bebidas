@@ -324,6 +324,59 @@ function setFiltroPagamento(pag) {
   renderHistoricoLista();
 }
 
+function editarObservacao(id) {
+  document.getElementById(`hist-obs-${id}`)?.style.setProperty('display', 'none');
+  const editRow = document.getElementById(`hist-obs-edit-${id}`);
+  if (editRow) { editRow.classList.add('show'); editRow.querySelector('input')?.focus(); }
+}
+
+function cancelarEditObs(id) {
+  document.getElementById(`hist-obs-edit-${id}`)?.classList.remove('show');
+  document.getElementById(`hist-obs-${id}`)?.style.removeProperty('display');
+}
+
+async function salvarObservacao(id) {
+  const inp = document.getElementById(`hist-obs-inp-${id}`);
+  const obs = inp?.value.trim() || '';
+  try {
+    await apiFetch(`/vendas/${id}/observacao`, { method: 'PATCH', body: JSON.stringify({ observacao: obs }) });
+    const v = historicoVendas?.find(x => x.id === id);
+    if (v) v.observacao = obs || null;
+    const dispEl = document.getElementById(`hist-obs-${id}`);
+    if (dispEl) dispEl.innerHTML = obs
+      ? `💬 ${obs}`
+      : '<span style="opacity:.4;font-style:italic">+ obs.</span>';
+    cancelarEditObs(id);
+    showToast('Observação salva', 'green-toast');
+  } catch (e) { showToast('Erro: ' + e.message, 'error-toast'); }
+}
+
+async function reverterSync() {
+  const btn = document.getElementById('btn-reverter-sync');
+  if (!btn.classList.contains('confirming')) {
+    btn.classList.add('confirming');
+    btn.textContent = 'Toque de novo para confirmar reversão';
+    btn._timer = setTimeout(() => {
+      btn.classList.remove('confirming');
+      btn.textContent = '↩ Reverter último sync de estoque';
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn._timer);
+  btn.classList.remove('confirming');
+  btn.disabled = true; btn.textContent = '⏳ Revertendo…';
+  try {
+    const r = await apiFetch('/admin/reverter-sync', { method: 'POST' });
+    btn.style.display = 'none';
+    await carregarProdutos();
+    showToast(`✅ Revertido! ${r.revertidos} produtos restaurados ao estoque anterior.`, 'green-toast');
+  } catch (e) {
+    showToast('❌ ' + e.message, 'error-toast');
+    btn.disabled = false;
+    btn.textContent = '↩ Reverter último sync de estoque';
+  }
+}
+
 function toggleFiltroObs() {
   filtroComObs = !filtroComObs;
   histPagina = 1;
@@ -1751,11 +1804,22 @@ function renderHistoricoLista() {
 
     const num = v.length - v.findIndex(x => x.id === venda.id);
     const pag = venda.forma_pagamento || 'dinheiro';
+    const obsEscaped = (venda.observacao || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     itensHtml += `<div class="historico-item" id="hist-${venda.id}">
       <span class="hist-num">#${num}</span>
       <div class="hist-info">
         <div class="hist-desc">${venda.descricao}</div>
-        ${venda.observacao ? `<div class="hist-obs">💬 ${venda.observacao}</div>` : ''}
+        <div class="hist-obs-wrap">
+          <div class="hist-obs" id="hist-obs-${venda.id}" onclick="editarObservacao(${venda.id})" title="Clique para editar">
+            ${venda.observacao ? `💬 ${venda.observacao}` : '<span style="opacity:.4;font-style:italic">+ obs.</span>'}
+          </div>
+          <div class="hist-obs-edit-row" id="hist-obs-edit-${venda.id}">
+            <input class="hist-obs-inp" id="hist-obs-inp-${venda.id}" value="${obsEscaped}" placeholder="Observação…"
+              onkeydown="if(event.key==='Enter')salvarObservacao(${venda.id});if(event.key==='Escape')cancelarEditObs(${venda.id})" />
+            <button class="hist-obs-save" onclick="salvarObservacao(${venda.id})">✓</button>
+            <button class="hist-obs-cancel" onclick="cancelarEditObs(${venda.id})">✕</button>
+          </div>
+        </div>
         <div class="hist-hora">${fmtDataHora(venda.criado_em)}</div>
       </div>
       <div class="hist-right">
@@ -2601,6 +2665,13 @@ async function abrirAdmin() {
     document.getElementById('admin-cnt-vendas').textContent = s.vendas;
     document.getElementById('admin-cnt-repos').textContent = s.reposicoes;
     document.getElementById('admin-sync-section').style.display = s.syncDisponivel ? 'block' : 'none';
+    const btnRev = document.getElementById('btn-reverter-sync');
+    if (btnRev) {
+      btnRev.style.display = s.temSnapshot ? '' : 'none';
+      btnRev.textContent = '↩ Reverter último sync de estoque';
+      btnRev.disabled = false;
+      btnRev.classList.remove('confirming');
+    }
   } catch (e) {
     document.getElementById('admin-cnt-vendas').textContent = 'erro';
     document.getElementById('admin-cnt-repos').textContent = 'erro';

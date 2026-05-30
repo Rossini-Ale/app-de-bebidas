@@ -265,6 +265,82 @@ router.post('/sync-railway', async (req, res) => {
   }
 });
 
+/* POST /api/admin/exportar-railway — empurra produtos + vendas locais para Railway */
+router.post('/exportar-railway', async (req, res) => {
+  const railwayUrl   = process.env.RAILWAY_URL;
+  const railwaySenha = process.env.RAILWAY_SENHA || process.env.APP_SENHA || 'unifsp2026';
+  if (!railwayUrl) return res.status(400).json({ error: 'RAILWAY_URL não configurada no .env' });
+
+  try {
+    // 1. Login
+    const loginRes = await fetch(`${railwayUrl}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operador: 'sync', senha: railwaySenha }),
+    });
+    if (!loginRes.ok) return res.status(502).json({ error: 'Login no Railway falhou' });
+    const cookieHeader = loginRes.headers.getSetCookie()
+      .map(c => c.split(';')[0].trim()).join('; ');
+
+    // 2. Produtos locais → Railway
+    const [localProdutos] = await db.query('SELECT * FROM produtos WHERE evento_id = ?', [req.eventoId]);
+    let produtosEnviados = 0;
+    if (localProdutos.length > 0) {
+      const r = await fetch(`${railwayUrl}/api/produtos/sync-import`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Cookie': cookieHeader },
+        body: JSON.stringify(localProdutos),
+      });
+      const ct = r.headers.get('content-type') || '';
+      if (r.ok && ct.includes('application/json')) {
+        const d = await r.json();
+        produtosEnviados = (d.atualizados || 0) + (d.inseridos || 0);
+      }
+    }
+
+    // 3. Vendas locais → Railway
+    const [vendaRows] = await db.query(`
+      SELECT v.id, v.total, v.itens_count, v.descricao, v.forma_pagamento,
+             v.operador, v.ao_custo, v.observacao, v.sync_key, v.criado_em,
+             vi.quantidade, vi.preco_unitario, p.nome AS produto_nome
+      FROM vendas v
+      JOIN venda_itens vi ON vi.venda_id = v.id
+      JOIN produtos p    ON vi.produto_id = p.id
+      WHERE v.evento_id = ? AND v.sync_key IS NOT NULL
+      ORDER BY v.id, vi.id
+    `, [req.eventoId]);
+    const vendasMap = {};
+    for (const row of vendaRows) {
+      if (!vendasMap[row.id]) {
+        vendasMap[row.id] = {
+          total: row.total, itens_count: row.itens_count, descricao: row.descricao,
+          forma_pagamento: row.forma_pagamento, operador: row.operador,
+          ao_custo: row.ao_custo, observacao: row.observacao,
+          sync_key: row.sync_key, criado_em: row.criado_em, itens: []
+        };
+      }
+      vendasMap[row.id].itens.push({ nome: row.produto_nome, quantidade: row.quantidade, preco_unitario: row.preco_unitario });
+    }
+    let vendasEnviadas = 0;
+    const vendasArray = Object.values(vendasMap);
+    if (vendasArray.length > 0) {
+      const r = await fetch(`${railwayUrl}/api/vendas/sync-import`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Cookie': cookieHeader },
+        body: JSON.stringify(vendasArray),
+      });
+      const ct = r.headers.get('content-type') || '';
+      if (r.ok && ct.includes('application/json')) {
+        const d = await r.json();
+        vendasEnviadas = d.importadas || 0;
+      }
+    }
+
+    res.json({ ok: true, produtosEnviados, vendasEnviadas, totalVendas: vendasArray.length });
+  } catch (err) {
+    if (err.cause?.code === 'ECONNREFUSED' || err.message.includes('fetch'))
+      return res.status(503).json({ error: 'Sem conexão com o Railway.' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* GET /api/admin/fundo — fundo de caixa do evento */
 router.get('/fundo', async (req, res) => {
   try {

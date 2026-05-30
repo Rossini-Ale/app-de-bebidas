@@ -14,6 +14,7 @@ let qmCurrentVal = '';
 let reposicaoHistoricoAberto = false;
 let filtroPagamento = '';
 let filtroOperador  = '';
+let filtroComObs    = false;
 
 function fmt(v) { return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
 function fmtShort(v) {
@@ -320,6 +321,13 @@ function setFiltroPagamento(pag) {
   document.querySelectorAll('#hist-pag-filter .sort-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.pag === pag)
   );
+  renderHistoricoLista();
+}
+
+function toggleFiltroObs() {
+  filtroComObs = !filtroComObs;
+  histPagina = 1;
+  document.getElementById('btn-filtro-obs')?.classList.toggle('active', filtroComObs);
   renderHistoricoLista();
 }
 
@@ -1672,12 +1680,13 @@ function renderHistoricoLista() {
     ? [...v].sort((a, b) => Number(b.total) - Number(a.total))
     : [...v];
 
-  // Filtro por texto
+  // Filtro por texto (inclui observação)
   const busca = (document.getElementById('busca-historico')?.value || '').trim().toLowerCase();
   let filtrado = busca
     ? sorted.filter(venda =>
-        (venda.descricao || '').toLowerCase().includes(busca) ||
-        (venda.operador  || '').toLowerCase().includes(busca) ||
+        (venda.descricao    || '').toLowerCase().includes(busca) ||
+        (venda.operador     || '').toLowerCase().includes(busca) ||
+        (venda.observacao   || '').toLowerCase().includes(busca) ||
         (venda.forma_pagamento || '').toLowerCase().includes(busca))
     : sorted;
 
@@ -1688,6 +1697,10 @@ function renderHistoricoLista() {
   // Filtro por operador
   if (filtroOperador) {
     filtrado = filtrado.filter(venda => venda.operador === filtroOperador);
+  }
+  // Filtro só com observação
+  if (filtroComObs) {
+    filtrado = filtrado.filter(venda => venda.observacao && venda.observacao.trim());
   }
   atualizarSelectOperador();
 
@@ -2631,6 +2644,22 @@ async function alterarSenha() {
     showToast('Erro: ' + e.message, 'error-toast');
   } finally {
     btn.disabled = false; btn.textContent = '🔑 Alterar senha';
+  }
+}
+
+async function exportarParaRailway() {
+  const btn = document.getElementById('btn-exportar');
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const r = await apiFetch('/admin/exportar-railway', { method: 'POST' });
+    const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('admin-export-ultimo').textContent =
+      `${agora} — ${r.produtosEnviados} produto${r.produtosEnviados !== 1 ? 's' : ''}, ${r.vendasEnviadas} venda${r.vendasEnviadas !== 1 ? 's' : ''} enviada${r.vendasEnviadas !== 1 ? 's' : ''}`;
+    showToast(`✅ Exportado! ${r.produtosEnviados} produtos e ${r.vendasEnviadas} vendas enviados.`, 'green-toast');
+  } catch (e) {
+    showToast('❌ Exportação falhou: ' + e.message, 'error-toast');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Enviar';
   }
 }
 

@@ -297,6 +297,9 @@ router.post('/exportar-railway', async (req, res) => {
     }
 
     // 3. Vendas locais → Railway
+    // Backfill sync_key para vendas que ainda não têm (caso migração não rodou)
+    await db.query(`UPDATE vendas SET sync_key = CONCAT('legacy-', id) WHERE sync_key IS NULL AND evento_id = ?`, [req.eventoId]);
+
     const [vendaRows] = await db.query(`
       SELECT v.id, v.total, v.itens_count, v.descricao, v.forma_pagamento,
              v.operador, v.ao_custo, v.observacao, v.sync_key, v.criado_em,
@@ -304,7 +307,7 @@ router.post('/exportar-railway', async (req, res) => {
       FROM vendas v
       JOIN venda_itens vi ON vi.venda_id = v.id
       JOIN produtos p    ON vi.produto_id = p.id
-      WHERE v.evento_id = ? AND v.sync_key IS NOT NULL
+      WHERE v.evento_id = ?
       ORDER BY v.id, vi.id
     `, [req.eventoId]);
     const vendasMap = {};
@@ -314,7 +317,7 @@ router.post('/exportar-railway', async (req, res) => {
           total: row.total, itens_count: row.itens_count, descricao: row.descricao,
           forma_pagamento: row.forma_pagamento, operador: row.operador,
           ao_custo: row.ao_custo, observacao: row.observacao,
-          sync_key: row.sync_key, criado_em: row.criado_em, itens: []
+          sync_key: row.sync_key || `legacy-${row.id}`, criado_em: row.criado_em, itens: []
         };
       }
       vendasMap[row.id].itens.push({ nome: row.produto_nome, quantidade: row.quantidade, preco_unitario: row.preco_unitario });

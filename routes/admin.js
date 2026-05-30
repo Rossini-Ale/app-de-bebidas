@@ -371,7 +371,7 @@ router.post('/exportar-railway', async (req, res) => {
       }
       vendasMap[row.id].itens.push({ nome: row.produto_nome, quantidade: row.quantidade, preco_unitario: row.preco_unitario });
     }
-    let vendasEnviadas = 0;
+    let vendasEnviadas = 0, vendasIgnoradas = 0;
     const vendasArray = Object.values(vendasMap);
     if (vendasArray.length > 0) {
       const r = await fetch(`${railwayUrl}/api/vendas/sync-import`, {
@@ -384,10 +384,19 @@ router.post('/exportar-railway', async (req, res) => {
         return res.status(502).json({ error: `Railway rejeitou vendas (${r.status}): ${body.slice(0, 120)}` });
       }
       const d = await r.json();
-      vendasEnviadas = d.importadas || 0;
+      if (d.error) return res.status(502).json({ error: 'Railway (vendas): ' + d.error });
+      vendasEnviadas  = d.importadas || 0;
+      vendasIgnoradas = d.ignoradas  || 0;
     }
 
-    res.json({ ok: true, produtosEnviados, vendasEnviadas, totalVendas: vendasArray.length });
+    // Verificar contagem de vendas no Railway para diagnóstico
+    let vendasNoRailway = null;
+    try {
+      const statusR = await fetch(`${railwayUrl}/api/admin/status`, { headers: { 'Cookie': cookieHeader } });
+      if (statusR.ok) { const sd = await statusR.json(); vendasNoRailway = sd.vendas ?? null; }
+    } catch (_) {}
+
+    res.json({ ok: true, produtosEnviados, vendasEnviadas, vendasIgnoradas, totalVendasLocal: vendasArray.length, vendasNoRailway });
   } catch (err) {
     if (err.cause?.code === 'ECONNREFUSED' || err.message.includes('fetch'))
       return res.status(503).json({ error: 'Sem conexão com o Railway.' });

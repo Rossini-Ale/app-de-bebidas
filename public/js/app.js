@@ -2750,9 +2750,18 @@ async function exportarParaRailway() {
   try {
     const r = await apiFetch('/admin/exportar-railway', { method: 'POST' });
     const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const jaNoRailway = r.vendasIgnoradas > 0
+      ? ` (${r.vendasIgnoradas} já estavam no Railway)`
+      : '';
+    const railwayTotal = r.vendasNoRailway !== null
+      ? ` · Railway tem ${r.vendasNoRailway} vendas`
+      : '';
     document.getElementById('admin-export-ultimo').textContent =
-      `${agora} — ${r.produtosEnviados} produto${r.produtosEnviados !== 1 ? 's' : ''}, ${r.vendasEnviadas} venda${r.vendasEnviadas !== 1 ? 's' : ''} enviada${r.vendasEnviadas !== 1 ? 's' : ''}`;
-    showToast(`✅ Exportado! ${r.produtosEnviados} produtos e ${r.vendasEnviadas} vendas enviados.`, 'green-toast');
+      `${agora} — ${r.produtosEnviados} produtos, ${r.vendasEnviadas} vendas novas${jaNoRailway}${railwayTotal}`;
+    const msg = r.vendasIgnoradas > 0 && r.vendasEnviadas === 0
+      ? `✅ ${r.produtosEnviados} produtos enviados. Vendas já estavam no Railway (${r.vendasIgnoradas}).${railwayTotal}`
+      : `✅ Exportado! ${r.produtosEnviados} produtos e ${r.vendasEnviadas} vendas enviados.${railwayTotal}`;
+    showToast(msg, 'green-toast');
   } catch (e) {
     showToast('❌ Exportação falhou: ' + e.message, 'error-toast');
   } finally {

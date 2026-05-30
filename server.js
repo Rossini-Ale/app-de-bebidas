@@ -196,8 +196,11 @@ async function runMigrations() {
   /* ── Fardo ───────────────────────────────── */
   try { await db.query(`ALTER TABLE produtos ADD COLUMN unidades_por_fardo INT DEFAULT NULL`); } catch (_) {}
 
-  /* ── Observação na venda ─────────────────── */
+  /* ── Observação e sync key na venda ─────── */
   try { await db.query(`ALTER TABLE vendas ADD COLUMN observacao VARCHAR(200) DEFAULT NULL`); } catch (_) {}
+  try { await db.query(`ALTER TABLE vendas ADD COLUMN sync_key VARCHAR(64) DEFAULT NULL`); } catch (_) {}
+  try { await db.query(`UPDATE vendas SET sync_key = CONCAT('legacy-', id) WHERE sync_key IS NULL`); } catch (_) {}
+  try { await db.query(`ALTER TABLE vendas ADD UNIQUE INDEX idx_sync_key (sync_key)`); } catch (_) {}
 
   /* ── Evento: senha e fundo de caixa ─────── */
   try { await db.query(`ALTER TABLE eventos ADD COLUMN senha_hash VARCHAR(255)`); } catch (_) {}

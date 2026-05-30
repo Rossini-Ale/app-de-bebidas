@@ -83,6 +83,84 @@ router.get('/por-operador', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+/* GET /api/vendas/sync-export — exporta todas as vendas com itens para sincronização */
+router.get('/sync-export', async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT v.id, v.total, v.itens_count, v.descricao, v.forma_pagamento,
+             v.operador, v.ao_custo, v.observacao, v.sync_key, v.criado_em,
+             vi.quantidade, vi.preco_unitario, p.nome AS produto_nome
+      FROM vendas v
+      JOIN venda_itens vi ON vi.venda_id = v.id
+      JOIN produtos p    ON vi.produto_id = p.id
+      WHERE v.evento_id = ? AND v.sync_key IS NOT NULL
+      ORDER BY v.id, vi.id
+    `, [req.eventoId]);
+
+    const vendasMap = {};
+    for (const row of rows) {
+      if (!vendasMap[row.id]) {
+        vendasMap[row.id] = {
+          total: row.total, itens_count: row.itens_count, descricao: row.descricao,
+          forma_pagamento: row.forma_pagamento, operador: row.operador,
+          ao_custo: row.ao_custo, observacao: row.observacao,
+          sync_key: row.sync_key, criado_em: row.criado_em, itens: []
+        };
+      }
+      vendasMap[row.id].itens.push({
+        nome: row.produto_nome, quantidade: row.quantidade, preco_unitario: row.preco_unitario
+      });
+    }
+    res.json(Object.values(vendasMap));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* POST /api/vendas/sync-import — importa vendas de outro servidor (idempotente via sync_key) */
+router.post('/sync-import', async (req, res) => {
+  const vendas = req.body;
+  if (!Array.isArray(vendas)) return res.status(400).json({ error: 'Esperado array de vendas' });
+
+  // Mapa nome → id dos produtos locais
+  const [prods] = await db.query('SELECT id, nome FROM produtos WHERE evento_id = ?', [req.eventoId]);
+  const nomePorId = {};
+  prods.forEach(p => { nomePorId[p.nome.toLowerCase()] = p.id; });
+
+  let importadas = 0, ignoradas = 0;
+
+  for (const v of vendas) {
+    if (!v.sync_key) { ignoradas++; continue; }
+    const [[existe]] = await db.query('SELECT id FROM vendas WHERE sync_key = ?', [v.sync_key]);
+    if (existe) { ignoradas++; continue; }
+
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [result] = await conn.query(
+        `INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo, observacao, sync_key, criado_em)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [v.total, v.itens_count, v.descricao, v.forma_pagamento, req.eventoId,
+         v.operador || 'Sync', v.ao_custo ? 1 : 0, v.observacao || null, v.sync_key, v.criado_em]
+      );
+      for (const item of (v.itens || [])) {
+        const prodId = nomePorId[item.nome?.toLowerCase()];
+        if (!prodId) continue;
+        await conn.query(
+          'INSERT INTO venda_itens (venda_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)',
+          [result.insertId, prodId, item.quantidade, item.preco_unitario]
+        );
+      }
+      await conn.commit();
+      importadas++;
+    } catch (_) {
+      await conn.rollback();
+      ignoradas++;
+    } finally {
+      conn.release();
+    }
+  }
+  res.json({ ok: true, importadas, ignoradas });
+});
+
 router.post('/', async (req, res) => {
   const { itens, forma_pagamento = 'dinheiro', ao_custo = false, observacao = null } = req.body;
   if (!itens || itens.length === 0)
@@ -109,9 +187,10 @@ router.post('/', async (req, res) => {
       itensFinal.push({ ...item, preco_unitario: precoVenda });
     }
 
+    const syncKey = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const [vendaResult] = await conn.query(
-      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo, observacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador, ao_custo ? 1 : 0, observacao || null]
+      'INSERT INTO vendas (total, itens_count, descricao, forma_pagamento, evento_id, operador, ao_custo, observacao, sync_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [total, totalItens, descricoes.join(', '), forma_pagamento, req.eventoId, req.operador, ao_custo ? 1 : 0, observacao || null, syncKey]
     );
 
     for (const item of itensFinal) {

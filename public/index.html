@@ -206,6 +206,7 @@
         <button class="sort-btn" data-pag="cartao" onclick="setFiltroPagamento('cartao')">💳 Cartão</button>
         <button class="sort-btn" id="btn-filtro-obs" onclick="toggleFiltroObs()">📝 Com obs.</button>
       </div>
+      <button class="btn-pdf-main" style="margin-top:8px" onclick="exportarFiadosPDF()">📝 Relatório de observações / fiados</button>
       <div id="hist-op-filter" style="display:none">
         <select id="hist-op-select" onchange="setFiltroOperador(this.value)">
           <option value="">Todos os operadores</option>

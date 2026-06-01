@@ -2398,6 +2398,110 @@ function handleWsMsg(data) {
   }
 }
 
+/* ── Relatório de Observações / Fiados ───── */
+function exportarFiadosPDF() {
+  const vendas = historicoVendas;
+  if (!vendas?.length) { showToast('Carregue o histórico primeiro', 'error-toast'); return; }
+
+  const comObs = [...vendas]
+    .filter(v => v.observacao && v.observacao.trim())
+    .sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em));
+
+  if (!comObs.length) { showToast('Nenhuma venda com observação registrada', ''); return; }
+
+  const nomeEvento = eventoAtual?.nome || 'Caixa UNIFSP';
+  const agora = new Date().toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone:'America/Sao_Paulo' });
+  const labelPag = { dinheiro: '💵 Dinheiro', pix: '🟣 Pix', cartao: '💳 Cartão' };
+  const totalObs = comObs.reduce((s, v) => s + Number(v.total), 0);
+
+  const linhas = comObs.map((v, i) => {
+    const pag = labelPag[v.forma_pagamento] || v.forma_pagamento || 'Dinheiro';
+    const hora = fmtDataHora(v.criado_em);
+    return `<tr>
+      <td class="num">${i + 1}</td>
+      <td class="obs-cell">${v.observacao}</td>
+      <td>${v.descricao || '—'}</td>
+      <td class="num">${fmt(v.total)}</td>
+      <td>${pag}</td>
+      <td>${v.operador || '—'}</td>
+      <td class="hora">${hora}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Fiados / Observações – ${nomeEvento}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;font-size:13px}
+  .page-header{background:linear-gradient(135deg,#78350F 0%,#D97706 100%);color:#FEF3C7;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+  .page-title{font-size:20px;font-weight:900;letter-spacing:-.5px}
+  .page-sub{font-size:12px;opacity:.8;margin-top:2px}
+  .page-date{font-size:11px;opacity:.75;text-align:right}
+  .body-wrap{padding:0 24px 24px}
+  .summary{display:flex;gap:16px;margin-bottom:20px}
+  .sb{background:#f5f5f5;border-radius:8px;padding:10px 14px;flex:1}
+  .sl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#888;margin-bottom:3px;font-weight:700}
+  .sv{font-size:18px;font-weight:800}
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:left;padding:8px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#fff;background:#78350F;white-space:nowrap}
+  td{padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;vertical-align:top}
+  tr:nth-child(even) td{background:#fafafa}
+  .obs-cell{font-weight:700;color:#92400E}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .hora{color:#888;font-size:11px;white-space:nowrap}
+  tfoot td{background:#FEF3C7;border-top:2px solid #D97706;font-weight:700;padding:8px 10px}
+  .footer{margin-top:16px;color:#bbb;font-size:11px;text-align:center;border-top:1px solid #eee;padding-top:10px}
+  @media print{body{}}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div>
+    <div class="page-title">${nomeEvento}</div>
+    <div class="page-sub">Observações / Fiados</div>
+  </div>
+  <div class="page-date">Gerado em ${agora}</div>
+</div>
+<div class="body-wrap">
+<div class="summary">
+  <div class="sb"><div class="sl">Vendas com observação</div><div class="sv">${comObs.length}</div></div>
+  <div class="sb" style="background:#FEF3C7;border:1.5px solid #D97706"><div class="sl">Total</div><div class="sv">${fmt(totalObs)}</div></div>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th class="num">#</th>
+      <th>Observação</th>
+      <th>Itens</th>
+      <th class="num">Total</th>
+      <th>Pagamento</th>
+      <th>Operador</th>
+      <th>Hora</th>
+    </tr>
+  </thead>
+  <tbody>${linhas}</tbody>
+  <tfoot><tr><td></td><td colspan="2"><strong>${comObs.length} vendas</strong></td><td class="num">${fmt(totalObs)}</td><td colspan="3"></td></tr></tfoot>
+</table>
+<p class="footer">${nomeEvento} · ${agora}</p>
+</div>
+</body>
+</html>`;
+
+  const overlay = document.getElementById('pdf-overlay');
+  const frame   = document.getElementById('pdf-frame');
+  if (overlay && frame) {
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    if (frame._blobUrl) URL.revokeObjectURL(frame._blobUrl);
+    frame.src = url; frame._blobUrl = url;
+    overlay.classList.add('open');
+    document.querySelector('.pdf-toolbar-title').textContent = 'Fiados / Observações';
+  }
+}
+
 /* ── Exportar Cardápio PDF ───────────────── */
 function exportarCardapioPDF() {
   const btn = document.getElementById('btn-exportar-cardapio');

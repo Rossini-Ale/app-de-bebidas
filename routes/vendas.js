@@ -15,22 +15,28 @@ router.get('/', async (req, res) => {
 
 router.get('/resumo', async (req, res) => {
   try {
-    const [[r]] = await db.query(`
+    // Agregados de venda (sem JOIN para não duplicar totais)
+    const [[rv]] = await db.query(`
       SELECT
-        COUNT(DISTINCT v.id) as total_vendas,
-        COALESCE(SUM(v.total), 0) as total_arrecadado,
-        COALESCE(SUM(v.itens_count), 0) as total_itens,
-        COALESCE(AVG(v.total), 0) as ticket_medio,
-        COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as total_lucro,
-        COUNT(DISTINCT CASE WHEN v.ao_custo = FALSE THEN v.id END) as vendas_normal,
-        COUNT(DISTINCT CASE WHEN v.ao_custo = TRUE  THEN v.id END) as vendas_custo,
-        COALESCE(SUM(CASE WHEN v.ao_custo = FALSE THEN v.total ELSE 0 END), 0) as arrecadado_normal,
-        COALESCE(SUM(CASE WHEN v.ao_custo = TRUE  THEN v.total ELSE 0 END), 0) as arrecadado_custo
-      FROM vendas v
-      LEFT JOIN venda_itens vi ON vi.venda_id = v.id
-      LEFT JOIN produtos p ON vi.produto_id = p.id
+        COUNT(*) as total_vendas,
+        COALESCE(SUM(total), 0) as total_arrecadado,
+        COALESCE(SUM(itens_count), 0) as total_itens,
+        COALESCE(AVG(total), 0) as ticket_medio,
+        COUNT(CASE WHEN ao_custo = FALSE OR ao_custo IS NULL THEN 1 END) as vendas_normal,
+        COUNT(CASE WHEN ao_custo = TRUE  THEN 1 END) as vendas_custo,
+        COALESCE(SUM(CASE WHEN ao_custo = FALSE OR ao_custo IS NULL THEN total ELSE 0 END), 0) as arrecadado_normal,
+        COALESCE(SUM(CASE WHEN ao_custo = TRUE  THEN total ELSE 0 END), 0) as arrecadado_custo
+      FROM vendas WHERE evento_id = ?
+    `, [req.eventoId]);
+    // Lucro calculado pelos itens (precisa do JOIN)
+    const [[rl]] = await db.query(`
+      SELECT COALESCE(SUM(vi.quantidade * (vi.preco_unitario - p.custo)), 0) as total_lucro
+      FROM venda_itens vi
+      JOIN vendas v  ON vi.venda_id  = v.id
+      JOIN produtos p ON vi.produto_id = p.id
       WHERE v.evento_id = ?
     `, [req.eventoId]);
+    const r = { ...rv, total_lucro: rl.total_lucro };
     const [porPag] = await db.query(
       `SELECT forma_pagamento,
         COALESCE(SUM(total),0) as total,

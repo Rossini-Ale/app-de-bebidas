@@ -2744,6 +2744,22 @@ async function alterarSenha() {
   }
 }
 
+async function repararRailway() {
+  const btn = document.getElementById('btn-reparar');
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const r = await apiFetch('/admin/reparar-railway', { method: 'POST' });
+    const agora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('admin-repair-ultimo').textContent =
+      `${agora} — ${r.reparadas} venda${r.reparadas !== 1 ? 's' : ''} reparada${r.reparadas !== 1 ? 's' : ''}`;
+    showToast(`✅ Reparo concluído! ${r.reparadas} vendas com itens restaurados.`, 'green-toast');
+  } catch (e) {
+    showToast('❌ Reparo falhou: ' + e.message, 'error-toast');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reparar';
+  }
+}
+
 async function exportarParaRailway() {
   const btn = document.getElementById('btn-exportar');
   btn.disabled = true; btn.textContent = '⏳';

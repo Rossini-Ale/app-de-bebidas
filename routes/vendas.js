@@ -272,6 +272,19 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.patch('/:id/pagamento', async (req, res) => {
+  const { forma_pagamento } = req.body;
+  const validos = ['dinheiro', 'pix', 'cartao'];
+  if (!validos.includes(forma_pagamento))
+    return res.status(400).json({ error: 'Forma de pagamento inválida' });
+  try {
+    const [[v]] = await db.query('SELECT id FROM vendas WHERE id = ? AND evento_id = ?', [req.params.id, req.eventoId]);
+    if (!v) return res.status(404).json({ error: 'Venda não encontrada' });
+    await db.query('UPDATE vendas SET forma_pagamento = ? WHERE id = ?', [forma_pagamento, req.params.id]);
+    res.json({ ok: true, forma_pagamento });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.patch('/:id/observacao', async (req, res) => {
   const { observacao } = req.body;
   try {

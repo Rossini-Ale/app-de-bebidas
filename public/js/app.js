@@ -324,6 +324,37 @@ function setFiltroPagamento(pag) {
   renderHistoricoLista();
 }
 
+function editarPagamento(id) {
+  document.getElementById(`hist-pag-badge-${id}`)?.style.setProperty('display', 'none');
+  const sel = document.getElementById(`hist-pag-sel-${id}`);
+  if (sel) { sel.style.display = ''; sel.focus(); }
+}
+
+function cancelarEditPag(id) {
+  document.getElementById(`hist-pag-sel-${id}`)?.style.setProperty('display', 'none');
+  document.getElementById(`hist-pag-badge-${id}`)?.style.removeProperty('display');
+}
+
+async function salvarPagamento(id, forma_pagamento) {
+  const pagClass  = { dinheiro: 'pag-dinheiro', pix: 'pag-pix', cartao: 'pag-cartao' };
+  const labelPag  = { dinheiro: '💵 Dinheiro', pix: '🟣 Pix', cartao: '💳 Cartão' };
+  try {
+    await apiFetch(`/vendas/${id}/pagamento`, { method: 'PATCH', body: JSON.stringify({ forma_pagamento }) });
+    const v = historicoVendas?.find(x => x.id === id);
+    if (v) v.forma_pagamento = forma_pagamento;
+    const badge = document.getElementById(`hist-pag-badge-${id}`);
+    if (badge) {
+      badge.textContent = labelPag[forma_pagamento] || forma_pagamento;
+      badge.className = `hist-pag ${pagClass[forma_pagamento] || ''}`;
+    }
+    cancelarEditPag(id);
+    showToast('Pagamento atualizado', 'green-toast');
+  } catch (e) {
+    cancelarEditPag(id);
+    showToast('Erro: ' + e.message, 'error-toast');
+  }
+}
+
 function editarObservacao(id) {
   document.getElementById(`hist-obs-${id}`)?.style.setProperty('display', 'none');
   const editRow = document.getElementById(`hist-obs-edit-${id}`);
@@ -1850,7 +1881,14 @@ function renderHistoricoLista() {
       </div>
       <div class="hist-right">
         <span class="hist-total">${fmt(venda.total)}</span>
-        <span class="hist-pag ${pagClass[pag] || ''}">${labelPag[pag] || pag}</span>
+        <span class="hist-pag ${pagClass[pag] || ''}" id="hist-pag-badge-${venda.id}" onclick="editarPagamento(${venda.id})" title="Toque para alterar" style="cursor:pointer">${labelPag[pag] || pag}</span>
+        <select class="hist-pag-select" id="hist-pag-sel-${venda.id}" style="display:none"
+          onchange="salvarPagamento(${venda.id}, this.value)"
+          onblur="cancelarEditPag(${venda.id})">
+          <option value="dinheiro" ${pag==='dinheiro'?'selected':''}>💵 Dinheiro</option>
+          <option value="pix"      ${pag==='pix'     ?'selected':''}>🟣 Pix</option>
+          <option value="cartao"   ${pag==='cartao'  ?'selected':''}>💳 Cartão</option>
+        </select>
         ${venda.operador ? `<span class="hist-operador">${venda.operador}</span>` : ''}
         <button class="hist-del" onclick="deletarVenda(${venda.id}, this)" title="Excluir venda">🗑</button>
       </div>

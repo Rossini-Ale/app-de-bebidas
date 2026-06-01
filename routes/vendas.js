@@ -121,6 +121,44 @@ router.get('/sync-export', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+/* POST /api/vendas/sync-repair — insere itens faltando em vendas já importadas */
+router.post('/sync-repair', async (req, res) => {
+  const vendas = req.body;
+  if (!Array.isArray(vendas)) return res.status(400).json({ error: 'Esperado array de vendas' });
+
+  try {
+    const [prods] = await db.query('SELECT id, nome FROM produtos WHERE evento_id = ?', [req.eventoId]);
+    const nomePorId = {};
+    prods.forEach(p => { nomePorId[p.nome.toLowerCase()] = p.id; });
+
+    let reparadas = 0, ignoradas = 0;
+
+    for (const v of vendas) {
+      if (!v.sync_key) { ignoradas++; continue; }
+      const [[venda]] = await db.query('SELECT id FROM vendas WHERE sync_key = ?', [v.sync_key]);
+      if (!venda) { ignoradas++; continue; }
+
+      const [existentes] = await db.query('SELECT produto_id FROM venda_itens WHERE venda_id = ?', [venda.id]);
+      const existenteIds = new Set(existentes.map(i => Number(i.produto_id)));
+
+      let inseridos = 0;
+      for (const item of (v.itens || [])) {
+        const prodId = nomePorId[item.nome?.toLowerCase()];
+        if (!prodId || existenteIds.has(prodId)) continue;
+        try {
+          await db.query(
+            'INSERT INTO venda_itens (venda_id, produto_id, quantidade, preco_unitario) VALUES (?, ?, ?, ?)',
+            [venda.id, prodId, item.quantidade, item.preco_unitario]
+          );
+          inseridos++;
+        } catch (_) {}
+      }
+      if (inseridos > 0) reparadas++; else ignoradas++;
+    }
+    res.json({ ok: true, reparadas, ignoradas });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 /* POST /api/vendas/sync-import — importa vendas de outro servidor (idempotente via sync_key) */
 router.post('/sync-import', async (req, res) => {
   const vendas = req.body;

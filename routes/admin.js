@@ -404,6 +404,55 @@ router.post('/exportar-railway', async (req, res) => {
   }
 });
 
+/* POST /api/admin/reparar-railway — insere itens faltando nas vendas já no Railway */
+router.post('/reparar-railway', async (req, res) => {
+  const railwayUrl   = process.env.RAILWAY_URL;
+  const railwaySenha = process.env.RAILWAY_SENHA || process.env.APP_SENHA || 'unifsp2026';
+  if (!railwayUrl) return res.status(400).json({ error: 'RAILWAY_URL não configurada' });
+
+  try {
+    const loginRes = await fetch(`${railwayUrl}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ operador: 'sync', senha: railwaySenha }),
+    });
+    if (!loginRes.ok) return res.status(502).json({ error: 'Login no Railway falhou' });
+    const cookieHeader = loginRes.headers.getSetCookie()
+      .map(c => c.split(';')[0].trim()).join('; ');
+
+    // Busca todas as vendas locais com itens
+    await db.query(`UPDATE vendas SET sync_key = CONCAT('legacy-', id) WHERE sync_key IS NULL AND evento_id = ?`, [req.eventoId]);
+    const [vendaRows] = await db.query(`
+      SELECT v.id, v.sync_key, vi.quantidade, vi.preco_unitario, p.nome AS produto_nome
+      FROM vendas v
+      JOIN venda_itens vi ON vi.venda_id = v.id
+      JOIN produtos p    ON vi.produto_id = p.id
+      WHERE v.evento_id = ? ORDER BY v.id, vi.id
+    `, [req.eventoId]);
+
+    const vendasMap = {};
+    for (const row of vendaRows) {
+      if (!vendasMap[row.id]) vendasMap[row.id] = { sync_key: row.sync_key || `legacy-${row.id}`, itens: [] };
+      vendasMap[row.id].itens.push({ nome: row.produto_nome, quantidade: row.quantidade, preco_unitario: row.preco_unitario });
+    }
+
+    const r = await fetch(`${railwayUrl}/api/vendas/sync-repair`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Cookie': cookieHeader },
+      body: JSON.stringify(Object.values(vendasMap)),
+    });
+    const ct = r.headers.get('content-type') || '';
+    if (!r.ok || !ct.includes('application/json')) {
+      const body = await r.text().catch(() => '');
+      return res.status(502).json({ error: `Railway rejeitou reparo (${r.status}): ${body.slice(0, 120)}` });
+    }
+    const d = await r.json();
+    res.json({ ok: true, reparadas: d.reparadas, ignoradas: d.ignoradas });
+  } catch (err) {
+    if (err.cause?.code === 'ECONNREFUSED' || err.message.includes('fetch'))
+      return res.status(503).json({ error: 'Sem conexão com o Railway.' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* GET /api/admin/fundo — fundo de caixa do evento */
 router.get('/fundo', async (req, res) => {
   try {

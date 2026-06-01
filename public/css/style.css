@@ -907,6 +907,7 @@ button { touch-action: manipulation; }
 .hist-obs-cancel { background:var(--bg-sec); color:var(--muted); border:1px solid var(--border-s); border-radius:6px; padding:4px 8px; font-size:12px; cursor:pointer; font-family:inherit; }
 .hist-edit-obs-btn { background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; padding:2px 4px; opacity:.6; }
 .hist-edit-obs-btn:hover { opacity:1; }
+.hist-pag-select { font-size:11px; padding:2px 4px; border:1px solid var(--border-s); border-radius:5px; background:var(--bg-sec); color:var(--text); font-family:inherit; cursor:pointer; }
 .admin-btn-revert { width:100%; padding:13px; margin-top:8px; background:var(--amber); color:#fff; border:none; border-radius:var(--r); font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .12s; }
 .admin-btn-revert:active { opacity:.8; }
 .admin-btn-revert.confirming { background:var(--amber-d); }
